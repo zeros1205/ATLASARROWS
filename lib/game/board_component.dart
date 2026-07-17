@@ -22,6 +22,13 @@ class BoardComponent extends PositionComponent {
     }
   }
 
+  LineComponent? lineById(int id) {
+    for (final child in children.whereType<LineComponent>()) {
+      if (child.line.id == id) return child;
+    }
+    return null;
+  }
+
   @override
   void render(Canvas canvas) {
     final dot = Paint()..color = ZTheme.dot;

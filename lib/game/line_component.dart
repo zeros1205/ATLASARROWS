@@ -39,8 +39,14 @@ class LineComponent extends PositionComponent
 
   bool get animating => _anim != _Anim.idle;
 
+  double _flash = 0;
+
+  /// Briefly tints this line red — used on the blocker so the player sees
+  /// what stopped their arrow.
+  void flashRed() => _flash = 0.4;
+
   Color get _color => switch (_anim) {
-        _Anim.idle => ZTheme.ink,
+        _Anim.idle => _flash > 0 ? ZTheme.danger : ZTheme.ink,
         _Anim.escaping => ZTheme.accent,
         _Anim.bumpOut || _Anim.bumpBack => ZTheme.danger,
       };
@@ -93,6 +99,7 @@ class LineComponent extends PositionComponent
   @override
   void update(double dt) {
     super.update(dt);
+    if (_flash > 0) _flash -= dt;
     switch (_anim) {
       case _Anim.idle:
         break;
