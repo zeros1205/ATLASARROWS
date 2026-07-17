@@ -16,7 +16,7 @@ import 'line_component.dart';
 import 'sfx.dart';
 
 class ZArrowsGame extends FlameGame {
-  ZArrowsGame({required this.levels});
+  ZArrowsGame({required this.levels, this.startAt = 0, this.onCleared});
 
   static const clearedOverlayKey = 'cleared';
   static const failedOverlayKey = 'failed';
@@ -26,6 +26,11 @@ class ZArrowsGame extends FlameGame {
   static const comboWindow = Duration(seconds: 5);
 
   final List<Level> levels;
+  final int startAt;
+
+  /// Fired once per clear, before the overlay shows — progress/ads hook.
+  final void Function(int levelIndex)? onCleared;
+
   final ValueNotifier<int> levelIndex = ValueNotifier(0);
   final ValueNotifier<int> hearts = ValueNotifier(maxHearts);
 
@@ -41,7 +46,23 @@ class ZArrowsGame extends FlameGame {
   @override
   Future<void> onLoad() async {
     await Sfx.preload();
-    startLevel(0);
+    startLevel(startAt);
+  }
+
+  /// Highlights one currently-free line. Returns false when none exists
+  /// (only possible mid-animation) or input is locked.
+  bool showHint() {
+    if (_inputLocked) return false;
+    for (final id in logic.lines.keys) {
+      if (logic.tap(id) is MoveEscaped) {
+        final lineComponent = _board?.lineById(id);
+        if (lineComponent != null && !lineComponent.animating) {
+          lineComponent.flashHint();
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   void startLevel(int index) {
@@ -64,9 +85,12 @@ class ZArrowsGame extends FlameGame {
     startLevel(levelIndex.value);
   }
 
+  bool get isLastLevel => levelIndex.value >= levels.length - 1;
+
   void nextLevel() {
     overlays.remove(clearedOverlayKey);
-    startLevel((levelIndex.value + 1) % levels.length);
+    final next = levelIndex.value + 1;
+    if (next < levels.length) startLevel(next);
   }
 
   @override
@@ -108,6 +132,7 @@ class ZArrowsGame extends FlameGame {
     lineComponent.escape(onGone: () {
       if (logic.isCleared) {
         Sfx.clear();
+        onCleared?.call(levelIndex.value);
         add(
           TimerComponent(
             period: 0.35,

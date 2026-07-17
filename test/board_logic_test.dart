@@ -68,8 +68,8 @@ void main() {
 
   group('generateLevel', () {
     test('bundled levels are dense, in-mask, and solvable', () {
-      final levels = loadBundledLevels();
-      expect(levels, hasLength(10));
+      final levels = bundledLevels;
+      expect(levels, hasLength(50));
       for (var i = 0; i < levels.length; i++) {
         final lvl = levels[i];
         final cellCount =

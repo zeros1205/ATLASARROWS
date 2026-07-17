@@ -1,95 +1,41 @@
 import 'level.dart';
 import 'level_generator.dart';
 
-/// Bundled levels: dense generated mazes with varied silhouettes and
-/// mixed line lengths. Every level is solvable by construction and the
-/// suite in board_logic_test.dart re-verifies with the greedy solver.
+/// Levels per chapter in the level-select UI.
+const int levelsPerChapter = 10;
+
+/// Bundled levels: 50 dense generated mazes (5 chapters), ramping in
+/// size, fill, and line length. Silhouettes rotate blob/ellipse/rect/
+/// diamond; GPT-designed picture silhouettes arrive via the shape
+/// pipeline (tools/validate_shapes.py) in M3.
 ///
 /// NOTE(M3): dart:math Random may differ across VM/web, so generated
 /// boards can vary per platform (each still solvable). The real level
 /// pipeline will pre-bake levels to JSON assets.
-List<Level> loadBundledLevels() {
-  return [
-    // Warm-up: organic blob, still ~20 lines.
-    generateLevel(
-      rows: 12,
-      cols: 9,
-      mask: BoardMasks.blob(12, 9, 7),
-      seed: 101,
-      fill: 0.78,
-      maxLen: 9,
-    ),
-    generateLevel(
-      rows: 12,
-      cols: 9,
-      mask: BoardMasks.ellipse(12, 9),
-      seed: 102,
-      fill: 0.82,
-      maxLen: 10,
-    ),
-    generateLevel(
-      rows: 13,
-      cols: 10,
-      mask: BoardMasks.rect(13, 10),
-      seed: 103,
-      fill: 0.84,
-      maxLen: 10,
-    ),
-    generateLevel(
-      rows: 14,
-      cols: 11,
-      mask: BoardMasks.diamond(14, 11),
-      seed: 104,
-      fill: 0.86,
-      maxLen: 11,
-    ),
-    generateLevel(
-      rows: 14,
-      cols: 10,
-      mask: BoardMasks.blob(14, 10, 21),
-      seed: 105,
-      fill: 0.87,
-      maxLen: 12,
-    ),
-    generateLevel(
-      rows: 15,
-      cols: 11,
-      mask: BoardMasks.ellipse(15, 11),
-      seed: 106,
-      fill: 0.88,
-      maxLen: 12,
-    ),
-    generateLevel(
-      rows: 15,
-      cols: 10,
-      mask: BoardMasks.rect(15, 10),
-      seed: 107,
-      fill: 0.9,
-      maxLen: 12,
-    ),
-    generateLevel(
-      rows: 16,
-      cols: 11,
-      mask: BoardMasks.blob(16, 11, 33),
-      seed: 108,
-      fill: 0.9,
-      maxLen: 13,
-    ),
-    generateLevel(
-      rows: 16,
-      cols: 12,
-      mask: BoardMasks.diamond(16, 12),
-      seed: 109,
-      fill: 0.91,
-      maxLen: 13,
-    ),
-    generateLevel(
-      rows: 17,
-      cols: 12,
-      mask: BoardMasks.blob(17, 12, 55),
-      seed: 110,
-      fill: 0.92,
-      maxLen: 14,
-    ),
-  ];
+final List<Level> bundledLevels = _generate();
+
+List<Level> _generate() {
+  final levels = <Level>[];
+  for (var i = 0; i < 50; i++) {
+    final rows = 12 + i ~/ 9; // 12..17
+    final cols = 9 + i ~/ 18; // 9..11
+    final fill = 0.78 + (i * 0.003).clamp(0.0, 0.15); // .78 → .93
+    final mask = switch (i % 4) {
+      0 => BoardMasks.blob(rows, cols, 900 + i),
+      1 => BoardMasks.ellipse(rows, cols),
+      2 => BoardMasks.rect(rows, cols),
+      _ => BoardMasks.diamond(rows, cols),
+    };
+    levels.add(
+      generateLevel(
+        rows: rows,
+        cols: cols,
+        mask: mask,
+        seed: 1000 + i,
+        fill: fill,
+        maxLen: 9 + i ~/ 10, // 9..14
+      ),
+    );
+  }
+  return levels;
 }

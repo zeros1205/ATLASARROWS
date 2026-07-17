@@ -1,8 +1,11 @@
 import 'package:flame_audio/flame_audio.dart';
 import 'package:flutter/services.dart';
 
-/// Sound + haptic feedback. Every call is fire-and-forget and swallows
-/// platform errors (web autoplay policies, missing haptics on desktop).
+import '../services/progress.dart';
+
+/// Sound + haptic feedback, gated by the player's settings. Every call is
+/// fire-and-forget and swallows platform errors (web autoplay policies,
+/// missing haptics on desktop).
 abstract final class Sfx {
   static const _files = [
     'pop_0.wav',
@@ -27,27 +30,33 @@ abstract final class Sfx {
   /// Escape pop; [comboIndex] 0..n raises the pitch a semitone per step.
   static void pop(int comboIndex) {
     _play('pop_${comboIndex.clamp(0, 7)}.wav', 0.8);
-    HapticFeedback.lightImpact().catchError((_) {});
+    _haptic(HapticFeedback.lightImpact);
   }
 
   static void block() {
     _play('block.wav', 0.8);
-    HapticFeedback.mediumImpact().catchError((_) {});
+    _haptic(HapticFeedback.mediumImpact);
   }
 
   static void clear() {
     _play('clear.wav', 0.9);
-    HapticFeedback.lightImpact().catchError((_) {});
+    _haptic(HapticFeedback.lightImpact);
   }
 
   static void fail() {
     _play('fail.wav', 0.85);
-    HapticFeedback.heavyImpact().catchError((_) {});
+    _haptic(HapticFeedback.heavyImpact);
   }
 
   static void _play(String file, double volume) {
+    if (!Progress.instance.soundOn.value) return;
     try {
       FlameAudio.play(file, volume: volume);
     } catch (_) {}
+  }
+
+  static void _haptic(Future<void> Function() impact) {
+    if (!Progress.instance.hapticsOn.value) return;
+    impact().catchError((_) {});
   }
 }
