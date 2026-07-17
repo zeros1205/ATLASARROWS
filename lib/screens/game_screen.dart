@@ -1,9 +1,12 @@
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 
+import 'package:in_app_purchase/in_app_purchase.dart';
+
 import '../game/z_arrows_game.dart';
 import '../models/level_repository.dart';
 import '../services/ads/ads.dart';
+import '../services/iap.dart';
 import '../services/progress.dart';
 import '../theme.dart';
 
@@ -32,16 +35,49 @@ class _GameScreenState extends State<GameScreen> {
 
   void _onHintPressed() {
     final progress = Progress.instance;
-    if (progress.hints.value <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('힌트가 없습니다 — 충전은 다음 업데이트에서!'),
-          duration: Duration(seconds: 2),
-        ),
-      );
+    if (progress.hints.value > 0) {
+      if (game.showHint()) progress.useHint();
       return;
     }
-    if (game.showHint()) progress.useHint();
+    _openHintShop();
+  }
+
+  void _openHintShop() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: ZTheme.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => _HintShopSheet(
+        onWatchAd: () {
+          Navigator.of(sheetContext).pop();
+          Ads.showRewarded(
+            onReward: () {
+              Progress.instance.grantHints(1);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('+1 HINT'),
+                    duration: Duration(seconds: 1),
+                  ),
+                );
+              }
+            },
+            onUnavailable: () {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Ad not ready — try again in a moment'),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              }
+            },
+          );
+        },
+      ),
+    );
   }
 
   @override
@@ -149,6 +185,144 @@ class _GameScreenState extends State<GameScreen> {
           ),
           const AdsBanner(),
         ],
+      ),
+    );
+  }
+}
+
+class _HintShopSheet extends StatelessWidget {
+  const _HintShopSheet({required this.onWatchAd});
+
+  final VoidCallback onWatchAd;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'GET HINTS',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: ZTheme.ink,
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 3,
+              ),
+            ),
+            const SizedBox(height: 18),
+            _ShopTile(
+              icon: Icons.play_circle_outline,
+              title: 'WATCH AD',
+              trailing: '+1',
+              accent: ZTheme.accent,
+              onTap: onWatchAd,
+            ),
+            const SizedBox(height: 10),
+            ValueListenableBuilder<List<ProductDetails>>(
+              valueListenable: IapService.instance.products,
+              builder: (context, products, _) {
+                if (products.isEmpty) {
+                  return Column(
+                    children: [
+                      for (final entry in IapService.hintProducts.entries)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: _ShopTile(
+                            icon: Icons.lightbulb_outline,
+                            title: '${entry.value} HINTS',
+                            trailing: 'COMING SOON',
+                            accent: ZTheme.inkSoft,
+                            onTap: null,
+                          ),
+                        ),
+                    ],
+                  );
+                }
+                return Column(
+                  children: [
+                    for (final product in products)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: _ShopTile(
+                          icon: Icons.lightbulb,
+                          title:
+                              '${IapService.hintProducts[product.id] ?? '?'} HINTS',
+                          trailing: product.price,
+                          accent: ZTheme.ink,
+                          onTap: () {
+                            Navigator.of(context).pop();
+                            IapService.instance.buy(product);
+                          },
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ShopTile extends StatelessWidget {
+  const _ShopTile({
+    required this.icon,
+    required this.title,
+    required this.trailing,
+    required this.accent,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String trailing;
+  final Color accent;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+        decoration: BoxDecoration(
+          border: Border.all(color: accent, width: 1.5),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: accent),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  color: onTap == null ? ZTheme.inkSoft : ZTheme.ink,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 15,
+                  letterSpacing: 1,
+                ),
+              ),
+            ),
+            Text(
+              trailing,
+              style: TextStyle(
+                color: accent,
+                fontWeight: FontWeight.w900,
+                fontSize: 14,
+                letterSpacing: 1,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

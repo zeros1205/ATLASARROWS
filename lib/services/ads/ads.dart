@@ -4,6 +4,7 @@
 ///
 ///   Ads.init()
 ///   Ads.maybeShowInterstitial(totalClears: ..., levelIndex: ...)
+///   Ads.showRewarded(onReward: ..., onUnavailable: ...)
 ///   AdsBanner()  — 60px-tall banner widget for the bottom of every screen
 library;
 

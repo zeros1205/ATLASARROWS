@@ -10,6 +10,15 @@ abstract final class Ads {
     required int totalClears,
     required int levelIndex,
   }) {}
+
+  /// No ad SDK here — succeed immediately so the reward flow is testable
+  /// during web/desktop development.
+  static void showRewarded({
+    required VoidCallback onReward,
+    VoidCallback? onUnavailable,
+  }) {
+    onReward();
+  }
 }
 
 class AdsBanner extends StatelessWidget {

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'models/shape_catalog.dart';
 import 'screens/home_screen.dart';
 import 'services/ads/ads.dart';
+import 'services/iap.dart';
 import 'services/progress.dart';
 import 'theme.dart';
 
@@ -14,6 +15,7 @@ Future<void> main() async {
     await Progress.instance.load();
     await ShapeCatalog.load();
     await Ads.init();
+    await IapService.instance.init();
     runApp(const ZArrowsApp());
   }, (error, stack) {
     // Surfaces minified web-release startup failures in the console.

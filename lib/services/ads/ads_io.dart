@@ -14,6 +14,10 @@ String get _interstitialId => Platform.isAndroid
     ? 'ca-app-pub-3940256099942544/1033173712'
     : 'ca-app-pub-3940256099942544/4411468910';
 
+String get _rewardedId => Platform.isAndroid
+    ? 'ca-app-pub-3940256099942544/5224354917'
+    : 'ca-app-pub-3940256099942544/1712485313';
+
 bool get _supported => Platform.isAndroid || Platform.isIOS;
 
 abstract final class Ads {
@@ -28,6 +32,7 @@ abstract final class Ads {
     if (!_supported) return;
     await MobileAds.instance.initialize();
     _preloadInterstitial();
+    _preloadRewarded();
   }
 
   static void _preloadInterstitial() {
@@ -70,6 +75,52 @@ abstract final class Ads {
       },
     );
     ad.show();
+  }
+
+  static RewardedAd? _rewarded;
+  static bool _loadingRewarded = false;
+
+  static void _preloadRewarded() {
+    if (!_supported || _loadingRewarded || _rewarded != null) return;
+    _loadingRewarded = true;
+    RewardedAd.load(
+      adUnitId: _rewardedId,
+      request: const AdRequest(),
+      rewardedAdLoadCallback: RewardedAdLoadCallback(
+        onAdLoaded: (ad) {
+          _rewarded = ad;
+          _loadingRewarded = false;
+        },
+        onAdFailedToLoad: (_) => _loadingRewarded = false,
+      ),
+    );
+  }
+
+  /// Shows the preloaded rewarded ad; [onReward] fires only when the user
+  /// actually earned the reward.
+  static void showRewarded({
+    required VoidCallback onReward,
+    VoidCallback? onUnavailable,
+  }) {
+    final ad = _rewarded;
+    if (!_supported || ad == null) {
+      _preloadRewarded();
+      onUnavailable?.call();
+      return;
+    }
+    _rewarded = null;
+    ad.fullScreenContentCallback = FullScreenContentCallback(
+      onAdDismissedFullScreenContent: (ad) {
+        ad.dispose();
+        _preloadRewarded();
+      },
+      onAdFailedToShowFullScreenContent: (ad, _) {
+        ad.dispose();
+        _preloadRewarded();
+        onUnavailable?.call();
+      },
+    );
+    ad.show(onUserEarnedReward: (_, _) => onReward());
   }
 }
 
