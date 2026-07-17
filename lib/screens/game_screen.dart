@@ -2,7 +2,7 @@ import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 
 import '../game/z_arrows_game.dart';
-import '../models/levels.dart';
+import '../models/level_repository.dart';
 import '../services/ads/ads.dart';
 import '../services/progress.dart';
 import '../theme.dart';
@@ -18,7 +18,7 @@ class GameScreen extends StatefulWidget {
 
 class _GameScreenState extends State<GameScreen> {
   late final ZArrowsGame game = ZArrowsGame(
-    levels: bundledLevels,
+    repository: LevelRepository.instance,
     startAt: widget.initialIndex,
     onCleared: (index) {
       final progress = Progress.instance;

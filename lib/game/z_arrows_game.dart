@@ -8,7 +8,7 @@ import 'package:flutter/animation.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 
-import '../models/level.dart';
+import '../models/level_repository.dart';
 import '../theme.dart';
 import 'board_component.dart';
 import 'board_logic.dart';
@@ -16,7 +16,7 @@ import 'line_component.dart';
 import 'sfx.dart';
 
 class ZArrowsGame extends FlameGame {
-  ZArrowsGame({required this.levels, this.startAt = 0, this.onCleared});
+  ZArrowsGame({required this.repository, this.startAt = 0, this.onCleared});
 
   static const clearedOverlayKey = 'cleared';
   static const failedOverlayKey = 'failed';
@@ -25,7 +25,7 @@ class ZArrowsGame extends FlameGame {
   /// Escapes within this window chain into a combo (rising pop pitch).
   static const comboWindow = Duration(seconds: 5);
 
-  final List<Level> levels;
+  final LevelRepository repository;
   final int startAt;
 
   /// Fired once per clear, before the overlay shows — progress/ads hook.
@@ -70,10 +70,10 @@ class ZArrowsGame extends FlameGame {
     hearts.value = maxHearts;
     _inputLocked = false;
     _combo = 0;
-    logic = BoardLogic.fromLevel(levels[index]);
+    final level = repository.levelAt(index);
+    logic = BoardLogic.fromLevel(level);
     _board?.removeFromParent();
-    final board = BoardComponent(level: levels[index])
-      ..anchor = Anchor.center;
+    final board = BoardComponent(level: level)..anchor = Anchor.center;
     _board = board;
     add(board);
     _layoutBoard(size);
@@ -85,12 +85,12 @@ class ZArrowsGame extends FlameGame {
     startLevel(levelIndex.value);
   }
 
-  bool get isLastLevel => levelIndex.value >= levels.length - 1;
+  bool get isLastLevel => levelIndex.value >= repository.length - 1;
 
   void nextLevel() {
     overlays.remove(clearedOverlayKey);
     final next = levelIndex.value + 1;
-    if (next < levels.length) startLevel(next);
+    if (next < repository.length) startLevel(next);
   }
 
   @override

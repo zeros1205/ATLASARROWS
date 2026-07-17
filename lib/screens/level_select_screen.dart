@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../models/level_repository.dart';
 import '../models/levels.dart';
 import '../services/ads/ads.dart';
 import '../services/progress.dart';
@@ -11,7 +12,8 @@ class LevelSelectScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final chapters = (bundledLevels.length / levelsPerChapter).ceil();
+    final total = LevelRepository.instance.length;
+    final chapters = (total / levelsPerChapter).ceil();
     return Scaffold(
       appBar: AppBar(
         backgroundColor: ZTheme.bg,
@@ -36,8 +38,8 @@ class LevelSelectScreen extends StatelessWidget {
                 itemCount: chapters,
                 itemBuilder: (context, chapter) {
                   final start = chapter * levelsPerChapter;
-                  final count = (bundledLevels.length - start)
-                      .clamp(0, levelsPerChapter);
+                  final count =
+                      (total - start).clamp(0, levelsPerChapter);
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [

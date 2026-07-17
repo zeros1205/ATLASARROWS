@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:z_arrows/game/board_logic.dart';
 import 'package:z_arrows/models/arrow_line.dart';
@@ -5,6 +7,7 @@ import 'package:z_arrows/models/direction.dart';
 import 'package:z_arrows/models/level.dart';
 import 'package:z_arrows/models/level_generator.dart';
 import 'package:z_arrows/models/levels.dart';
+import 'package:z_arrows/models/shape_catalog.dart';
 
 Level level(int rows, int cols, List<String> specs) =>
     Level.parse(rows: rows, cols: cols, lineSpecs: specs);
@@ -86,6 +89,27 @@ void main() {
         }
         expect(BoardLogic.isSolvable(lvl), isTrue,
             reason: 'bundled level ${i + 1} is not solvable');
+      }
+    });
+
+    test('shape-catalog levels generate dense and solvable (sampled)', () {
+      final raw = File('assets/shapes/shapes.json').readAsStringSync();
+      final shapes = ShapeCatalog.parse(raw);
+      expect(shapes.length, greaterThan(1000));
+      for (var i = 0; i < shapes.length; i += 79) {
+        final shape = shapes[i];
+        final lvl = generateLevel(
+          rows: shape.rows,
+          cols: shape.cols,
+          mask: shape.mask,
+          seed: 7000 + i,
+          fill: shape.isBoss ? 0.9 : 0.87,
+          maxLen: shape.isBoss ? 14 : 12,
+        );
+        expect(lvl.lines.length, greaterThanOrEqualTo(10),
+            reason: 'shape ${shape.name} too few lines');
+        expect(BoardLogic.isSolvable(lvl), isTrue,
+            reason: 'shape ${shape.name} unsolvable');
       }
     });
 

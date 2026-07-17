@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'models/shape_catalog.dart';
 import 'screens/home_screen.dart';
 import 'services/ads/ads.dart';
 import 'services/progress.dart';
@@ -11,6 +12,7 @@ Future<void> main() async {
   await runZonedGuarded(() async {
     WidgetsFlutterBinding.ensureInitialized();
     await Progress.instance.load();
+    await ShapeCatalog.load();
     await Ads.init();
     runApp(const ZArrowsApp());
   }, (error, stack) {

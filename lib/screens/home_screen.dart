@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../models/levels.dart';
+import '../models/level_repository.dart';
 import '../services/ads/ads.dart';
 import '../services/progress.dart';
 import '../theme.dart';
@@ -58,8 +58,8 @@ class HomeScreen extends StatelessWidget {
                   ValueListenableBuilder<int>(
                     valueListenable: progress.unlocked,
                     builder: (context, unlocked, _) {
-                      final next =
-                          unlocked.clamp(0, bundledLevels.length - 1);
+                      final next = unlocked.clamp(
+                          0, LevelRepository.instance.length - 1);
                       return FilledButton(
                         style: FilledButton.styleFrom(
                           backgroundColor: ZTheme.ink,
