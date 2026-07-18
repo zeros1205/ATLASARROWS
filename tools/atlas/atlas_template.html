@@ -1,0 +1,217 @@
+<title>세계 실루엣 아틀라스 — Z-Arrows</title>
+<style>
+  :root {
+    --bg: #F7F6F2; --card: #FFFFFF; --ink: #23252E; --ink-soft: #9A9DAB;
+    --accent: #2F6BFF; --danger: #FF4D67; --dot: #E4E3DD; --line: #ECEBE5;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #17181D; --card: #1F2127; --ink: #ECEBE6; --ink-soft: #7C7F8C; --dot: #2A2C34; --line: #2A2C34; }
+  }
+  :root[data-theme="dark"] { --bg: #17181D; --card: #1F2127; --ink: #ECEBE6; --ink-soft: #7C7F8C; --dot: #2A2C34; --line: #2A2C34; }
+  :root[data-theme="light"] { --bg: #F7F6F2; --card: #FFFFFF; --ink: #23252E; --ink-soft: #9A9DAB; --dot: #E4E3DD; --line: #ECEBE5; }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    margin: 0; padding: 0 20px 64px;
+  }
+  .wrap { max-width: 1200px; margin: 0 auto; }
+  header { padding: 36px 0 16px; }
+  h1 { font-size: 22px; font-weight: 700; margin: 0 0 4px; }
+  .sub { color: var(--ink-soft); font-size: 13.5px; margin: 0 0 18px; max-width: 70ch; line-height: 1.6; }
+  .sub b { color: var(--ink); font-weight: 600; }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .controls input[type="search"], .controls select {
+    background: var(--card); color: var(--ink); border: 1px solid var(--line);
+    border-radius: 8px; padding: 7px 10px; font-size: 13px; font-family: inherit;
+  }
+  .controls input[type="search"] { width: 210px; }
+  .controls input:focus-visible, .controls select:focus-visible, .chip:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 1px;
+  }
+  .chip {
+    background: var(--card); color: var(--ink); border: 1px solid var(--line);
+    border-radius: 999px; padding: 7px 14px; font-size: 13px; font-family: inherit; cursor: pointer;
+  }
+  .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .count { margin-left: auto; color: var(--ink-soft); font-size: 13px; font-variant-numeric: tabular-nums; }
+
+  .grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: 12px; padding-top: 16px;
+  }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 12px; display: flex; flex-direction: column; gap: 6px;
+  }
+  .card canvas { width: 100%; aspect-ratio: 1; display: block; }
+  .title { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+  .ko { font-size: 13.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .en { color: var(--ink-soft); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .meta { color: var(--ink-soft); font-size: 11px; font-variant-numeric: tabular-nums; display: flex; gap: 5px; align-items: center; }
+  .badge {
+    border-radius: 999px; padding: 1px 7px; font-size: 10px; font-weight: 700;
+    letter-spacing: 0.04em;
+    background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent);
+  }
+  .empty { grid-column: 1 / -1; text-align: center; color: var(--ink-soft); padding: 60px 0; font-size: 14px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>세계 실루엣 아틀라스</h1>
+    <p class="sub">퍼즐 보드 마스크 후보 — 국가 <b>__NC__</b>개(Natural Earth 50m 국경) +
+      도시 <b>__CC__</b>개(OSM 행정경계) + 동물 <b>__AC__</b>개(일러스트 자동 추출).
+      고해상도 격자(긴 변 14~44셀), 게임 규격 적용 전 원본. 큰 보드는 인게임 줌/팬 전제.</p>
+    <div class="controls">
+      <input type="search" id="q" placeholder="검색 (한글/영문 이름)">
+      <select id="kind">
+        <option value="">전체</option>
+        <option value="country">국가만</option>
+        <option value="city">도시만</option>
+        <option value="animal">동물만</option>
+      </select>
+      <select id="continent"><option value="">모든 대륙</option></select>
+      <select id="sort">
+        <option value="name">이름순</option>
+        <option value="big">큰 것부터</option>
+        <option value="small">작은 것부터</option>
+      </select>
+      <span class="count" id="count"></span>
+    </div>
+  </header>
+  <main class="grid" id="grid"></main>
+</div>
+
+<script id="data-countries" type="application/json">__COUNTRIES__</script>
+<script id="data-cities" type="application/json">__CITIES__</script>
+<script id="data-animals" type="application/json">__ANIMALS__</script>
+<script>
+  const countries = JSON.parse(document.getElementById('data-countries').textContent).shapes;
+  const cities = JSON.parse(document.getElementById('data-cities').textContent).shapes;
+  const animals = JSON.parse(document.getElementById('data-animals').textContent).shapes;
+  const shapes = [
+    ...countries.map(s => ({ ...s, kind: 'country' })),
+    ...cities.map(s => ({ ...s, kind: 'city', continent: '' })),
+    ...animals.map(s => ({ ...s, kind: 'animal', continent: '' })),
+  ];
+  const grid = document.getElementById('grid');
+  const qEl = document.getElementById('q');
+  const kindEl = document.getElementById('kind');
+  const contEl = document.getElementById('continent');
+  const sortEl = document.getElementById('sort');
+  const countEl = document.getElementById('count');
+
+  const CONT_KO = {
+    'Asia': '아시아', 'Europe': '유럽', 'Africa': '아프리카',
+    'North America': '북아메리카', 'South America': '남아메리카',
+    'Oceania': '오세아니아', 'Antarctica': '남극',
+    'Seven seas (open ocean)': '해양',
+  };
+  for (const c of [...new Set(countries.map(s => s.continent))].sort()) {
+    if (!c) continue;
+    const o = document.createElement('option');
+    o.value = c; o.textContent = CONT_KO[c] || c;
+    contEl.append(o);
+  }
+
+  const cards = shapes.map(s => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `<canvas></canvas>
+      <div class="title"><span class="ko">${s.ko}</span><span class="en">${s.name}</span></div>
+      <div class="meta"><span>${s.rows}×${s.cols}</span><span>·</span><span>${s.cells}칸</span>${
+        s.kind === 'city' ? '<span class="badge">도시</span>'
+        : s.kind === 'animal' ? '<span class="badge">동물</span>' : ''}</div>`;
+    grid.append(card);
+    return { el: card, canvas: card.querySelector('canvas'), shape: s,
+             hay: (s.ko + ' ' + s.name).toLowerCase() };
+  });
+
+  const emptyMsg = document.createElement('div');
+  emptyMsg.className = 'empty';
+  emptyMsg.textContent = '조건에 맞는 실루엣이 없어요.';
+  emptyMsg.hidden = true;
+  grid.append(emptyMsg);
+
+  const drawn = new Set();
+  function draw(c) {
+    const cv = c.canvas, s = c.shape;
+    const w = cv.clientWidth || 180;
+    const dpr = window.devicePixelRatio || 1;
+    cv.width = w * dpr; cv.height = w * dpr;
+    const ctx = cv.getContext('2d');
+    ctx.scale(dpr, dpr);
+    const css = getComputedStyle(document.documentElement);
+    const ink = css.getPropertyValue('--ink').trim();
+    const dot = css.getPropertyValue('--dot').trim();
+    const pad = 4;
+    const cs = Math.min((w - pad * 2) / s.cols, (w - pad * 2) / s.rows);
+    const ox = (w - cs * s.cols) / 2, oy = (w - cs * s.rows) / 2;
+    const g = Math.min(Math.max(cs * 0.10, 0.4), 1.2);
+    const r = Math.max(cs * 0.16, 0.8);
+    for (let row = 0; row < s.rows; row++) {
+      for (let col = 0; col < s.cols; col++) {
+        const x = ox + col * cs, y = oy + row * cs;
+        if (s.grid[row][col] === '#') {
+          ctx.fillStyle = ink;
+          ctx.beginPath();
+          ctx.roundRect(x + g, y + g, cs - 2 * g, cs - 2 * g, r);
+          ctx.fill();
+        } else if (cs > 4) {
+          ctx.fillStyle = dot;
+          ctx.beginPath();
+          ctx.arc(x + cs / 2, y + cs / 2, Math.max(cs * 0.05, 0.4), 0, 7);
+          ctx.fill();
+        }
+      }
+    }
+    drawn.add(c);
+  }
+
+  const cardByEl = new Map(cards.map(c => [c.el, c]));
+  const io = new IntersectionObserver(entries => {
+    for (const e of entries) {
+      if (!e.isIntersecting) continue;
+      const c = cardByEl.get(e.target);
+      if (!drawn.has(c)) draw(c);
+      io.unobserve(e.target);
+    }
+  }, { rootMargin: '400px' });
+  cards.forEach(c => io.observe(c.el));
+
+  function redraw() { for (const c of drawn) draw(c); }
+  new MutationObserver(redraw).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', redraw);
+
+  function apply() {
+    const q = qEl.value.trim().toLowerCase();
+    const kind = kindEl.value;
+    const cont = contEl.value;
+    const sort = sortEl.value;
+    const sorted = [...cards];
+    if (sort === 'big') sorted.sort((a, b) => b.shape.cells - a.shape.cells);
+    else if (sort === 'small') sorted.sort((a, b) => a.shape.cells - b.shape.cells);
+    else sorted.sort((a, b) => a.shape.ko.localeCompare(b.shape.ko, 'ko'));
+    let n = 0;
+    for (const c of sorted) {
+      const s = c.shape;
+      const show = (!q || c.hay.includes(q))
+        && (!kind || s.kind === kind)
+        && (!cont || s.continent === cont);
+      c.el.style.display = show ? '' : 'none';
+      grid.append(c.el);
+      if (show) { n++; if (!drawn.has(c)) io.observe(c.el); }
+    }
+    grid.append(emptyMsg);
+    emptyMsg.hidden = n > 0;
+    countEl.textContent = n.toLocaleString() + ' / ' + shapes.length.toLocaleString();
+  }
+  qEl.addEventListener('input', apply);
+  kindEl.addEventListener('change', apply);
+  contEl.addEventListener('change', apply);
+  sortEl.addEventListener('change', apply);
+  apply();
+</script>
