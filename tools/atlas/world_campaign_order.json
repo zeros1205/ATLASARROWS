@@ -1,0 +1,2215 @@
+{
+ "countries": [
+  {
+   "rank": 1,
+   "country": "Vatican",
+   "area_km2": 1,
+   "cities": [
+    "Vatican City"
+   ]
+  },
+  {
+   "rank": 2,
+   "country": "Ashmore and Cartier Islands",
+   "area_km2": 3,
+   "cities": []
+  },
+  {
+   "rank": 3,
+   "country": "Tuvalu",
+   "area_km2": 10,
+   "cities": [
+    "Funafuti"
+   ]
+  },
+  {
+   "rank": 4,
+   "country": "Monaco",
+   "area_km2": 12,
+   "cities": [
+    "Monaco"
+   ]
+  },
+  {
+   "rank": 5,
+   "country": "Macao S.A.R",
+   "area_km2": 23,
+   "cities": []
+  },
+  {
+   "rank": 6,
+   "country": "Saint Barthelemy",
+   "area_km2": 25,
+   "cities": []
+  },
+  {
+   "rank": 7,
+   "country": "Nauru",
+   "area_km2": 28,
+   "cities": []
+  },
+  {
+   "rank": 8,
+   "country": "Pitcairn Islands",
+   "area_km2": 39,
+   "cities": []
+  },
+  {
+   "rank": 9,
+   "country": "Norfolk Island",
+   "area_km2": 41,
+   "cities": []
+  },
+  {
+   "rank": 10,
+   "country": "Sint Maarten",
+   "area_km2": 42,
+   "cities": []
+  },
+  {
+   "rank": 11,
+   "country": "Guernsey",
+   "area_km2": 48,
+   "cities": []
+  },
+  {
+   "rank": 12,
+   "country": "Saint Martin",
+   "area_km2": 49,
+   "cities": []
+  },
+  {
+   "rank": 13,
+   "country": "Cook Islands",
+   "area_km2": 61,
+   "cities": []
+  },
+  {
+   "rank": 14,
+   "country": "Bermuda",
+   "area_km2": 66,
+   "cities": [
+    "Hamilton"
+   ]
+  },
+  {
+   "rank": 15,
+   "country": "Maldives",
+   "area_km2": 66,
+   "cities": [
+    "Malé"
+   ]
+  },
+  {
+   "rank": 16,
+   "country": "San Marino",
+   "area_km2": 68,
+   "cities": [
+    "San Marino"
+   ]
+  },
+  {
+   "rank": 17,
+   "country": "Montserrat",
+   "area_km2": 80,
+   "cities": []
+  },
+  {
+   "rank": 18,
+   "country": "Anguilla",
+   "area_km2": 83,
+   "cities": []
+  },
+  {
+   "rank": 19,
+   "country": "American Samoa",
+   "area_km2": 120,
+   "cities": [
+    "Pago Pago"
+   ]
+  },
+  {
+   "rank": 20,
+   "country": "Jersey",
+   "area_km2": 126,
+   "cities": []
+  },
+  {
+   "rank": 21,
+   "country": "Wallis and Futuna",
+   "area_km2": 132,
+   "cities": []
+  },
+  {
+   "rank": 22,
+   "country": "British Indian Ocean Territory",
+   "area_km2": 132,
+   "cities": []
+  },
+  {
+   "rank": 23,
+   "country": "British Virgin Islands",
+   "area_km2": 135,
+   "cities": []
+  },
+  {
+   "rank": 24,
+   "country": "Liechtenstein",
+   "area_km2": 138,
+   "cities": [
+    "Vaduz"
+   ]
+  },
+  {
+   "rank": 25,
+   "country": "Indian Ocean Territories",
+   "area_km2": 144,
+   "cities": []
+  },
+  {
+   "rank": 26,
+   "country": "Aruba",
+   "area_km2": 155,
+   "cities": [
+    "Oranjestad"
+   ]
+  },
+  {
+   "rank": 27,
+   "country": "Seychelles",
+   "area_km2": 174,
+   "cities": [
+    "Victoria"
+   ]
+  },
+  {
+   "rank": 28,
+   "country": "Saint Helena",
+   "area_km2": 186,
+   "cities": []
+  },
+  {
+   "rank": 29,
+   "country": "Niue",
+   "area_km2": 197,
+   "cities": []
+  },
+  {
+   "rank": 30,
+   "country": "Saint Pierre and Miquelon",
+   "area_km2": 205,
+   "cities": []
+  },
+  {
+   "rank": 31,
+   "country": "Saint Kitts and Nevis",
+   "area_km2": 233,
+   "cities": [
+    "Basseterre"
+   ]
+  },
+  {
+   "rank": 32,
+   "country": "Marshall Islands",
+   "area_km2": 237,
+   "cities": [
+    "Majuro"
+   ]
+  },
+  {
+   "rank": 33,
+   "country": "Malta",
+   "area_km2": 274,
+   "cities": [
+    "Valletta"
+   ]
+  },
+  {
+   "rank": 34,
+   "country": "Grenada",
+   "area_km2": 286,
+   "cities": [
+    "Saint George's"
+   ]
+  },
+  {
+   "rank": 35,
+   "country": "Cayman Islands",
+   "area_km2": 301,
+   "cities": [
+    "George Town"
+   ]
+  },
+  {
+   "rank": 36,
+   "country": "Saint Vincent and the Grenadines",
+   "area_km2": 311,
+   "cities": [
+    "Kingstown"
+   ]
+  },
+  {
+   "rank": 37,
+   "country": "United States Virgin Islands",
+   "area_km2": 316,
+   "cities": []
+  },
+  {
+   "rank": 38,
+   "country": "Turks and Caicos Islands",
+   "area_km2": 330,
+   "cities": [
+    "Grand Turk"
+   ]
+  },
+  {
+   "rank": 39,
+   "country": "Palau",
+   "area_km2": 341,
+   "cities": [
+    "Melekeok"
+   ]
+  },
+  {
+   "rank": 40,
+   "country": "Barbados",
+   "area_km2": 389,
+   "cities": [
+    "Bridgetown"
+   ]
+  },
+  {
+   "rank": 41,
+   "country": "Northern Mariana Islands",
+   "area_km2": 394,
+   "cities": []
+  },
+  {
+   "rank": 42,
+   "country": "Heard Island and McDonald Islands",
+   "area_km2": 419,
+   "cities": []
+  },
+  {
+   "rank": 43,
+   "country": "Curaçao",
+   "area_km2": 430,
+   "cities": []
+  },
+  {
+   "rank": 44,
+   "country": "Tonga",
+   "area_km2": 432,
+   "cities": [
+    "Nuku'alofa"
+   ]
+  },
+  {
+   "rank": 45,
+   "country": "Antigua and Barbuda",
+   "area_km2": 433,
+   "cities": [
+    "Saint John's"
+   ]
+  },
+  {
+   "rank": 46,
+   "country": "Andorra",
+   "area_km2": 442,
+   "cities": [
+    "Andorra"
+   ]
+  },
+  {
+   "rank": 47,
+   "country": "Guam",
+   "area_km2": 482,
+   "cities": [
+    "Agana"
+   ]
+  },
+  {
+   "rank": 48,
+   "country": "Singapore",
+   "area_km2": 485,
+   "cities": [
+    "Singapore"
+   ]
+  },
+  {
+   "rank": 49,
+   "country": "Federated States of Micronesia",
+   "area_km2": 524,
+   "cities": [
+    "Palikir"
+   ]
+  },
+  {
+   "rank": 50,
+   "country": "Bahrain",
+   "area_km2": 542,
+   "cities": [
+    "Manama"
+   ]
+  },
+  {
+   "rank": 51,
+   "country": "Saint Lucia",
+   "area_km2": 551,
+   "cities": [
+    "Castries"
+   ]
+  },
+  {
+   "rank": 52,
+   "country": "Isle of Man",
+   "area_km2": 557,
+   "cities": [
+    "Douglas"
+   ]
+  },
+  {
+   "rank": 53,
+   "country": "Dominica",
+   "area_km2": 698,
+   "cities": [
+    "Roseau"
+   ]
+  },
+  {
+   "rank": 54,
+   "country": "Aland",
+   "area_km2": 760,
+   "cities": [
+    "Mariehamn"
+   ]
+  },
+  {
+   "rank": 55,
+   "country": "Kiribati",
+   "area_km2": 938,
+   "cities": [
+    "Tarawa"
+   ]
+  },
+  {
+   "rank": 56,
+   "country": "São Tomé and Principe",
+   "area_km2": 986,
+   "cities": []
+  },
+  {
+   "rank": 57,
+   "country": "Hong Kong S.A.R.",
+   "area_km2": 1029,
+   "cities": [
+    "Hong Kong"
+   ]
+  },
+  {
+   "rank": 58,
+   "country": "Faroe Islands",
+   "area_km2": 1036,
+   "cities": []
+  },
+  {
+   "rank": 59,
+   "country": "Comoros",
+   "area_km2": 1586,
+   "cities": [
+    "Moroni"
+   ]
+  },
+  {
+   "rank": 60,
+   "country": "Mauritius",
+   "area_km2": 1879,
+   "cities": [
+    "Port Louis"
+   ]
+  },
+  {
+   "rank": 61,
+   "country": "Siachen Glacier",
+   "area_km2": 2118,
+   "cities": []
+  },
+  {
+   "rank": 62,
+   "country": "Luxembourg",
+   "area_km2": 2612,
+   "cities": [
+    "Luxembourg"
+   ]
+  },
+  {
+   "rank": 63,
+   "country": "French Polynesia",
+   "area_km2": 2615,
+   "cities": [
+    "Papeete"
+   ]
+  },
+  {
+   "rank": 64,
+   "country": "Samoa",
+   "area_km2": 2702,
+   "cities": [
+    "Apia"
+   ]
+  },
+  {
+   "rank": 65,
+   "country": "Northern Cyprus",
+   "area_km2": 3472,
+   "cities": []
+  },
+  {
+   "rank": 66,
+   "country": "Cabo Verde",
+   "area_km2": 3585,
+   "cities": []
+  },
+  {
+   "rank": 67,
+   "country": "South Georgia and the Islands",
+   "area_km2": 3668,
+   "cities": []
+  },
+  {
+   "rank": 68,
+   "country": "Trinidad and Tobago",
+   "area_km2": 5102,
+   "cities": [
+    "Port-of-Spain"
+   ]
+  },
+  {
+   "rank": 69,
+   "country": "Brunei",
+   "area_km2": 5672,
+   "cities": [
+    "Bandar Seri Begawan"
+   ]
+  },
+  {
+   "rank": 70,
+   "country": "Cyprus",
+   "area_km2": 5708,
+   "cities": [
+    "Nicosia"
+   ]
+  },
+  {
+   "rank": 71,
+   "country": "Palestine",
+   "area_km2": 6333,
+   "cities": [
+    "Gaza City",
+    "Ramallah"
+   ]
+  },
+  {
+   "rank": 72,
+   "country": "French Southern and Antarctic Lands",
+   "area_km2": 6972,
+   "cities": []
+  },
+  {
+   "rank": 73,
+   "country": "Puerto Rico",
+   "area_km2": 8943,
+   "cities": [
+    "San Juan"
+   ]
+  },
+  {
+   "rank": 74,
+   "country": "Lebanon",
+   "area_km2": 10011,
+   "cities": [
+    "Beirut"
+   ]
+  },
+  {
+   "rank": 75,
+   "country": "Gambia",
+   "area_km2": 10314,
+   "cities": []
+  },
+  {
+   "rank": 76,
+   "country": "Kosovo",
+   "area_km2": 10912,
+   "cities": [
+    "Pristina"
+   ]
+  },
+  {
+   "rank": 77,
+   "country": "Jamaica",
+   "area_km2": 10932,
+   "cities": [
+    "Kingston"
+   ]
+  },
+  {
+   "rank": 78,
+   "country": "Qatar",
+   "area_km2": 11074,
+   "cities": [
+    "Doha"
+   ]
+  },
+  {
+   "rank": 79,
+   "country": "Vanuatu",
+   "area_km2": 11292,
+   "cities": [
+    "Port Vila"
+   ]
+  },
+  {
+   "rank": 80,
+   "country": "Falkland Islands",
+   "area_km2": 11386,
+   "cities": [
+    "Stanley"
+   ]
+  },
+  {
+   "rank": 81,
+   "country": "The Bahamas",
+   "area_km2": 12668,
+   "cities": [
+    "Nassau",
+    "Freeport"
+   ]
+  },
+  {
+   "rank": 82,
+   "country": "Montenegro",
+   "area_km2": 13667,
+   "cities": [
+    "Podgorica"
+   ]
+  },
+  {
+   "rank": 83,
+   "country": "East Timor",
+   "area_km2": 15021,
+   "cities": [
+    "Dili"
+   ]
+  },
+  {
+   "rank": 84,
+   "country": "eSwatini",
+   "area_km2": 16992,
+   "cities": [
+    "Mbabane",
+    "Lobamba"
+   ]
+  },
+  {
+   "rank": 85,
+   "country": "Kuwait",
+   "area_km2": 17329,
+   "cities": [
+    "Kuwait City"
+   ]
+  },
+  {
+   "rank": 86,
+   "country": "Fiji",
+   "area_km2": 18407,
+   "cities": [
+    "Suva"
+   ]
+  },
+  {
+   "rank": 87,
+   "country": "New Caledonia",
+   "area_km2": 18667,
+   "cities": [
+    "Nouméa"
+   ]
+  },
+  {
+   "rank": 88,
+   "country": "Slovenia",
+   "area_km2": 20194,
+   "cities": [
+    "Ljubljana"
+   ]
+  },
+  {
+   "rank": 89,
+   "country": "El Salvador",
+   "area_km2": 20392,
+   "cities": [
+    "San Salvador"
+   ]
+  },
+  {
+   "rank": 90,
+   "country": "Djibouti",
+   "area_km2": 21704,
+   "cities": [
+    "Djibouti"
+   ]
+  },
+  {
+   "rank": 91,
+   "country": "Israel",
+   "area_km2": 22050,
+   "cities": [
+    "Tel Aviv",
+    "Jerusalem"
+   ]
+  },
+  {
+   "rank": 92,
+   "country": "Belize",
+   "area_km2": 22780,
+   "cities": [
+    "Belmopan"
+   ]
+  },
+  {
+   "rank": 93,
+   "country": "North Macedonia",
+   "area_km2": 25364,
+   "cities": [
+    "Skopje"
+   ]
+  },
+  {
+   "rank": 94,
+   "country": "Rwanda",
+   "area_km2": 25386,
+   "cities": [
+    "Kigali"
+   ]
+  },
+  {
+   "rank": 95,
+   "country": "Solomon Islands",
+   "area_km2": 25740,
+   "cities": [
+    "Honiara"
+   ]
+  },
+  {
+   "rank": 96,
+   "country": "Equatorial Guinea",
+   "area_km2": 26644,
+   "cities": [
+    "Malabo"
+   ]
+  },
+  {
+   "rank": 97,
+   "country": "Haiti",
+   "area_km2": 26805,
+   "cities": [
+    "Port-au-Prince"
+   ]
+  },
+  {
+   "rank": 98,
+   "country": "Burundi",
+   "area_km2": 27207,
+   "cities": [
+    "Bujumbura"
+   ]
+  },
+  {
+   "rank": 99,
+   "country": "Albania",
+   "area_km2": 28336,
+   "cities": [
+    "Tirana"
+   ]
+  },
+  {
+   "rank": 100,
+   "country": "Armenia",
+   "area_km2": 29593,
+   "cities": [
+    "Yerevan"
+   ]
+  },
+  {
+   "rank": 101,
+   "country": "Lesotho",
+   "area_km2": 30028,
+   "cities": [
+    "Maseru"
+   ]
+  },
+  {
+   "rank": 102,
+   "country": "Belgium",
+   "area_km2": 30631,
+   "cities": [
+    "Brussels"
+   ]
+  },
+  {
+   "rank": 103,
+   "country": "Guinea-Bissau",
+   "area_km2": 32056,
+   "cities": []
+  },
+  {
+   "rank": 104,
+   "country": "Moldova",
+   "area_km2": 33117,
+   "cities": [
+    "Chișinău"
+   ]
+  },
+  {
+   "rank": 105,
+   "country": "Taiwan",
+   "area_km2": 35992,
+   "cities": [
+    "Taipei",
+    "Kaohsiung",
+    "Taichung"
+   ]
+  },
+  {
+   "rank": 106,
+   "country": "Netherlands",
+   "area_km2": 37132,
+   "cities": [
+    "The Hague",
+    "Amsterdam"
+   ]
+  },
+  {
+   "rank": 107,
+   "country": "Bhutan",
+   "area_km2": 39877,
+   "cities": [
+    "Thimphu"
+   ]
+  },
+  {
+   "rank": 108,
+   "country": "Switzerland",
+   "area_km2": 41207,
+   "cities": [
+    "Geneva",
+    "Zürich",
+    "Bern"
+   ]
+  },
+  {
+   "rank": 109,
+   "country": "Denmark",
+   "area_km2": 42417,
+   "cities": [
+    "København"
+   ]
+  },
+  {
+   "rank": 110,
+   "country": "Estonia",
+   "area_km2": 45452,
+   "cities": [
+    "Tallinn"
+   ]
+  },
+  {
+   "rank": 111,
+   "country": "Slovakia",
+   "area_km2": 48340,
+   "cities": [
+    "Bratislava"
+   ]
+  },
+  {
+   "rank": 112,
+   "country": "Dominican Republic",
+   "area_km2": 48589,
+   "cities": [
+    "Santo Domingo",
+    "Santiago"
+   ]
+  },
+  {
+   "rank": 113,
+   "country": "Costa Rica",
+   "area_km2": 51513,
+   "cities": [
+    "San José",
+    "Limón"
+   ]
+  },
+  {
+   "rank": 114,
+   "country": "Bosnia and Herzegovina",
+   "area_km2": 51685,
+   "cities": [
+    "Sarajevo",
+    "Banja Luka"
+   ]
+  },
+  {
+   "rank": 115,
+   "country": "Croatia",
+   "area_km2": 54421,
+   "cities": [
+    "Zagreb"
+   ]
+  },
+  {
+   "rank": 116,
+   "country": "Togo",
+   "area_km2": 57139,
+   "cities": [
+    "Lomé",
+    "Atakpamé"
+   ]
+  },
+  {
+   "rank": 117,
+   "country": "Latvia",
+   "area_km2": 64260,
+   "cities": [
+    "Riga"
+   ]
+  },
+  {
+   "rank": 118,
+   "country": "Lithuania",
+   "area_km2": 64518,
+   "cities": [
+    "Vilnius"
+   ]
+  },
+  {
+   "rank": 119,
+   "country": "Sri Lanka",
+   "area_km2": 66043,
+   "cities": [
+    "Colombo",
+    "Sri Jayawardenepura Kotte",
+    "Kandy"
+   ]
+  },
+  {
+   "rank": 120,
+   "country": "Ireland",
+   "area_km2": 68699,
+   "cities": [
+    "Dublin"
+   ]
+  },
+  {
+   "rank": 121,
+   "country": "Georgia",
+   "area_km2": 69305,
+   "cities": [
+    "Tbilisi",
+    "Batumi",
+    "Sukhumi"
+   ]
+  },
+  {
+   "rank": 122,
+   "country": "United Arab Emirates",
+   "area_km2": 71337,
+   "cities": [
+    "Dubai",
+    "Abu Dhabi"
+   ]
+  },
+  {
+   "rank": 123,
+   "country": "Sierra Leone",
+   "area_km2": 71876,
+   "cities": [
+    "Freetown"
+   ]
+  },
+  {
+   "rank": 124,
+   "country": "Panama",
+   "area_km2": 74244,
+   "cities": [
+    "Panama City",
+    "David"
+   ]
+  },
+  {
+   "rank": 125,
+   "country": "Republic of Serbia",
+   "area_km2": 77490,
+   "cities": []
+  },
+  {
+   "rank": 126,
+   "country": "Czechia",
+   "area_km2": 78482,
+   "cities": [
+    "Prague"
+   ]
+  },
+  {
+   "rank": 127,
+   "country": "Austria",
+   "area_km2": 83910,
+   "cities": [
+    "Vienna"
+   ]
+  },
+  {
+   "rank": 128,
+   "country": "Azerbaijan",
+   "area_km2": 86443,
+   "cities": [
+    "Baku"
+   ]
+  },
+  {
+   "rank": 129,
+   "country": "Jordan",
+   "area_km2": 88859,
+   "cities": [
+    "Amman"
+   ]
+  },
+  {
+   "rank": 130,
+   "country": "Portugal",
+   "area_km2": 90757,
+   "cities": [
+    "Lisbon",
+    "Funchal",
+    "Ponta Delgada"
+   ]
+  },
+  {
+   "rank": 131,
+   "country": "Western Sahara",
+   "area_km2": 90794,
+   "cities": [
+    "Bir Lehlou"
+   ]
+  },
+  {
+   "rank": 132,
+   "country": "Hungary",
+   "area_km2": 92959,
+   "cities": [
+    "Budapest"
+   ]
+  },
+  {
+   "rank": 133,
+   "country": "Liberia",
+   "area_km2": 95667,
+   "cities": [
+    "Monrovia"
+   ]
+  },
+  {
+   "rank": 134,
+   "country": "South Korea",
+   "area_km2": 97149,
+   "cities": [
+    "Seoul",
+    "Busan",
+    "Incheon",
+    "Daejeon",
+    "Gwangju"
+   ]
+  },
+  {
+   "rank": 135,
+   "country": "Iceland",
+   "area_km2": 101161,
+   "cities": [
+    "Reykjavík"
+   ]
+  },
+  {
+   "rank": 136,
+   "country": "Guatemala",
+   "area_km2": 108480,
+   "cities": [
+    "Guatemala City",
+    "Quetzaltenango"
+   ]
+  },
+  {
+   "rank": 137,
+   "country": "Cuba",
+   "area_km2": 109295,
+   "cities": [
+    "Havana",
+    "Santiago de Cuba"
+   ]
+  },
+  {
+   "rank": 138,
+   "country": "Bulgaria",
+   "area_km2": 112418,
+   "cities": [
+    "Sofia"
+   ]
+  },
+  {
+   "rank": 139,
+   "country": "Honduras",
+   "area_km2": 113514,
+   "cities": [
+    "Tegucigalpa"
+   ]
+  },
+  {
+   "rank": 140,
+   "country": "Benin",
+   "area_km2": 116581,
+   "cities": [
+    "Cotonou",
+    "Porto-Novo",
+    "Parakou"
+   ]
+  },
+  {
+   "rank": 141,
+   "country": "Malawi",
+   "area_km2": 119795,
+   "cities": [
+    "Lilongwe",
+    "Blantyre",
+    "Mzuzu"
+   ]
+  },
+  {
+   "rank": 142,
+   "country": "North Korea",
+   "area_km2": 122493,
+   "cities": [
+    "Pyongyang",
+    "Wonsan",
+    "Sinuiju"
+   ]
+  },
+  {
+   "rank": 143,
+   "country": "Eritrea",
+   "area_km2": 123679,
+   "cities": [
+    "Asmara",
+    "Assab"
+   ]
+  },
+  {
+   "rank": 144,
+   "country": "Nicaragua",
+   "area_km2": 129243,
+   "cities": [
+    "Managua"
+   ]
+  },
+  {
+   "rank": 145,
+   "country": "Greece",
+   "area_km2": 130167,
+   "cities": [
+    "Athens",
+    "Thessaloniki"
+   ]
+  },
+  {
+   "rank": 146,
+   "country": "Bangladesh",
+   "area_km2": 135650,
+   "cities": [
+    "Dhaka",
+    "Chattogram",
+    "Khulna",
+    "Rajshahi"
+   ]
+  },
+  {
+   "rank": 147,
+   "country": "Tajikistan",
+   "area_km2": 142293,
+   "cities": [
+    "Dushanbe"
+   ]
+  },
+  {
+   "rank": 148,
+   "country": "Suriname",
+   "area_km2": 145574,
+   "cities": [
+    "Paramaribo",
+    "Cottica"
+   ]
+  },
+  {
+   "rank": 149,
+   "country": "Nepal",
+   "area_km2": 147193,
+   "cities": [
+    "Kathmandu"
+   ]
+  },
+  {
+   "rank": 150,
+   "country": "Tunisia",
+   "area_km2": 156658,
+   "cities": [
+    "Tunis",
+    "Sousse"
+   ]
+  },
+  {
+   "rank": 151,
+   "country": "Somaliland",
+   "area_km2": 168491,
+   "cities": [
+    "Hargeisa",
+    "Berbera"
+   ]
+  },
+  {
+   "rank": 152,
+   "country": "Uruguay",
+   "area_km2": 177561,
+   "cities": [
+    "Montevideo",
+    "Durazno"
+   ]
+  },
+  {
+   "rank": 153,
+   "country": "Cambodia",
+   "area_km2": 181362,
+   "cities": [
+    "Phnom Penh",
+    "Battambang",
+    "Siem Reap"
+   ]
+  },
+  {
+   "rank": 154,
+   "country": "Syria",
+   "area_km2": 185974,
+   "cities": [
+    "Aleppo",
+    "Damascus"
+   ]
+  },
+  {
+   "rank": 155,
+   "country": "Senegal",
+   "area_km2": 197327,
+   "cities": [
+    "Dakar",
+    "Kaolack",
+    "Kaédi"
+   ]
+  },
+  {
+   "rank": 156,
+   "country": "Kyrgyzstan",
+   "area_km2": 199206,
+   "cities": [
+    "Bishkek"
+   ]
+  },
+  {
+   "rank": 157,
+   "country": "Belarus",
+   "area_km2": 206693,
+   "cities": [
+    "Minsk",
+    "Brest"
+   ]
+  },
+  {
+   "rank": 158,
+   "country": "Guyana",
+   "area_km2": 211947,
+   "cities": [
+    "Georgetown"
+   ]
+  },
+  {
+   "rank": 159,
+   "country": "Laos",
+   "area_km2": 228945,
+   "cities": [
+    "Vientiane"
+   ]
+  },
+  {
+   "rank": 160,
+   "country": "Romania",
+   "area_km2": 235771,
+   "cities": [
+    "Bucharest",
+    "Iași",
+    "Constanța"
+   ]
+  },
+  {
+   "rank": 161,
+   "country": "Ghana",
+   "area_km2": 239565,
+   "cities": [
+    "Accra"
+   ]
+  },
+  {
+   "rank": 162,
+   "country": "United Kingdom",
+   "area_km2": 239610,
+   "cities": [
+    "London",
+    "Birmingham",
+    "Manchester",
+    "Glasgow",
+    "Cardiff",
+    "Edinburgh"
+   ]
+  },
+  {
+   "rank": 163,
+   "country": "Uganda",
+   "area_km2": 242554,
+   "cities": [
+    "Kampala",
+    "Mbale",
+    "Jinja",
+    "Arua",
+    "Gulu",
+    "Mbarara"
+   ]
+  },
+  {
+   "rank": 164,
+   "country": "Guinea",
+   "area_km2": 244925,
+   "cities": [
+    "Conakry",
+    "Nzérékoré",
+    "Kankan"
+   ]
+  },
+  {
+   "rank": 165,
+   "country": "Ecuador",
+   "area_km2": 255667,
+   "cities": [
+    "Guayaquil",
+    "Quito",
+    "Cuenca",
+    "Santa Cruz"
+   ]
+  },
+  {
+   "rank": 166,
+   "country": "Gabon",
+   "area_km2": 260662,
+   "cities": [
+    "Libreville",
+    "Port-Gentil",
+    "Franceville"
+   ]
+  },
+  {
+   "rank": 167,
+   "country": "New Zealand",
+   "area_km2": 266854,
+   "cities": [
+    "Auckland",
+    "Wellington",
+    "Manukau",
+    "Christchurch",
+    "Hamilton",
+    "Dunedin"
+   ]
+  },
+  {
+   "rank": 168,
+   "country": "Burkina Faso",
+   "area_km2": 273683,
+   "cities": [
+    "Ouagadougou",
+    "Bobo Dioulasso"
+   ]
+  },
+  {
+   "rank": 169,
+   "country": "Philippines",
+   "area_km2": 290304,
+   "cities": [
+    "Manila",
+    "Davao",
+    "General Santos",
+    "Cebu",
+    "Zamboanga",
+    "Baguio"
+   ]
+  },
+  {
+   "rank": 170,
+   "country": "Italy",
+   "area_km2": 300356,
+   "cities": [
+    "Rome",
+    "Milan",
+    "Naples",
+    "Turin",
+    "Florence",
+    "Palermo"
+   ]
+  },
+  {
+   "rank": 171,
+   "country": "Oman",
+   "area_km2": 312071,
+   "cities": [
+    "Muscat"
+   ]
+  },
+  {
+   "rank": 172,
+   "country": "Poland",
+   "area_km2": 312543,
+   "cities": [
+    "Warsaw",
+    "Kraków",
+    "Gdańsk"
+   ]
+  },
+  {
+   "rank": 173,
+   "country": "Ivory Coast",
+   "area_km2": 322296,
+   "cities": [
+    "Abidjan",
+    "Bouaké",
+    "Yamoussoukro"
+   ]
+  },
+  {
+   "rank": 174,
+   "country": "Malaysia",
+   "area_km2": 327643,
+   "cities": [
+    "George Town",
+    "Kuala Lumpur",
+    "Kuching",
+    "Putrajaya"
+   ]
+  },
+  {
+   "rank": 175,
+   "country": "Vietnam",
+   "area_km2": 328940,
+   "cities": [
+    "Ho Chi Minh City",
+    "Hanoi",
+    "Haiphong",
+    "Da Nang"
+   ]
+  },
+  {
+   "rank": 176,
+   "country": "Finland",
+   "area_km2": 330493,
+   "cities": [
+    "Helsinki",
+    "Tampere",
+    "Vaasa",
+    "Rovaniemi"
+   ]
+  },
+  {
+   "rank": 177,
+   "country": "Republic of the Congo",
+   "area_km2": 346875,
+   "cities": []
+  },
+  {
+   "rank": 178,
+   "country": "Germany",
+   "area_km2": 356162,
+   "cities": [
+    "Berlin",
+    "Frankfurt",
+    "Hamburg",
+    "Munich",
+    "Dresden"
+   ]
+  },
+  {
+   "rank": 179,
+   "country": "Japan",
+   "area_km2": 370098,
+   "cities": [
+    "Tokyo",
+    "Ōsaka",
+    "Nagoya",
+    "Fukuoka",
+    "Sapporo",
+    "Sendai"
+   ]
+  },
+  {
+   "rank": 180,
+   "country": "Norway",
+   "area_km2": 384249,
+   "cities": [
+    "Oslo",
+    "Bergen",
+    "Trondheim",
+    "Kristiansand",
+    "Tromsø",
+    "Hammerfest"
+   ]
+  },
+  {
+   "rank": 181,
+   "country": "Zimbabwe",
+   "area_km2": 390183,
+   "cities": [
+    "Harare",
+    "Bulawayo",
+    "Chitungwiza"
+   ]
+  },
+  {
+   "rank": 182,
+   "country": "Paraguay",
+   "area_km2": 400904,
+   "cities": [
+    "Asunción",
+    "Ciudad del Este"
+   ]
+  },
+  {
+   "rank": 183,
+   "country": "Iraq",
+   "area_km2": 437456,
+   "cities": [
+    "Baghdad",
+    "Mosul",
+    "Basra",
+    "Najaf",
+    "Kirkuk"
+   ]
+  },
+  {
+   "rank": 184,
+   "country": "Sweden",
+   "area_km2": 442976,
+   "cities": [
+    "Stockholm",
+    "Malmö",
+    "Sundsvall",
+    "Luleå"
+   ]
+  },
+  {
+   "rank": 185,
+   "country": "Uzbekistan",
+   "area_km2": 447412,
+   "cities": [
+    "Tashkent",
+    "Samarkand",
+    "Andijan",
+    "Bukhara",
+    "Nukus"
+   ]
+  },
+  {
+   "rank": 186,
+   "country": "Yemen",
+   "area_km2": 454136,
+   "cities": [
+    "Sanaa",
+    "Aden",
+    "Taizz"
+   ]
+  },
+  {
+   "rank": 187,
+   "country": "Papua New Guinea",
+   "area_km2": 464291,
+   "cities": [
+    "Port Moresby",
+    "Lae",
+    "Mt.  Hagen",
+    "Goroka",
+    "Rabaul"
+   ]
+  },
+  {
+   "rank": 188,
+   "country": "Cameroon",
+   "area_km2": 465881,
+   "cities": [
+    "Douala",
+    "Yaoundé",
+    "Bamenda",
+    "Garoua",
+    "Maroua",
+    "Ebolowa"
+   ]
+  },
+  {
+   "rank": 189,
+   "country": "Turkmenistan",
+   "area_km2": 470627,
+   "cities": [
+    "Ashgabat",
+    "Türkmenabat",
+    "Mary",
+    "Türkmenbaşy"
+   ]
+  },
+  {
+   "rank": 190,
+   "country": "Somalia",
+   "area_km2": 473606,
+   "cities": [
+    "Mogadishu"
+   ]
+  },
+  {
+   "rank": 191,
+   "country": "Spain",
+   "area_km2": 506173,
+   "cities": [
+    "Madrid",
+    "Barcelona",
+    "Seville",
+    "Bilbao",
+    "Valencia",
+    "Vigo"
+   ]
+  },
+  {
+   "rank": 192,
+   "country": "Thailand",
+   "area_km2": 515727,
+   "cities": [
+    "Bangkok",
+    "Chiang Mai",
+    "Nakhon Ratchasima",
+    "Surat Thani"
+   ]
+  },
+  {
+   "rank": 193,
+   "country": "Ukraine",
+   "area_km2": 570155,
+   "cities": [
+    "Kyiv",
+    "Kharkiv",
+    "Dnipro",
+    "Odessa",
+    "Donetsk",
+    "Lviv"
+   ]
+  },
+  {
+   "rank": 194,
+   "country": "Botswana",
+   "area_km2": 580622,
+   "cities": [
+    "Gaborone",
+    "Francistown",
+    "Mahalapye",
+    "Serowe"
+   ]
+  },
+  {
+   "rank": 195,
+   "country": "Morocco",
+   "area_km2": 582387,
+   "cities": [
+    "Casablanca",
+    "Rabat",
+    "Fez",
+    "Marrakesh",
+    "Oujda",
+    "Safi"
+   ]
+  },
+  {
+   "rank": 196,
+   "country": "Madagascar",
+   "area_km2": 594596,
+   "cities": [
+    "Antananarivo",
+    "Fianarantsoa",
+    "Mahajanga",
+    "Toliara",
+    "Antsiranana"
+   ]
+  },
+  {
+   "rank": 197,
+   "country": "Kenya",
+   "area_km2": 594833,
+   "cities": [
+    "Nairobi",
+    "Mombasa",
+    "Eldoret",
+    "Meru"
+   ]
+  },
+  {
+   "rank": 198,
+   "country": "Central African Republic",
+   "area_km2": 620983,
+   "cities": [
+    "Bangui",
+    "Bambari",
+    "Obo",
+    "N'Délé"
+   ]
+  },
+  {
+   "rank": 199,
+   "country": "South Sudan",
+   "area_km2": 623963,
+   "cities": [
+    "Malakal",
+    "Wau",
+    "Juba"
+   ]
+  },
+  {
+   "rank": 200,
+   "country": "France",
+   "area_km2": 635043,
+   "cities": [
+    "Paris",
+    "Lyon",
+    "Marseille",
+    "Lille",
+    "Toulouse",
+    "Bordeaux"
+   ]
+  },
+  {
+   "rank": 201,
+   "country": "Afghanistan",
+   "area_km2": 642052,
+   "cities": [
+    "Kabul",
+    "Kandahar",
+    "Herat",
+    "Mazar-i-Sharif"
+   ]
+  },
+  {
+   "rank": 202,
+   "country": "Myanmar",
+   "area_km2": 662764,
+   "cities": [
+    "Yangon",
+    "Mandalay",
+    "Naypyidaw",
+    "Sittwe"
+   ]
+  },
+  {
+   "rank": 203,
+   "country": "Chile",
+   "area_km2": 737446,
+   "cities": [
+    "Santiago",
+    "Concepción",
+    "Valparaíso",
+    "Antofagasta",
+    "Iquique",
+    "Arica"
+   ]
+  },
+  {
+   "rank": 204,
+   "country": "Zambia",
+   "area_km2": 755590,
+   "cities": [
+    "Lusaka",
+    "Kitwe",
+    "Kabwe",
+    "Livingstone",
+    "Mufulira",
+    "Chipata"
+   ]
+  },
+  {
+   "rank": 205,
+   "country": "Turkey",
+   "area_km2": 779807,
+   "cities": [
+    "Istanbul",
+    "Ankara",
+    "İzmir",
+    "Bursa",
+    "Adana",
+    "Konya"
+   ]
+  },
+  {
+   "rank": 206,
+   "country": "Mozambique",
+   "area_km2": 790848,
+   "cities": [
+    "Maputo",
+    "Beira",
+    "Nampula",
+    "Nacala",
+    "Quelimane",
+    "Tete"
+   ]
+  },
+  {
+   "rank": 207,
+   "country": "Namibia",
+   "area_km2": 824631,
+   "cities": [
+    "Windhoek",
+    "Walvis Bay",
+    "Swakopmund",
+    "Otjiwarongo",
+    "Grootfontein",
+    "Keetmanshoop"
+   ]
+  },
+  {
+   "rank": 208,
+   "country": "Pakistan",
+   "area_km2": 873770,
+   "cities": [
+    "Karachi",
+    "Lahore",
+    "Multan",
+    "Gujranwala",
+    "Hyderabad",
+    "Peshawar"
+   ]
+  },
+  {
+   "rank": 209,
+   "country": "Nigeria",
+   "area_km2": 911550,
+   "cities": [
+    "Lagos",
+    "Kano",
+    "Ibadan",
+    "Abuja",
+    "Kaduna",
+    "Benin City"
+   ]
+  },
+  {
+   "rank": 210,
+   "country": "Venezuela",
+   "area_km2": 914315,
+   "cities": [
+    "Caracas",
+    "Maracaibo",
+    "Valencia",
+    "Ciudad Guayana",
+    "San Cristóbal",
+    "Mérida"
+   ]
+  },
+  {
+   "rank": 211,
+   "country": "United Republic of Tanzania",
+   "area_km2": 945783,
+   "cities": []
+  },
+  {
+   "rank": 212,
+   "country": "Egypt",
+   "area_km2": 1003581,
+   "cities": [
+    "Cairo",
+    "Alexandria",
+    "Bur Said",
+    "Luxor",
+    "Suez",
+    "Asyut"
+   ]
+  },
+  {
+   "rank": 213,
+   "country": "Mauritania",
+   "area_km2": 1038341,
+   "cities": [
+    "Nouakchott",
+    "Nouadhibou",
+    "Atar",
+    "Ayoun el Atrous"
+   ]
+  },
+  {
+   "rank": 214,
+   "country": "Bolivia",
+   "area_km2": 1090266,
+   "cities": [
+    "Santa Cruz",
+    "La Paz",
+    "Sucre",
+    "Tarija",
+    "Trinidad",
+    "Riberalta"
+   ]
+  },
+  {
+   "rank": 215,
+   "country": "Ethiopia",
+   "area_km2": 1131782,
+   "cities": [
+    "Addis Ababa",
+    "Dire Dawa",
+    "Bahir Dar",
+    "Gondar",
+    "Mekele"
+   ]
+  },
+  {
+   "rank": 216,
+   "country": "Colombia",
+   "area_km2": 1139428,
+   "cities": [
+    "Bogota",
+    "Medellín",
+    "Cali",
+    "Barranquilla",
+    "Cartagena",
+    "Pasto"
+   ]
+  },
+  {
+   "rank": 217,
+   "country": "Niger",
+   "area_km2": 1185041,
+   "cities": [
+    "Niamey",
+    "Niamey",
+    "Zinder",
+    "Agadez",
+    "Tahoua"
+   ]
+  },
+  {
+   "rank": 218,
+   "country": "Angola",
+   "area_km2": 1249454,
+   "cities": [
+    "Luanda",
+    "Huambo",
+    "Benguela",
+    "Moçâmedes",
+    "Malanje",
+    "Lubango"
+   ]
+  },
+  {
+   "rank": 219,
+   "country": "South Africa",
+   "area_km2": 1251676,
+   "cities": [
+    "Johannesburg",
+    "Cape Town",
+    "Durban",
+    "Pretoria",
+    "Port Elizabeth",
+    "Bloemfontein"
+   ]
+  },
+  {
+   "rank": 220,
+   "country": "Mali",
+   "area_km2": 1258201,
+   "cities": [
+    "Bamako",
+    "Ségou",
+    "Gao",
+    "Kayes",
+    "Timbuktu",
+    "Djenné"
+   ]
+  },
+  {
+   "rank": 221,
+   "country": "Chad",
+   "area_km2": 1270984,
+   "cities": [
+    "N'Djamena",
+    "Abéché",
+    "Moundou"
+   ]
+  },
+  {
+   "rank": 222,
+   "country": "Peru",
+   "area_km2": 1296280,
+   "cities": [
+    "Lima",
+    "Arequipa",
+    "Trujillo",
+    "Iquitos",
+    "Huancayo",
+    "Piura"
+   ]
+  },
+  {
+   "rank": 223,
+   "country": "Mongolia",
+   "area_km2": 1560406,
+   "cities": [
+    "Ulaanbaatar",
+    "Erdenet",
+    "Choibalsan",
+    "Dund-Us",
+    "Dalandzadgad"
+   ]
+  },
+  {
+   "rank": 224,
+   "country": "Iran",
+   "area_km2": 1622815,
+   "cities": [
+    "Tehran",
+    "Mashhad",
+    "Isfahan",
+    "Tabriz",
+    "Shiraz",
+    "Ahvaz"
+   ]
+  },
+  {
+   "rank": 225,
+   "country": "Libya",
+   "area_km2": 1626507,
+   "cities": [
+    "Tripoli",
+    "Banghazi",
+    "Misrata",
+    "Zuwara",
+    "Sabha",
+    "Al Jawf"
+   ]
+  },
+  {
+   "rank": 226,
+   "country": "Sudan",
+   "area_km2": 1863047,
+   "cities": [
+    "Khartoum",
+    "Omdurman",
+    "Port Sudan",
+    "Kassala",
+    "Al-Ubayyid",
+    "Nyala"
+   ]
+  },
+  {
+   "rank": 227,
+   "country": "Indonesia",
+   "area_km2": 1872154,
+   "cities": [
+    "Jakarta",
+    "Surabaya",
+    "Bandung",
+    "Medan",
+    "Palembang",
+    "Semarang"
+   ]
+  },
+  {
+   "rank": 228,
+   "country": "Saudi Arabia",
+   "area_km2": 1925836,
+   "cities": [
+    "Riyadh",
+    "Jeddah",
+    "Makkah",
+    "Medina",
+    "Tabuk"
+   ]
+  },
+  {
+   "rank": 229,
+   "country": "Mexico",
+   "area_km2": 1962272,
+   "cities": [
+    "Mexico City",
+    "Guadalajara",
+    "Monterrey",
+    "Puebla",
+    "Tijuana",
+    "León"
+   ]
+  },
+  {
+   "rank": 230,
+   "country": "Greenland",
+   "area_km2": 2154802,
+   "cities": [
+    "Nuuk",
+    "Sisimiut",
+    "Upernavik",
+    "Qaanaaq",
+    "Narsarsuaq"
+   ]
+  },
+  {
+   "rank": 231,
+   "country": "Algeria",
+   "area_km2": 2322749,
+   "cities": [
+    "Algiers",
+    "Oran",
+    "Constantine",
+    "Annaba",
+    "Ghardaia",
+    "Tamanrasset"
+   ]
+  },
+  {
+   "rank": 232,
+   "country": "Democratic Republic of the Congo",
+   "area_km2": 2334619,
+   "cities": []
+  },
+  {
+   "rank": 233,
+   "country": "Kazakhstan",
+   "area_km2": 2712770,
+   "cities": [
+    "Almaty",
+    "Shymkent",
+    "Qaraghandy",
+    "Taraz",
+    "Nur-Sultan",
+    "Pavlodar"
+   ]
+  },
+  {
+   "rank": 234,
+   "country": "Argentina",
+   "area_km2": 2782670,
+   "cities": [
+    "Buenos Aires",
+    "Córdoba",
+    "Rosario",
+    "Mendoza",
+    "Tucumán",
+    "Mar del Plata"
+   ]
+  },
+  {
+   "rank": 235,
+   "country": "India",
+   "area_km2": 3155821,
+   "cities": [
+    "Mumbai",
+    "Delhi",
+    "Kolkata",
+    "Chennai",
+    "Bengaluru",
+    "Hyderabad"
+   ]
+  },
+  {
+   "rank": 236,
+   "country": "Australia",
+   "area_km2": 7705968,
+   "cities": [
+    "Sydney",
+    "Melbourne",
+    "Brisbane",
+    "Perth",
+    "Adelaide",
+    "Newcastle"
+   ]
+  },
+  {
+   "rank": 237,
+   "country": "Brazil",
+   "area_km2": 8499337,
+   "cities": [
+    "São Paulo",
+    "Rio de Janeiro",
+    "Belo Horizonte",
+    "Porto Alegre",
+    "Brasília",
+    "Recife"
+   ]
+  },
+  {
+   "rank": 238,
+   "country": "China",
+   "area_km2": 9371189,
+   "cities": [
+    "Shanghai",
+    "Beijing",
+    "Guangzhou",
+    "Shenzhen",
+    "Wuhan",
+    "Tianjin"
+   ]
+  },
+  {
+   "rank": 239,
+   "country": "United States of America",
+   "area_km2": 9439390,
+   "cities": [
+    "New York",
+    "Los Angeles",
+    "Chicago",
+    "Miami",
+    "Philadelphia",
+    "Dallas"
+   ]
+  },
+  {
+   "rank": 240,
+   "country": "Canada",
+   "area_km2": 9872058,
+   "cities": [
+    "Toronto",
+    "Montréal",
+    "Vancouver",
+    "Ottawa",
+    "Calgary",
+    "Edmonton"
+   ]
+  },
+  {
+   "rank": 241,
+   "country": "Russia",
+   "area_km2": 16879629,
+   "cities": [
+    "Moscow",
+    "St.  Petersburg",
+    "Novosibirsk",
+    "Yekaterinburg",
+    "Nizhny Novgorod",
+    "Samara"
+   ]
+  }
+ ]
+}
