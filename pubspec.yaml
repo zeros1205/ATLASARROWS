@@ -9,6 +9,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
   flame: ^1.18.0
   flame_audio: ^2.1.0
   shared_preferences: ^2.5.5
@@ -28,6 +30,34 @@ flutter:
     - assets/audio/
     - assets/shapes/
     - assets/images/icons/
+    - assets/images/stamps/
+  fonts:
+    - family: Outfit
+      fonts:
+        - asset: assets/fonts/Outfit-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Outfit-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Outfit-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Outfit-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Outfit-ExtraBold.ttf
+          weight: 800
+    - family: Paperlogy
+      fonts:
+        - asset: assets/fonts/Paperlogy-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Paperlogy-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Paperlogy-ExtraBold.ttf
+          weight: 800
+    - family: Pretendard
+      fonts:
+        - asset: assets/fonts/Pretendard-Regular.otf
+          weight: 400
+        - asset: assets/fonts/Pretendard-Bold.otf
+          weight: 700
 
 # Source PNGs are drawn by tools/gen_icon.py from the ZTheme palette.
 # Regenerate with: dart run flutter_launcher_icons

@@ -2,41 +2,16 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import 'models/shape_catalog.dart';
-import 'screens/home_screen.dart';
-import 'services/ads/ads.dart';
-import 'services/iap.dart';
-import 'services/progress.dart';
-import 'theme.dart';
+import 'app/app.dart';
+import 'app/app_settings.dart';
 
 Future<void> main() async {
   await runZonedGuarded(() async {
     WidgetsFlutterBinding.ensureInitialized();
-    await Progress.instance.load();
-    await ShapeCatalog.load();
-    await Ads.init();
-    await IapService.instance.init();
+    await AppSettings.instance.load();
     runApp(const ZArrowsApp());
   }, (error, stack) {
     // Surfaces minified web-release startup failures in the console.
     debugPrint('FATAL: $error\n$stack');
   });
-}
-
-class ZArrowsApp extends StatelessWidget {
-  const ZArrowsApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Z-Arrows',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        brightness: Brightness.light,
-        scaffoldBackgroundColor: ZTheme.bg,
-        fontFamily: 'monospace',
-      ),
-      home: const HomeScreen(),
-    );
-  }
 }
