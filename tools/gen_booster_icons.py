@@ -37,16 +37,11 @@ def bolt_points(cx, cy, s, tilt=0.0):
 
 
 def draw_coin(d, size):
+    # flat face — no sheen stripes (user call, 2026-07-18); just the
+    # solid coin with rim rings
     r = size * 0.48
     cx = cy = size / 2
     d.ellipse((cx - r, cy - r, cx + r, cy + r), fill=BASE)
-    # diagonal sheen stripes, clipped to the coin by drawing then masking
-    # (caller supplies a coin-shaped mask)
-    d.line((size * 0.05, size * 0.62, size * 0.62, size * 0.05),
-           fill=STRIPE, width=int(size * 0.10))
-    d.line((size * 0.28, size * 0.98, size * 0.98, size * 0.28),
-           fill=STRIPE, width=int(size * 0.16))
-    # rim: inner ring line + outer bevel ring
     ring = r * 0.82
     d.ellipse((cx - ring, cy - ring, cx + ring, cy + ring),
               outline=RIM, width=int(size * 0.018))
