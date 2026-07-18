@@ -22,6 +22,11 @@ MIN_AREA_FRac = 0.0006  # of image pixels; drops specks/watermark bits
 COVERAGE = 0.32
 LONG_SIDE = 28
 
+# Sources rejected wholesale (file numbering stays stable — the group
+# index is still assigned, its shapes just never emit).
+# 2026-07-18 user call: group 09 is all debris.
+EXCLUDE_SOURCES = {"td03250000767.jpg"}
+
 
 def components(mask):
     """Label connected components on a dilated copy, return pixel masks
@@ -102,6 +107,9 @@ def main():
             print(f"dup skipped: {fn}")
             continue
         seen_hash.add(digest)
+        if fn in EXCLUDE_SOURCES:
+            print(f"excluded: {fn}")
+            continue
         try:
             img = Image.open(path)
             if img.mode in ("RGBA", "LA", "P"):
