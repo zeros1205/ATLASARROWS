@@ -65,7 +65,28 @@ print("-" * 58)
 for name, raw, final in rows:
     print(f"{name:<42}{raw:>8}{final:>8}")
 
-# realistic recommended band
-tiered_final = rows[3][2]
-print(f"\nRECOMMENDED (tiered + attrition): ~{tiered_final} playable levels"
-      f"  across ~{playable_countries} countries")
+# --- mega-city district lever (recognizable admin subdivisions) ---
+# top metros x their district/ward/borough count (real admin units)
+DISTRICTS = {
+    "Seoul": 25, "Tokyo": 23, "Osaka": 24, "London": 33, "New York": 5,
+    "Paris": 20, "Beijing": 16, "Shanghai": 16, "Moscow": 12, "Berlin": 12,
+    "Delhi": 11, "Istanbul": 39, "Mexico City": 16, "Buenos Aires": 15,
+    "Rome": 15, "Madrid": 21, "Barcelona": 10, "Sao Paulo": 32, "Vienna": 23,
+    "Budapest": 23, "Bangkok": 50, "Hong Kong": 18, "Taipei": 12, "Kyoto": 11,
+    "Nagoya": 16, "Busan": 16, "Guangzhou": 11, "Warsaw": 18, "Prague": 22,
+}
+DIST_KEEP = 0.85  # floor + recognizability trim
+dist_raw = sum(DISTRICTS.values())
+dist_final = round(dist_raw * DIST_KEEP)
+
+# quality build = tiered major cities (attrition) + districts
+major = rows[3][2]                       # ~408
+quality_total = major + dist_final
+print(f"\n--- mega-city districts ({len(DISTRICTS)} metros) ---")
+print(f"  district levels: {dist_raw} raw -> {dist_final} after {DIST_KEEP:.0%} keep")
+print(f"\n=== RECOMMENDED QUALITY BUILD ===")
+print(f"  major cities (tiered): ~{major}")
+print(f"  mega-city districts:   ~{dist_final}")
+print(f"  TOTAL:                 ~{quality_total} stages "
+      f"across ~{playable_countries} country chapters")
+print(f"  (all recognizable; max-quantity path to obscure towns -> ~1,000-1,200)")
