@@ -52,7 +52,7 @@ void main() {
       cols: grid[0].length,
       mask: mask,
       seed: 20260718,
-      fill: 0.87,
+      fill: 0.97,
       maxLen: 12,
     );
     stdout.writeln('$label: ${s['ko']} ${level.rows}x${level.cols} '
