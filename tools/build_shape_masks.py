@@ -15,6 +15,7 @@ import os
 import random
 import re
 import sys
+from glob import glob
 
 MIN_ROWS, MAX_ROWS = 10, 18
 MIN_COLS, MAX_COLS = 8, 13
@@ -219,6 +220,31 @@ def pick_family(row, rng):
     return fams[rng.randrange(len(fams))]
 
 
+def load_picture_shapes(root):
+    """Hand-authored picture silhouettes (shapes_raw/*.txt) that pass
+    validate_shapes rules — appended after the synthesized catalog."""
+    import validate_shapes as vs
+
+    pictures = []
+    for path in sorted(glob(os.path.join(root, "shapes_raw", "*.txt"))):
+        with open(path, encoding="utf-8") as f:
+            for block in vs.parse_blocks(f.read()):
+                if vs.validate(block):
+                    continue
+                pictures.append(
+                    {
+                        "name": block["name"],
+                        "theme": "picture",
+                        "category": block["category"] or "picture",
+                        "difficulty": block["difficulty"],
+                        "rows": len(block["grid"]),
+                        "cols": len(block["grid"][0]),
+                        "grid": block["grid"],
+                    }
+                )
+    return pictures
+
+
 def main():
     root = os.path.join(os.path.dirname(__file__), "..")
     md = os.path.join(root, "docs", "Z_ARROWS_METAPHOR_BOARD_SHAPE_2000.md")
@@ -255,14 +281,17 @@ def main():
                 "grid": grid,
             }
         )
+    pictures = load_picture_shapes(root)
+    shapes += pictures
     out_dir = os.path.join(root, "assets", "shapes")
     os.makedirs(out_dir, exist_ok=True)
     out = os.path.join(out_dir, "shapes.json")
     with open(out, "w", encoding="utf-8") as f:
         json.dump({"shapes": shapes}, f, ensure_ascii=False, separators=(",", ":"))
     print(
-        f"rows={len(rows)} shapes={len(shapes)} fallbacks={fallbacks} "
-        f"failures={failures} -> {out} ({os.path.getsize(out)//1024}KB)"
+        f"rows={len(rows)} shapes={len(shapes)} (pictures={len(pictures)}) "
+        f"fallbacks={fallbacks} failures={failures} -> {out} "
+        f"({os.path.getsize(out)//1024}KB)"
     )
     return 0
 

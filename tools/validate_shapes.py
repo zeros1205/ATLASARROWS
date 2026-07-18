@@ -1,9 +1,11 @@
-"""Validates GPT-generated board silhouettes and packs them into JSON.
+"""Validates GPT-generated board silhouettes and merges them into JSON.
 
 Input : one or more text files following docs/BOARD_SHAPE_GUIDE.md format
         (blocks starting with "name:", grid rows of '#'/'.').
-Output: assets/shapes/shapes.json with only the shapes that pass every
-        rule, plus a rejection report on stdout.
+Output: assets/shapes/shapes.json — the existing catalog (synthesized by
+        build_shape_masks.py) is preserved; accepted picture shapes are
+        appended after it, replacing same-name pictures on re-runs.
+        A rejection report goes to stdout.
 
 Usage:  python tools/validate_shapes.py shapes_raw/*.txt
 """
@@ -131,7 +133,8 @@ def main(patterns):
                     accepted.append(
                         {
                             "name": name,
-                            "category": block["category"],
+                            "theme": "picture",
+                            "category": block["category"] or "picture",
                             "difficulty": block["difficulty"],
                             "rows": len(block["grid"]),
                             "cols": len(block["grid"][0]),
@@ -141,9 +144,18 @@ def main(patterns):
     out_dir = os.path.join(os.path.dirname(__file__), "..", "assets", "shapes")
     os.makedirs(out_dir, exist_ok=True)
     out_path = os.path.join(out_dir, "shapes.json")
+    existing = []
+    if os.path.exists(out_path):
+        with open(out_path, encoding="utf-8") as f:
+            existing = json.load(f)["shapes"]
+    kept = [s for s in existing if s["name"] not in seen_names]
+    merged = kept + accepted
     with open(out_path, "w", encoding="utf-8") as f:
-        json.dump({"shapes": accepted}, f, ensure_ascii=False, indent=1)
-    print(f"accepted {len(accepted)}, rejected {len(rejected)} -> {out_path}")
+        json.dump({"shapes": merged}, f, ensure_ascii=False, separators=(",", ":"))
+    print(
+        f"accepted {len(accepted)}, rejected {len(rejected)}, "
+        f"kept {len(kept)} existing -> {len(merged)} total in {out_path}"
+    )
     for path, name, errors in rejected[:50]:
         print(f"  REJECT [{os.path.basename(path)}] {name}: {'; '.join(errors)}")
     if len(rejected) > 50:
