@@ -1,0 +1,64 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import '../app/tokens/dimens.dart';
+
+/// The universal press signature: scale to 0.96 on press, release with an
+/// easeOutBack overshoot. A light haptic on tap. Degrades under reduce-motion.
+class Pressable extends StatefulWidget {
+  const Pressable({
+    super.key,
+    required this.child,
+    this.onTap,
+    this.scale = 0.96,
+    this.haptic = true,
+  });
+
+  final Widget child;
+  final VoidCallback? onTap;
+  final double scale;
+  final bool haptic;
+
+  @override
+  State<Pressable> createState() => _PressableState();
+}
+
+class _PressableState extends State<Pressable>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: AppDur.fast,
+    reverseDuration: AppDur.normal,
+    value: 1,
+  );
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  void _down(_) => _c.animateTo(widget.scale, curve: Curves.easeOut);
+  void _up() => _c.animateTo(1, curve: AppCurve.overshoot);
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = widget.onTap != null;
+    final noMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTapDown: enabled && !noMotion ? _down : null,
+      onTapCancel: enabled && !noMotion ? _up : null,
+      onTapUp: enabled && !noMotion ? (_) => _up() : null,
+      onTap: enabled
+          ? () {
+              if (widget.haptic) HapticFeedback.lightImpact();
+              widget.onTap!();
+            }
+          : null,
+      child: noMotion
+          ? widget.child
+          : ScaleTransition(scale: _c, child: widget.child),
+    );
+  }
+}
