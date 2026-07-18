@@ -27,6 +27,7 @@ flutter:
   assets:
     - assets/audio/
     - assets/shapes/
+    - assets/images/icons/
 
 # Source PNGs are drawn by tools/gen_icon.py from the ZTheme palette.
 # Regenerate with: dart run flutter_launcher_icons
