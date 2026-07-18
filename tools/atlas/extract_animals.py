@@ -127,7 +127,7 @@ def main():
             fill = cells / (len(grid) * len(grid[0]))
             # junk filter: watermark text scraps and dot debris are
             # sparse or extremely flat; real animals are chunky
-            if cells < 40 or min(len(grid), len(grid[0])) < 6 or fill < 0.17:
+            if cells < 80 or min(len(grid), len(grid[0])) < 6 or fill < 0.17:
                 continue
             out.append({
                 "name": f"animal {fi:02d}-{ci:02d}",
