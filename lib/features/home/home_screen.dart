@@ -3,7 +3,11 @@ import 'package:flutter/material.dart';
 import '../../app/tokens/colors.dart';
 import '../../app/tokens/dimens.dart';
 import '../../app/tokens/typography.dart';
+import '../../app/shell.dart';
+import '../../models/campaign_repository.dart';
+import '../../services/progress.dart';
 import '../../shared/pressable.dart';
+import '../game/game_screen.dart';
 
 /// Home: wordmark + primary PLAY (resume) + a secondary map entry. No
 /// hearts/gem in the header (hearts live in-play; gem is unused).
@@ -13,6 +17,13 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = AppColors.of(context);
+    void play() {
+      final stage = Progress.instance.unlocked.value
+          .clamp(0, (CampaignRepository.instance.totalStages - 1).clamp(0, 1 << 30));
+      Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => GameScreen(stage: stage)));
+    }
+
     return Scaffold(
       body: SafeArea(
         child: Column(
@@ -38,12 +49,14 @@ class HomeScreen extends StatelessWidget {
                 children: [
                   _PrimaryButton(
                     label: '플레이',
-                    sub: '한국 · 서울 4/5',
-                    onTap: () {},
+                    sub: _resumeLabel(),
+                    onTap: play,
                   ),
                   const SizedBox(height: AppGap.md),
-                  _SecondaryButton(label: '세계지도', icon: Icons.public_outlined,
-                      onTap: () {}),
+                  _SecondaryButton(
+                      label: '세계지도',
+                      icon: Icons.public_outlined,
+                      onTap: () => appTab.value = 1),
                 ],
               ),
             ),
@@ -53,6 +66,15 @@ class HomeScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+String _resumeLabel() {
+  final repo = CampaignRepository.instance;
+  if (!repo.isLoaded) return '스테이지 1';
+  final stage = Progress.instance.unlocked.value
+      .clamp(0, repo.totalStages - 1);
+  final (ci, _) = repo.locate(stage);
+  return '${repo.countries[ci].displayName} · 스테이지 ${stage + 1}';
 }
 
 class _PrimaryButton extends StatelessWidget {

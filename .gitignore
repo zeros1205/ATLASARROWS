@@ -45,3 +45,7 @@ app.*.map.json
 /android/app/release
 
 tools/atlas/*.geojson
+
+# Scratch design research (stock reference images)
+tools/atlas_materials/
+tools/gpt_atlas/

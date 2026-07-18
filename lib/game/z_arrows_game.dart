@@ -8,56 +8,89 @@ import 'package:flutter/animation.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 
-import '../models/level_repository.dart';
-import '../theme.dart';
+import '../app/tokens/colors.dart';
+import '../models/level.dart';
 import 'board_component.dart';
 import 'board_logic.dart';
 import 'line_component.dart';
 import 'sfx.dart';
 
+/// The Flame game for one stage. Level-agnostic: it plays whatever [Level]
+/// it is given and reports outcomes via callbacks; the surrounding Flutter
+/// screen owns stage progression, hearts UI and result sheets.
 class ZArrowsGame extends FlameGame {
-  ZArrowsGame({required this.repository, this.startAt = 0, this.onCleared});
+  ZArrowsGame({
+    required this.initialLevel,
+    required this.palette,
+    this.onCleared,
+    this.onHeartsChanged,
+    this.onFailed,
+  });
 
-  static const clearedOverlayKey = 'cleared';
-  static const failedOverlayKey = 'failed';
   static const int maxHearts = 3;
-
-  /// Escapes within this window chain into a combo (rising pop pitch).
   static const comboWindow = Duration(seconds: 5);
 
-  final LevelRepository repository;
-  final int startAt;
+  Level initialLevel;
+  AppColors palette;
 
-  /// Fired once per clear, before the overlay shows — progress/ads hook.
-  final void Function(int levelIndex)? onCleared;
+  final VoidCallback? onCleared;
+  final VoidCallback? onFailed;
+  final void Function(int hearts)? onHeartsChanged;
 
-  final ValueNotifier<int> levelIndex = ValueNotifier(0);
-  final ValueNotifier<int> hearts = ValueNotifier(maxHearts);
+  int hearts = maxHearts;
+
+  /// True while the remove item is armed — the next tapped line is vaporized.
+  final ValueNotifier<bool> removeArmed = ValueNotifier(false);
 
   late BoardLogic logic;
+  late Level _current;
   BoardComponent? _board;
   bool _inputLocked = false;
   int _combo = 0;
   DateTime _lastEscapeAt = DateTime.fromMillisecondsSinceEpoch(0);
 
   @override
-  Color backgroundColor() => ZTheme.bg;
+  Color backgroundColor() => palette.bg;
 
   @override
   Future<void> onLoad() async {
     await Sfx.preload();
-    startLevel(startAt);
+    loadLevel(initialLevel);
   }
 
-  /// Highlights one currently-free line. Returns false when none exists
-  /// (only possible mid-animation) or input is locked.
+  void loadLevel(Level level) {
+    _current = level;
+    hearts = maxHearts;
+    _inputLocked = false;
+    _combo = 0;
+    removeArmed.value = false;
+    logic = BoardLogic.fromLevel(level);
+    _board?.removeFromParent();
+    final board = BoardComponent(level: level)..anchor = Anchor.center;
+    _board = board;
+    add(board);
+    if (size.x > 0) _layoutBoard(size);
+    onHeartsChanged?.call(hearts);
+  }
+
+  void restartLevel() => loadLevel(_current);
+
+  /// Refills hearts to full and unlocks input (heart-economy continue).
+  void refillHearts() {
+    hearts = maxHearts;
+    _inputLocked = false;
+    onHeartsChanged?.call(hearts);
+  }
+
+  /// Highlights one currently-escapable line (hint item). Returns false when
+  /// none exists or input is locked.
   bool showHint() {
     if (_inputLocked) return false;
     for (final id in logic.lines.keys) {
       if (logic.tap(id) is MoveEscaped) {
-        final lineComponent = _board?.lineById(id);
-        if (lineComponent != null && !lineComponent.animating) {
-          lineComponent.flashHint();
+        final lc = _board?.lineById(id);
+        if (lc != null && !lc.animating) {
+          lc.flashHint();
           return true;
         }
       }
@@ -65,32 +98,9 @@ class ZArrowsGame extends FlameGame {
     return false;
   }
 
-  void startLevel(int index) {
-    levelIndex.value = index;
-    hearts.value = maxHearts;
-    _inputLocked = false;
-    _combo = 0;
-    final level = repository.levelAt(index);
-    logic = BoardLogic.fromLevel(level);
-    _board?.removeFromParent();
-    final board = BoardComponent(level: level)..anchor = Anchor.center;
-    _board = board;
-    add(board);
-    _layoutBoard(size);
-  }
-
-  void restartLevel() {
-    overlays.remove(clearedOverlayKey);
-    overlays.remove(failedOverlayKey);
-    startLevel(levelIndex.value);
-  }
-
-  bool get isLastLevel => levelIndex.value >= repository.length - 1;
-
-  void nextLevel() {
-    overlays.remove(clearedOverlayKey);
-    final next = levelIndex.value + 1;
-    if (next < repository.length) startLevel(next);
+  void armRemove() {
+    if (_inputLocked) return;
+    removeArmed.value = !removeArmed.value;
   }
 
   @override
@@ -103,7 +113,7 @@ class ZArrowsGame extends FlameGame {
     final board = _board!;
     final s = math.min(
       canvas.x * 0.94 / board.size.x,
-      canvas.y * 0.9 / board.size.y,
+      canvas.y * 0.94 / board.size.y,
     );
     board.scale = Vector2.all(s);
     board.position = Vector2(canvas.x / 2, canvas.y / 2);
@@ -111,12 +121,25 @@ class ZArrowsGame extends FlameGame {
 
   void handleTap(LineComponent lineComponent) {
     if (_inputLocked || lineComponent.animating) return;
+    if (removeArmed.value) {
+      _removeStrike(lineComponent);
+      return;
+    }
     switch (logic.tap(lineComponent.line.id)) {
       case MoveEscaped():
         _onEscape(lineComponent);
       case MoveBlocked(:final freeSteps, :final blockerId):
         _onBlocked(lineComponent, freeSteps, blockerId);
     }
+  }
+
+  /// Remove item: strike the line with lightning — it vanishes regardless of
+  /// whether it was blocked.
+  void _removeStrike(LineComponent lineComponent) {
+    removeArmed.value = false;
+    Sfx.pop(0);
+    logic.removeLine(lineComponent.line.id);
+    lineComponent.vaporize(onGone: _checkCleared);
   }
 
   void _onEscape(LineComponent lineComponent) {
@@ -127,21 +150,19 @@ class ZArrowsGame extends FlameGame {
     Sfx.pop(_combo - 1);
     if (_combo >= 2) _showComboText(lineComponent);
     if (_combo >= 3) _zoomPunch();
-
     logic.removeLine(lineComponent.line.id);
-    lineComponent.escape(onGone: () {
-      if (logic.isCleared) {
-        Sfx.clear();
-        onCleared?.call(levelIndex.value);
-        add(
-          TimerComponent(
-            period: 0.35,
-            removeOnFinish: true,
-            onTick: () => overlays.add(clearedOverlayKey),
-          ),
-        );
-      }
-    });
+    lineComponent.escape(onGone: _checkCleared);
+  }
+
+  void _checkCleared() {
+    if (!logic.isCleared) return;
+    Sfx.clear();
+    _inputLocked = true;
+    add(TimerComponent(
+      period: 0.3,
+      removeOnFinish: true,
+      onTick: () => onCleared?.call(),
+    ));
   }
 
   void _onBlocked(LineComponent lineComponent, int freeSteps, int blockerId) {
@@ -150,44 +171,34 @@ class ZArrowsGame extends FlameGame {
       Sfx.block();
       _board?.lineById(blockerId)?.flashRed();
       _shake();
-      hearts.value = math.max(0, hearts.value - 1);
-      if (hearts.value == 0) {
+      hearts = math.max(0, hearts - 1);
+      onHeartsChanged?.call(hearts);
+      if (hearts == 0) {
         _inputLocked = true;
         Sfx.fail();
-        add(
-          TimerComponent(
-            period: 0.6,
-            removeOnFinish: true,
-            onTick: () => overlays.add(failedOverlayKey),
-          ),
-        );
+        add(TimerComponent(
+          period: 0.5,
+          removeOnFinish: true,
+          onTick: () => onFailed?.call(),
+        ));
       }
     });
   }
 
   void _zoomPunch() {
-    _board?.add(
-      ScaleEffect.by(
-        Vector2.all(1.02),
-        EffectController(
-          duration: 0.06,
-          reverseDuration: 0.14,
-          curve: Curves.easeOut,
-        ),
-      ),
-    );
+    _board?.add(ScaleEffect.by(
+      Vector2.all(1.02),
+      EffectController(duration: 0.06, reverseDuration: 0.14, curve: Curves.easeOut),
+    ));
   }
 
   void _shake() {
-    // Deltas sum to zero so the board lands exactly back in place.
-    _board?.add(
-      SequenceEffect([
-        MoveByEffect(Vector2(10, 0), EffectController(duration: 0.04)),
-        MoveByEffect(Vector2(-16, 0), EffectController(duration: 0.05)),
-        MoveByEffect(Vector2(8, 0), EffectController(duration: 0.05)),
-        MoveByEffect(Vector2(-2, 0), EffectController(duration: 0.06)),
-      ]),
-    );
+    _board?.add(SequenceEffect([
+      MoveByEffect(Vector2(10, 0), EffectController(duration: 0.04)),
+      MoveByEffect(Vector2(-16, 0), EffectController(duration: 0.05)),
+      MoveByEffect(Vector2(8, 0), EffectController(duration: 0.05)),
+      MoveByEffect(Vector2(-2, 0), EffectController(duration: 0.06)),
+    ]));
   }
 
   void _showComboText(LineComponent lineComponent) {
@@ -196,28 +207,22 @@ class ZArrowsGame extends FlameGame {
     final (r, c) = lineComponent.line.head;
     final text = TextComponent(
       text: 'x$_combo',
-      position: Vector2(
-        c * BoardComponent.cell + BoardComponent.cell / 2,
-        r * BoardComponent.cell - 8,
-      ),
+      position: Vector2(c * BoardComponent.cell + BoardComponent.cell / 2,
+          r * BoardComponent.cell - 8),
       anchor: Anchor.bottomCenter,
       priority: 200,
       textRenderer: TextPaint(
-        style: const TextStyle(
-          color: ZTheme.accent,
+        style: TextStyle(
+          color: palette.accent,
           fontSize: 52,
           fontWeight: FontWeight.w900,
-          fontFamily: 'monospace',
+          fontFamily: 'Outfit',
         ),
       ),
     );
     board.add(text);
-    text.add(
-      MoveByEffect(
-        Vector2(0, -70),
-        EffectController(duration: 0.75, curve: Curves.easeOutCubic),
-      ),
-    );
+    text.add(MoveByEffect(Vector2(0, -70),
+        EffectController(duration: 0.75, curve: Curves.easeOutCubic)));
     text.add(RemoveEffect(delay: 0.75));
   }
 }

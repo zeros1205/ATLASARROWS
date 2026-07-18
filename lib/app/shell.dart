@@ -9,17 +9,14 @@ import 'tokens/colors.dart';
 import 'tokens/dimens.dart';
 import 'tokens/typography.dart';
 
+/// Selected shell tab, shared so any screen can switch tabs (e.g. Home's
+/// "세계지도" button jumps to the map). 0=home 1=map 2=shop 3=settings.
+final ValueNotifier<int> appTab = ValueNotifier<int>(0);
+
 /// The 4-tab home shell: home / map / shop / settings, with a floating
 /// capsule tab bar. All tabs open from the start (no locking).
-class AppShell extends StatefulWidget {
+class AppShell extends StatelessWidget {
   const AppShell({super.key});
-
-  @override
-  State<AppShell> createState() => _AppShellState();
-}
-
-class _AppShellState extends State<AppShell> {
-  int _index = 0;
 
   static const _tabs = [
     (icon: Icons.home_outlined, active: Icons.home, label: '홈'),
@@ -30,20 +27,23 @@ class _AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: IndexedStack(
-        index: _index,
-        children: const [
-          HomeScreen(),
-          MapScreen(),
-          ShopScreen(),
-          SettingsScreen(),
-        ],
-      ),
-      bottomNavigationBar: _TabBar(
-        index: _index,
-        tabs: _tabs,
-        onTap: (i) => setState(() => _index = i),
+    return ValueListenableBuilder<int>(
+      valueListenable: appTab,
+      builder: (context, index, _) => Scaffold(
+        body: IndexedStack(
+          index: index,
+          children: const [
+            HomeScreen(),
+            MapScreen(),
+            ShopScreen(),
+            SettingsScreen(),
+          ],
+        ),
+        bottomNavigationBar: _TabBar(
+          index: index,
+          tabs: _tabs,
+          onTap: (i) => appTab.value = i,
+        ),
       ),
     );
   }

@@ -9,12 +9,14 @@ class Progress {
   static final Progress instance = Progress._();
 
   static const int startingHints = 3;
+  static const int startingRemoves = 1;
 
   late SharedPreferences _prefs;
 
   /// Highest level index the player may enter (0-based).
   final ValueNotifier<int> unlocked = ValueNotifier(0);
   final ValueNotifier<int> hints = ValueNotifier(startingHints);
+  final ValueNotifier<int> removes = ValueNotifier(startingRemoves);
   final ValueNotifier<int> totalClears = ValueNotifier(0);
   final ValueNotifier<bool> soundOn = ValueNotifier(true);
   final ValueNotifier<bool> hapticsOn = ValueNotifier(true);
@@ -23,6 +25,7 @@ class Progress {
     _prefs = await SharedPreferences.getInstance();
     unlocked.value = _prefs.getInt('unlocked') ?? 0;
     hints.value = _prefs.getInt('hints') ?? startingHints;
+    removes.value = _prefs.getInt('removes') ?? startingRemoves;
     totalClears.value = _prefs.getInt('totalClears') ?? 0;
     soundOn.value = _prefs.getBool('soundOn') ?? true;
     hapticsOn.value = _prefs.getBool('hapticsOn') ?? true;

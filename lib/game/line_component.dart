@@ -6,11 +6,10 @@ import 'package:flutter/animation.dart';
 import 'package:flutter/painting.dart';
 
 import '../models/arrow_line.dart';
-import '../theme.dart';
 import 'board_component.dart';
 import 'z_arrows_game.dart';
 
-enum _Anim { idle, escaping, bumpOut, bumpBack }
+enum _Anim { idle, escaping, bumpOut, bumpBack, vaporizing }
 
 /// One arrow line. Lives in board coordinates (position 0,0, size = board),
 /// drawn as a thin ink stroke sliding along its own extended path.
@@ -41,6 +40,7 @@ class LineComponent extends PositionComponent
 
   double _flash = 0;
   double _hint = 0;
+  double _fade = 1;
 
   /// Briefly tints this line red — used on the blocker so the player sees
   /// what stopped their arrow.
@@ -49,15 +49,19 @@ class LineComponent extends PositionComponent
   /// Blinks this line blue — the hint highlight for a free line.
   void flashHint() => _hint = 1.6;
 
-  Color get _color => switch (_anim) {
-        _Anim.idle => _flash > 0
-            ? ZTheme.danger
-            : _hint > 0 && (_hint * 4).floor().isOdd
-                ? ZTheme.accent
-                : ZTheme.ink,
-        _Anim.escaping => ZTheme.accent,
-        _Anim.bumpOut || _Anim.bumpBack => ZTheme.danger,
-      };
+  Color get _color {
+    final p = game.palette;
+    return switch (_anim) {
+      _Anim.idle => _flash > 0
+          ? p.danger
+          : _hint > 0 && (_hint * 4).floor().isOdd
+              ? p.accent
+              : p.ink,
+      _Anim.escaping => p.accent,
+      _Anim.bumpOut || _Anim.bumpBack => p.danger,
+      _Anim.vaporizing => p.accent,
+    };
+  }
 
   List<Offset> get _centers => [
         for (final (r, c) in line.cells)
@@ -104,6 +108,15 @@ class LineComponent extends PositionComponent
     priority = 50;
   }
 
+  /// Remove item: a lightning strike vaporizes the line — a quick fade-out.
+  void vaporize({required VoidCallback onGone}) {
+    _anim = _Anim.vaporizing;
+    _t = 0;
+    _fade = 1;
+    _onGone = onGone;
+    priority = 100;
+  }
+
   @override
   void update(double dt) {
     super.update(dt);
@@ -138,6 +151,13 @@ class LineComponent extends PositionComponent
           _slide = 0;
           _anim = _Anim.idle;
           priority = 0;
+        }
+      case _Anim.vaporizing:
+        _t += dt / 0.3;
+        _fade = (1 - _t).clamp(0.0, 1.0);
+        if (_t >= 1) {
+          removeFromParent();
+          _onGone?.call();
         }
     }
   }
@@ -174,7 +194,9 @@ class LineComponent extends PositionComponent
     final end = (_slide + _lineLen).clamp(0.0, _metric.length);
     if (_slide >= end) return;
     final visible = _metric.extractPath(_slide, end);
-    final color = _color;
+    final color = _anim == _Anim.vaporizing
+        ? _color.withValues(alpha: _fade)
+        : _color;
 
     canvas.drawPath(
       visible,

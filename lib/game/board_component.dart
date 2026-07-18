@@ -2,12 +2,13 @@ import 'package:flame/components.dart';
 import 'package:flutter/painting.dart';
 
 import '../models/level.dart';
-import '../theme.dart';
 import 'line_component.dart';
+import 'z_arrows_game.dart';
 
 /// Hosts the arrow lines over faint dots marking the board silhouette.
 /// Intrinsic size is [cell] px per grid cell; the game scales/centers it.
-class BoardComponent extends PositionComponent {
+class BoardComponent extends PositionComponent
+    with HasGameReference<ZArrowsGame> {
   BoardComponent({required this.level})
       : super(size: Vector2(level.cols * cell, level.rows * cell));
 
@@ -31,7 +32,7 @@ class BoardComponent extends PositionComponent {
 
   @override
   void render(Canvas canvas) {
-    final dot = Paint()..color = ZTheme.dot;
+    final dot = Paint()..color = game.palette.dot;
     for (final (r, c) in level.mask) {
       canvas.drawCircle(
         Offset(c * cell + cell / 2, r * cell + cell / 2),
