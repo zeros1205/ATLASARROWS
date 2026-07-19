@@ -27,7 +27,7 @@ class CampaignStage {
     required this.ko,
     required this.rows,
     required this.cols,
-    required this.mask,
+    required this.grid,
     required this.lineSpecs,
     this.teaches = '',
   });
@@ -37,16 +37,31 @@ class CampaignStage {
   final String ko;
   final int rows;
   final int cols;
-  final Set<(int, int)> mask;
+
+  /// Silhouette rows, `#` for board cells. Kept as strings and expanded only
+  /// when a board is actually opened: building every mask up front means
+  /// allocating a few hundred thousand cell records during boot, which is
+  /// several seconds of a progress bar sitting still.
+  final List<String> grid;
 
   /// What this board is meant to teach, on the opening tutorial rounds only
   /// ('' everywhere else).
   final String teaches;
 
-  /// Raw `"r,c:MOVES"` specs; parsed lazily into a [Level] on first play.
+  /// Raw `"r,c:MOVES"` specs; parsed into a [Level] on first play.
   final List<String> lineSpecs;
 
   String get displayName => ko.isNotEmpty ? ko : name;
+
+  Set<(int, int)>? _mask;
+
+  /// The board's cells, built on first use and kept for as long as the stage
+  /// is referenced.
+  Set<(int, int)> get mask => _mask ??= {
+        for (var r = 0; r < grid.length; r++)
+          for (var c = 0; c < grid[r].length; c++)
+            if (grid[r][c] == '#') (r, c),
+      };
 
   Level toLevel() => Level.fromLines(
         rows: rows,
@@ -70,7 +85,6 @@ class CampaignCountry {
     required this.areaKm2,
     required this.continent,
     required this.stages,
-    required this.pins,
     this.intro = const {},
   });
 
@@ -84,8 +98,13 @@ class CampaignCountry {
   /// Short blurbs for the round intro, keyed by language code.
   final Map<String, String> intro;
 
+  List<(double, double)>? _pins;
+
   /// Normalized (u,v) 0..1 positions for each stage over the country shape.
-  final List<(double, double)> pins;
+  /// Computed on demand — nothing needs them until a country's detail is
+  /// actually drawn, and sampling 221 masks during boot is pure delay.
+  List<(double, double)> get pins => _pins ??=
+      CampaignRepository._spreadPins(mask, rows, cols, stages.length);
 
   String get displayName => ko.isNotEmpty ? ko : name;
 
@@ -153,7 +172,6 @@ class CampaignRepository {
           _parseStage(s),
       ];
       if (stages.isEmpty) continue;
-      final finale = stages.last;
       _firstStage.add(global);
       countries.add(CampaignCountry(
         rank: e['rank'] as int,
@@ -162,8 +180,6 @@ class CampaignRepository {
         areaKm2: (e['area_km2'] as num?)?.toInt() ?? 0,
         continent: (e['continent'] as String?) ?? '',
         stages: stages,
-        pins: _spreadPins(
-            finale.mask, finale.rows, finale.cols, stages.length),
         intro: _parseIntro(e['intro']),
       ));
       global += stages.length;
@@ -171,23 +187,16 @@ class CampaignRepository {
     _total = global;
   }
 
-  static CampaignStage _parseStage(Map<String, dynamic> s) {
-    final grid = (s['grid'] as List).cast<String>();
-    return CampaignStage(
-      kind: s['kind'] == 'country' ? StageKind.country : StageKind.city,
-      name: (s['name'] as String?) ?? '',
-      ko: (s['ko'] as String?) ?? '',
-      rows: (s['rows'] as num).toInt(),
-      cols: (s['cols'] as num).toInt(),
-      mask: {
-        for (var r = 0; r < grid.length; r++)
-          for (var c = 0; c < grid[r].length; c++)
-            if (grid[r][c] == '#') (r, c),
-      },
-      lineSpecs: (s['lines'] as List).cast<String>(),
-      teaches: (s['teaches'] as String?) ?? '',
-    );
-  }
+  static CampaignStage _parseStage(Map<String, dynamic> s) => CampaignStage(
+        kind: s['kind'] == 'country' ? StageKind.country : StageKind.city,
+        name: (s['name'] as String?) ?? '',
+        ko: (s['ko'] as String?) ?? '',
+        rows: (s['rows'] as num).toInt(),
+        cols: (s['cols'] as num).toInt(),
+        grid: (s['grid'] as List).cast<String>(),
+        lineSpecs: (s['lines'] as List).cast<String>(),
+        teaches: (s['teaches'] as String?) ?? '',
+      );
 
   static Map<String, String> _parseIntro(Object? raw) {
     if (raw is String) return raw.isEmpty ? const {} : {'en': raw};

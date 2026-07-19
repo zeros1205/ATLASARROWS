@@ -25,6 +25,12 @@ class RoundIntroScreen extends StatelessWidget {
     final locked = first > unlocked;
     final lang = Localizations.localeOf(context).languageCode;
     final blurb = country.introFor(lang);
+    // How much of this round is behind the player — the same number the map
+    // colours in, so the two surfaces agree.
+    final cleared = (unlocked - first).clamp(0, country.stageCount);
+    final progress = country.stageCount == 0
+        ? 0
+        : (cleared * 100 / country.stageCount).round();
 
     void play() {
       final start = unlocked.clamp(first, first + country.stageCount - 1);
@@ -70,9 +76,14 @@ class RoundIntroScreen extends StatelessWidget {
                   child: Text(
                     locked
                         ? '이전 국가를 클리어하면 이 라운드가 열립니다.'
-                        : (blurb.isNotEmpty
+                        : blurb.isNotEmpty
                             ? blurb
-                            : '${country.displayName}의 도시들을 이어가며 라운드를 완주해 보세요.'),
+                            : country.teaches.isNotEmpty
+                                ? '이번 라운드에서 배울 것 — ${country.teaches}'
+                                : country.cityCount > 0
+                                    ? '${country.displayName}의 도시 ${country.cityCount}곳을 '
+                                        '지나 마지막에 나라 전체를 풀어냅니다.'
+                                    : '${country.displayName}의 영토를 한 판으로 풀어냅니다.',
                     style: AppText.body.copyWith(
                         color: c.inkSoft, height: 1.55, fontSize: 15),
                   ),
@@ -83,9 +94,9 @@ class RoundIntroScreen extends StatelessWidget {
                 opacity: locked ? 0.5 : 1,
                 child: Row(
                   children: [
-                    _stat(c, '${country.stageCount}', 'Stages'),
-                    _stat(c, '${country.cityCount}', 'Cities'),
-                    _stat(c, '${country.pathCount}', 'Paths'),
+                    _stat(c, '${country.stageCount}', '스테이지'),
+                    _stat(c, '${country.cityCount}', '도시'),
+                    _stat(c, '$progress%', '진행'),
                   ],
                 ),
               ),

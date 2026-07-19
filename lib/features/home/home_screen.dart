@@ -80,10 +80,13 @@ class HomeScreen extends StatelessWidget {
 String _resumeLabel() {
   final repo = CampaignRepository.instance;
   if (!repo.isLoaded) return '스테이지 1';
-  final stage = Progress.instance.unlocked.value
-      .clamp(0, repo.totalStages - 1);
-  final (ci, _) = repo.locate(stage);
-  return '${repo.countries[ci].displayName} · 스테이지 ${stage + 1}';
+  final stage =
+      Progress.instance.unlocked.value.clamp(0, repo.totalStages - 1);
+  final (ci, local) = repo.locate(stage);
+  final country = repo.countries[ci];
+  // Position inside the round, not the global index: "stage 641" tells a
+  // player nothing, and the round is the unit they are actually working on.
+  return '${country.displayName} · ${local + 1} / ${country.stageCount}';
 }
 
 class _PrimaryButton extends StatelessWidget {

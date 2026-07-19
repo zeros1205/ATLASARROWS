@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../app/tokens/colors.dart';
+import '../../app/tokens/typography.dart';
 import '../../models/campaign_repository.dart';
 import '../../models/world_map.dart';
 import '../../services/progress.dart';
@@ -124,6 +125,22 @@ class _MapScreenState extends State<MapScreen> {
       child: Column(
         children: [
           const MetaHeader('맵'),
+          // The campaign runs smallest territory first, so the opening rounds
+          // colour a handful of dots that are easy to miss on a world map.
+          // A plain count makes the progress legible until the countries get
+          // big enough to see.
+          ValueListenableBuilder<int>(
+            valueListenable: Progress.instance.unlocked,
+            builder: (context, _, _) => Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Text(
+                _repo.isLoaded
+                    ? '$_currentCountry개국 완료 · ${_repo.countries.length}개국 중'
+                    : '',
+                style: AppText.caption.copyWith(color: col.inkFaint),
+              ),
+            ),
+          ),
           Expanded(
             child: !_ready
                 ? Center(child: CircularProgressIndicator(color: col.accent))

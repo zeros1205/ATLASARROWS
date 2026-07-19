@@ -47,19 +47,24 @@ class _BootScreenState extends State<BootScreen> {
     if (!mounted) return;
     setState(() => _phase = _Phase.loading);
 
-    // Initialize services, driving the progress bar.
+    // Everything the player can see or touch on the first screen. The bar
+    // tracks these and nothing else.
     final steps = <Future<void> Function()>[
       () => Progress.instance.load(),
       () => ShapeCatalog.load(),
       () => CampaignRepository.instance.load(),
       () => WorldMap.instance.load(),
-      () => Ads.init(),
-      () => IapService.instance.init(),
-      () => FirebaseService.init(),
-      // Sign-in is best-effort: a declined or unavailable games account must
-      // not hold up boot, so this never throws and never blocks.
-      () => GameServices.init(),
     ];
+
+    // The store and ad SDKs, Firebase, and the games sign-in are all started
+    // here but deliberately NOT awaited: initializing the ad SDK alone can
+    // take several seconds, and holding the loading bar hostage to it means a
+    // player stares at 50% before they can touch anything. Each of these
+    // already degrades to a no-op when it is unavailable, and every surface
+    // that uses them re-reads their state when it changes.
+    unawaited(Ads.init());
+    unawaited(IapService.instance.init());
+    unawaited(FirebaseService.init().then((_) => GameServices.init()));
     for (var i = 0; i < steps.length; i++) {
       try {
         await steps[i]();
