@@ -38,6 +38,13 @@ class AppBrand {
 /// is LOGAN LAND's, and stays at the kit defaults on purpose.
 final kBootConfig = LoganLandBootConfig(
   wordmarkAsset: AppBrand.wordmark,
+  // The kit's warm-grey track (#6E6961) separates from a teal fill by hue
+  // rather than lightness — 1.70:1, which the kit itself flags. Its remedy is
+  // to lighten the track, but that is aimed at apps whose accent is near
+  // greyscale; against this mint it lands at 1.15:1, worse. Going the other
+  // way and using the lockup's own second colour reaches 2.87:1 and leaves
+  // the bar made of nothing but the two colours in the logo above it.
+  barTrack: AppBrand.wordmarkSlate,
   // The kit draws this before any localisation exists, so it reads the
   // platform locale directly instead of the app's l10n.
   captionBuilder: (percent) {
