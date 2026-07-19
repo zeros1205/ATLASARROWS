@@ -4,6 +4,8 @@
 ///
 /// Usage: dart run tool/preview_levels.dart
 /// Output: tools/atlas/preview_levels.json
+library;
+
 import 'dart:convert';
 import 'dart:io';
 
