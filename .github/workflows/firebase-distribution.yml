@@ -36,7 +36,7 @@ jobs:
         id: fad
         env:
           APP_ID: ${{ secrets.FIREBASE_ANDROID_APP_ID }}
-          CREDENTIALS: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          CREDENTIALS: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_BASE64 }}
         run: |
           if [ -z "$APP_ID" ] || [ -z "$CREDENTIALS" ]; then
             echo "::warning::Firebase secrets are not set — building the APK only. Attach it from this run's artifacts."
@@ -99,12 +99,24 @@ jobs:
           path: build/app/outputs/flutter-apk/app-release.apk
           retention-days: 14
 
+      # The credentials travel as base64 and are decoded to a file here.
+      # Passing the raw JSON through a secret is fragile: any stray BOM or CRLF
+      # picked up while the secret was written breaks the private-key PEM and
+      # the CLI reports it as "Failed to authenticate", which reads like a
+      # permissions problem and sends you looking in the wrong place.
+      - name: Write Firebase credentials
+        if: steps.fad.outputs.ready == 'true'
+        run: |
+          echo "${{ secrets.FIREBASE_SERVICE_ACCOUNT_BASE64 }}" | base64 --decode > "$RUNNER_TEMP/fad.json"
+          python3 -c "import json,sys; json.load(open('$RUNNER_TEMP/fad.json'))" \
+            || { echo "::error::Decoded FIREBASE_SERVICE_ACCOUNT_BASE64 is not valid JSON."; exit 1; }
+
       - name: Distribute to testers
         if: steps.fad.outputs.ready == 'true'
         uses: wzieba/Firebase-Distribution-Github-Action@v1
         with:
           appId: ${{ secrets.FIREBASE_ANDROID_APP_ID }}
-          serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          serviceCredentialsFile: ${{ runner.temp }}/fad.json
           groups: ${{ inputs.groups || 'internal' }}
           file: build/app/outputs/flutter-apk/app-release.apk
           releaseNotes: |
@@ -125,7 +137,7 @@ jobs:
           APP_ID: ${{ secrets.FIREBASE_IOS_APP_ID }}
           CERT: ${{ secrets.IOS_DIST_CERT_P12_BASE64 }}
           PROFILE: ${{ secrets.IOS_ADHOC_PROFILE_BASE64 }}
-          CREDENTIALS: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          CREDENTIALS: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_BASE64 }}
         run: |
           if [ -z "$APP_ID" ] || [ -z "$CERT" ] || [ -z "$PROFILE" ] || [ -z "$CREDENTIALS" ]; then
             echo "::notice::iOS ad-hoc distribution is not configured — skipping. (Needs FIREBASE_IOS_APP_ID + IOS_ADHOC_PROFILE_BASE64.)"
@@ -175,6 +187,7 @@ jobs:
             > ~/Library/MobileDevice/Provisioning\ Profiles/adhoc.mobileprovision
 
       - name: Build ad-hoc IPA
+        id: ipa
         if: steps.adhoc.outputs.ready == 'true'
         env:
           TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
@@ -198,13 +211,20 @@ jobs:
           flutter build ipa --release \
             --build-number=${{ github.run_number }} \
             --export-options-plist="$RUNNER_TEMP/ExportOptions.plist"
+          ipa="$(ls build/ios/ipa/*.ipa | head -1)"
+          echo "ipa=$ipa" >> "$GITHUB_OUTPUT"
+
+      - name: Write Firebase credentials
+        if: steps.adhoc.outputs.ready == 'true'
+        run: |
+          echo "${{ secrets.FIREBASE_SERVICE_ACCOUNT_BASE64 }}" | base64 --decode > "$RUNNER_TEMP/fad.json"
 
       - name: Distribute to testers
         if: steps.adhoc.outputs.ready == 'true'
         uses: wzieba/Firebase-Distribution-Github-Action@v1
         with:
           appId: ${{ secrets.FIREBASE_IOS_APP_ID }}
-          serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          serviceCredentialsFile: ${{ runner.temp }}/fad.json
           groups: ${{ inputs.groups || 'internal' }}
-          file: build/ios/ipa/atlas_arrows.ipa
+          file: ${{ steps.ipa.outputs.ipa }}
           releaseNotes: ${{ inputs.notes || 'manual ad-hoc build' }}
