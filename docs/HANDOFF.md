@@ -75,10 +75,21 @@
   → 콘솔 설정 절차는 `docs/FIREBASE.md`.
 - 검증: `dart analyze` 클린 · `flutter test` 19/19 · `flutter build apk --release` 성공.
 
-## 2-2. iOS 서명 파이프라인 실동작 확인 (2026-07-19)
+## 2-2. 배포 파이프라인 실동작 확인 (2026-07-19)
 
-**Xcode 없이 서명 IPA 아카이브까지 CI에서 통과**(run `29687156452`). Android 서명
-AAB도 통과(run `29684013621`). 그 과정에서 고친 것:
+**TestFlight 업로드 성공**(run `29689215923`) · **Firebase App Distribution 배포
+성공**(run `29689211721`, `internal` 그룹) · Android 서명 AAB 통과(`29684013621`).
+**Mac/Xcode 없이 iOS 배포가 실제로 성립한다.**
+
+업로드까지 가면서 추가로 밟은 함정 3개(전부 `docs/RELEASE.md`에 기록):
+- **러너 Xcode가 낡으면 마지막 업로드에서 409** — ASC는 iOS 26 SDK 미만을 거부한다.
+  `macos-15`(Xcode 16) → **`macos-26`**. 아카이브까지 다 성공한 뒤 튕겨서 가장 늦게 안다.
+- **IPA 파일명은 앱 표시명**(`Atlas Arrows.ipa`)이다. 하드코딩하면 깨지므로 워크플로가
+  실제 산출물을 찾는다.
+- **서비스 계정 JSON은 base64로** 넘겨야 한다. 원문을 시크릿에 담으면 깨져서 Firebase
+  CLI가 `Failed to authenticate`라는 **권한 문제처럼 보이는** 메시지를 낸다.
+
+그 전 단계(서명 자체)에서 고친 것:
 
 - **iOS 수동 서명 고정**(`ios/Flutter/Release.xcconfig`): CI엔 개발용 인증서가 없어
   자동 서명이면 flutter가 `No valid code signing certificates were found`로 죽는다.
