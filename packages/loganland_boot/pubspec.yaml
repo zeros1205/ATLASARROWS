@@ -1,0 +1,22 @@
+name: loganland_boot
+description: LOGAN LAND cold-start brand sequence (native splash → publisher card → loading).
+version: 1.0.0
+publish_to: none
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+  flutter: ">=3.22.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+flutter:
+  assets:
+    - assets/brand/
+    - assets/icon/
+  fonts:
+    - family: Paperlogy
+      fonts:
+        - asset: assets/fonts/Paperlogy-ExtraBold.ttf
+          weight: 800

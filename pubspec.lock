@@ -473,10 +473,8 @@ packages:
     dependency: "direct main"
     description:
       path: "packages/loganland_boot"
-      ref: "v1.0.0"
-      resolved-ref: "45840cb122726f01dbeb2de82b6a2fb547eaa1cc"
-      url: "https://github.com/zeros1205/loganland_flutter_kit.git"
-    source: git
+      relative: true
+    source: path
     version: "1.0.0"
   logging:
     dependency: transitive

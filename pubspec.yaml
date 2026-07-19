@@ -19,13 +19,16 @@ dependencies:
   games_services: ^5.1.0
   firebase_core: ^4.12.1
   firebase_auth: ^6.5.6
-  # LOGAN LAND cold-start brand sequence. Pinned to a tag on purpose: on `main`
-  # the publisher identity could change under us on any `pub get`.
+  # LOGAN LAND cold-start brand sequence.
+  #
+  # ⚠️ VENDORED COPY. The source of truth is zeros1205/loganland_flutter_kit at
+  # tag v1.0.0; this is a checkout of packages/loganland_boot from it. It lives
+  # here because that repo is private and CI cannot clone it without a token.
+  # Do not edit anything under packages/loganland_boot — fix it in the kit, tag
+  # a release, and re-copy, or the publisher identity forks per app, which is
+  # the exact thing the kit exists to prevent.
   loganland_boot:
-    git:
-      url: https://github.com/zeros1205/loganland_flutter_kit.git
-      path: packages/loganland_boot
-      ref: v1.0.0
+    path: packages/loganland_boot
 
 dev_dependencies:
   flutter_test:
