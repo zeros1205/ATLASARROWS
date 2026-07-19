@@ -15,10 +15,10 @@ import '../../services/progress.dart';
 import '../../shared/motion.dart';
 import '../../shared/pressable.dart';
 
-/// One stage of the campaign, with the new chrome: 2-line header
-/// (STAGE / country), a hearts strip, the board, a booster bar (hint /
-/// remove) and a bottom banner. Results come up as a bottom sheet with a
-/// top MREC banner; the heart economy grants a free refill then ad refills.
+/// One stage of the campaign: a header naming the place, a hearts strip, the
+/// board, a bottom bar (fit view / hint / remove / restart) and a banner.
+/// Results come up as a bottom sheet with a top MREC banner; the heart
+/// economy grants a free refill then ad refills.
 class GameScreen extends StatefulWidget {
   const GameScreen({super.key, required this.stage});
   final int stage;
@@ -109,8 +109,16 @@ class _GameScreenState extends State<GameScreen> {
   /// country is already established by the round intro.
   String get _placeName => _repo.stageAt(_stage)?.displayName ?? _countryName;
 
-  bool get _isFinale =>
-      _repo.stageAt(_stage)?.kind == StageKind.country;
+  /// The two header lines: city over country. A country board — the round's
+  /// finale, and the only stage a country without cities ever has — would
+  /// otherwise repeat its own name twice, so it stands alone on one line.
+  (String, String?) get _headerLines {
+    final stage = _repo.isLoaded ? _repo.stageAt(_stage) : null;
+    if (stage == null || stage.kind == StageKind.country) {
+      return (_countryName, null);
+    }
+    return (stage.displayName, _countryName);
+  }
 
   /// "3 / 12" — position inside the round. A global stage number would read as
   /// "stage 641 of 775", which says nothing a player cares about.
@@ -156,6 +164,21 @@ class _GameScreenState extends State<GameScreen> {
     _game.restartLevel();
   }
 
+  /// Restart throws away everything the player has freed so far and cannot be
+  /// undone, so it asks first. The one on the fail sheet does not — that board
+  /// is already lost.
+  Future<void> _confirmRestart() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => const _ConfirmDialog(
+        title: '다시 시작할까요?',
+        body: '지금까지 뺀 화살표가 모두 처음 상태로 돌아갑니다.',
+        confirm: '다시 시작',
+      ),
+    );
+    if (ok == true && mounted) _restart();
+  }
+
   void _refill({required bool viaAd}) {
     void grant() {
       _game.refillHearts();
@@ -190,12 +213,8 @@ class _GameScreenState extends State<GameScreen> {
             Column(
               children: [
                 _Header(
-                  stage: _localStageLabel,
-                  place: _placeName,
-                  finale: _isFinale,
+                  lines: _headerLines,
                   onBack: () => Navigator.of(context).maybePop(),
-                  onRestart: _restart,
-                  onResetView: _game.resetView,
                 ),
                 Container(height: 1, color: c.line),
                 _HeartsStrip(hearts: _hearts),
@@ -223,7 +242,11 @@ class _GameScreenState extends State<GameScreen> {
                     ],
                   ),
                 ),
-                _BoosterBar(game: _game),
+                _BoosterBar(
+                  game: _game,
+                  onResetView: _game.resetView,
+                  onRestart: _confirmRestart,
+                ),
                 const AdsBanner(),
               ],
             ),
@@ -472,77 +495,141 @@ class _RoundIntro extends StatelessWidget {
       );
 }
 
+/// Place name, centred on the screen's own axis. The back button is laid over
+/// the top rather than beside the text, so the name does not drift off-centre
+/// with whatever chrome happens to sit next to it.
 class _Header extends StatelessWidget {
-  const _Header(
-      {required this.stage,
-      required this.place,
-      required this.finale,
-      required this.onBack,
-      required this.onRestart,
-      required this.onResetView});
-  final String stage;
-  final String place;
+  const _Header({required this.lines, required this.onBack});
 
-  /// The country silhouette that closes a round — worth calling out.
-  final bool finale;
-  final VoidCallback onBack, onRestart, onResetView;
+  /// (city, country) on a city board; (country, null) on a country board.
+  final (String, String?) lines;
+  final VoidCallback onBack;
+
+  static const _sideInset = 56.0;
 
   @override
   Widget build(BuildContext context) {
     final c = AppColors.of(context);
+    final (title, subtitle) = lines;
     return SizedBox(
-      height: 56,
-      child: Row(
+      height: 72,
+      child: Stack(
         children: [
-          _iconBtn(c, Icons.arrow_back, onBack),
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // The place is the headline: the player is solving Seoul, not
-                // "stage 7". The counter rides underneath as context.
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (finale)
-                      Padding(
-                        padding: const EdgeInsets.only(right: 5),
-                        child: Icon(Icons.flag_rounded,
-                            size: 14, color: c.accent),
-                      ),
-                    Flexible(
-                      child: Text(place,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppText.label.copyWith(
-                              color: c.ink,
-                              fontWeight: FontWeight.w900,
-                              height: 1.05,
-                              fontSize: 15)),
-                    ),
-                  ],
-                ),
-                Text(stage,
-                    style: AppText.caption.copyWith(
-                        color: c.inkFaint, height: 1.05, fontSize: 11)),
-              ],
+          Positioned.fill(
+            child: Padding(
+              // Equal on both sides, so a single line sits dead centre and a
+              // two-line block is centred as a block.
+              padding: const EdgeInsets.symmetric(horizontal: _sideInset),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Text(title,
+                      maxLines: 1,
+                      textAlign: TextAlign.center,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.label.copyWith(
+                          color: c.ink,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          height: 1.25)),
+                  if (subtitle != null)
+                    Text(subtitle,
+                        maxLines: 1,
+                        textAlign: TextAlign.center,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppText.body.copyWith(
+                            color: c.inkSoft,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w400,
+                            height: 1.25)),
+                ],
+              ),
             ),
           ),
-          _iconBtn(c, Icons.center_focus_strong_outlined, onResetView),
-          _iconBtn(c, Icons.refresh, onRestart),
+          Positioned(
+            left: 6,
+            top: 0,
+            bottom: 0,
+            child: Center(
+              child: Pressable(
+                onTap: onBack,
+                child: SizedBox(
+                  width: 44,
+                  height: 44,
+                  child: Icon(Icons.arrow_back, color: c.inkFaint, size: 24),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
+}
 
-  Widget _iconBtn(AppColors c, IconData icon, VoidCallback onTap) => Pressable(
-        onTap: onTap,
-        child: SizedBox(
-          width: 44,
-          height: 44,
-          child: Icon(icon, color: c.inkFaint, size: 24),
+/// Yes/no over the board. Restart is the only thing in the game that discards
+/// work, so it is the only thing that asks.
+class _ConfirmDialog extends StatelessWidget {
+  const _ConfirmDialog(
+      {required this.title, required this.body, required this.confirm});
+  final String title, body, confirm;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = AppColors.of(context);
+    Widget button(String label, Color bg, Color fg, bool value,
+            {bool outline = false}) =>
+        Expanded(
+          child: Pressable(
+            onTap: () => Navigator.of(context).pop(value),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 13),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: bg,
+                borderRadius: BorderRadius.circular(AppRadius.pill),
+                border: outline ? Border.all(color: c.line, width: 1.5) : null,
+              ),
+              child: Text(label,
+                  style: AppText.label
+                      .copyWith(color: fg, fontWeight: FontWeight.w600)),
+            ),
+          ),
+        );
+
+    return Dialog(
+      backgroundColor: c.card,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 32),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.xxl)),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(title,
+                textAlign: TextAlign.center,
+                style: AppText.title.copyWith(
+                    color: c.ink, fontSize: 18, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            Text(body,
+                textAlign: TextAlign.center,
+                style: AppText.body.copyWith(color: c.inkSoft, fontSize: 13.5)),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                button('취소', Colors.transparent, c.inkSoft, false,
+                    outline: true),
+                const SizedBox(width: 10),
+                button(confirm, c.accent, c.onAccent, true),
+              ],
+            ),
+          ],
         ),
-      );
+      ),
+    );
+  }
 }
 
 class _HeartsStrip extends StatelessWidget {
@@ -593,9 +680,14 @@ class _HeartsStrip extends StatelessWidget {
   ];
 }
 
+/// Fit-view and restart flank the two boosters. Both booster tiles are the
+/// same width and both utility tiles are the same width, so the pair stays on
+/// the screen's centre line no matter what the counters read.
 class _BoosterBar extends StatelessWidget {
-  const _BoosterBar({required this.game});
+  const _BoosterBar(
+      {required this.game, required this.onResetView, required this.onRestart});
   final ZArrowsGame game;
+  final VoidCallback onResetView, onRestart;
 
   /// Running dry is the moment the shop is most relevant — the '+' badge takes
   /// the player straight there instead of doing nothing.
@@ -607,10 +699,18 @@ class _BoosterBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          _UtilButton(
+            icon: Icons.center_focus_strong_outlined,
+            label: '화면맞춤',
+            onTap: onResetView,
+          ),
+          // The two consumables read as one group; the utilities do not sit
+          // inside it.
+          Row(mainAxisSize: MainAxisSize.min, children: [
           ValueListenableBuilder<int>(
             valueListenable: Progress.instance.hints,
             builder: (context, n, _) => _BoosterButton(
@@ -627,7 +727,7 @@ class _BoosterBar extends StatelessWidget {
               },
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 14),
           ValueListenableBuilder<bool>(
             valueListenable: game.removeArmed,
             builder: (context, armed, _) =>
@@ -649,7 +749,45 @@ class _BoosterBar extends StatelessWidget {
               ),
             ),
           ),
+          ]),
+          _UtilButton(
+            icon: Icons.refresh,
+            label: '재시작',
+            onTap: onRestart,
+          ),
         ],
+      ),
+    );
+  }
+}
+
+/// Same anatomy as a booster tile — icon over a caption, same height — but no
+/// frame and no counter, because these two cost nothing and never run out.
+class _UtilButton extends StatelessWidget {
+  const _UtilButton(
+      {required this.icon, required this.label, required this.onTap});
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = AppColors.of(context);
+    return Pressable(
+      onTap: onTap,
+      child: SizedBox(
+        width: 58,
+        height: 58,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 26, color: c.inkSoft),
+            const SizedBox(height: 3),
+            Text(label,
+                style: AppText.caption.copyWith(
+                    fontSize: 9, color: c.inkFaint, letterSpacing: 0.5)),
+          ],
+        ),
       ),
     );
   }
