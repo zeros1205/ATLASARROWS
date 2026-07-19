@@ -2,7 +2,9 @@
 
 Walks world_campaign_order.countries (already sorted by area ascending), and for
 each country that has a matching mask in atlas_countries.json with >=80 cells,
-emits a campaign entry. Stops after 120 emitted countries.
+emits a campaign entry. Every country with a usable mask is emitted — there is
+no cap on the campaign length (a cap here silently drops the LARGEST countries,
+i.e. the whole late game, since the order is area-ascending).
 
 Writes the result to:
   - tools/atlas/campaign.json
@@ -20,8 +22,10 @@ ATLAS_PATH = os.path.join(BASE_DIR, "atlas_countries.json")
 OUT_PATH_1 = os.path.join(BASE_DIR, "campaign.json")
 OUT_PATH_2 = os.path.join(REPO_ROOT, "assets", "campaign", "campaign.json")
 
+# Smallest mask that still makes a playable board at the current atlas raster.
+# 47 micro-territories (Maldives 4 cells, Vatican 18, Malta 75, …) fall below
+# this; rescuing them needs a higher-resolution re-raster, not a lower floor.
 MIN_CELLS = 80
-MAX_EMIT = 120
 
 
 def load_json(path):
@@ -40,16 +44,18 @@ def main():
     mask_by_name = {shape["name"]: shape for shape in atlas_data["shapes"]}
 
     emitted = []
+    skipped_no_mask = []
+    skipped_small = []
     for entry in order_data["countries"]:
-        if len(emitted) >= MAX_EMIT:
-            break
         name = entry["country"]
         shape = mask_by_name.get(name)
         if shape is None:
+            skipped_no_mask.append(name)
             continue
         grid = shape.get("grid", [])
         cells = sum(row.count("#") for row in grid)
         if cells < MIN_CELLS:
+            skipped_small.append((name, cells))
             continue
         emitted.append({
             "rank": len(emitted) + 1,
@@ -76,7 +82,11 @@ def main():
     last5 = [c["name"] for c in emitted[-5:]]
     size_kb = os.path.getsize(OUT_PATH_1) / 1024.0
 
-    print(f"Total emitted: {total}")
+    print(f"Total emitted: {total} / {len(order_data['countries'])} in order")
+    print(f"  skipped, no mask in atlas ({len(skipped_no_mask)}): "
+          f"{', '.join(skipped_no_mask)}")
+    print(f"  skipped, <{MIN_CELLS} cells ({len(skipped_small)}): "
+          f"{', '.join(f'{n} {c}' for n, c in skipped_small)}")
     print(f"First 5: {first5}")
     print(f"Last 5: {last5}")
     print(f"File size: {size_kb:.2f} KB")
