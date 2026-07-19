@@ -1,0 +1,368 @@
+<title>Atlas Arrows — Logan Land</title>
+<meta name="description" content="Atlas Arrows — a snake-arrow puzzle that carries you across a dotted world map. By Logan Land.">
+
+<style>
+:root{
+  /* Atlas Arrows brand tokens (from the app's design system) */
+  --paper:#F7F6F2; --ink:#23252E; --ink-soft:#6E6F78; --ink-faint:#9A9DAB;
+  --line:#E7E5DE; --card:#FFFFFF; --dot:#DCDAD1; --accent:#2F6BFF;
+  --accent-soft:#E7EEFF; --ground:#EFEDE6;
+  --shadow:0 1px 0 rgba(35,37,46,.04), 0 18px 40px -22px rgba(35,37,46,.30);
+  --maxw:1120px; --measure:64ch;
+  --mono:ui-monospace,"SFMono-Regular",Menlo,"Cascadia Mono","Roboto Mono",monospace;
+  --sans:system-ui,-apple-system,"Segoe UI","Apple SD Gothic Neo",Roboto,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root{
+  --paper:#14151A; --ink:#EDEDF0; --ink-soft:#9EA0AC; --ink-faint:#6C6E7A;
+  --line:#2A2C35; --card:#1D1F26; --dot:#2C2F39; --accent:#5B8BFF;
+  --accent-soft:#20304F; --ground:#0F1014;
+  --shadow:0 1px 0 rgba(0,0,0,.3), 0 20px 44px -22px rgba(0,0,0,.7);
+}}
+:root[data-theme="light"]{
+  --paper:#F7F6F2; --ink:#23252E; --ink-soft:#6E6F78; --ink-faint:#9A9DAB;
+  --line:#E7E5DE; --card:#FFFFFF; --dot:#DCDAD1; --accent:#2F6BFF;
+  --accent-soft:#E7EEFF; --ground:#EFEDE6;
+  --shadow:0 1px 0 rgba(35,37,46,.04), 0 18px 40px -22px rgba(35,37,46,.30);
+}
+:root[data-theme="dark"]{
+  --paper:#14151A; --ink:#EDEDF0; --ink-soft:#9EA0AC; --ink-faint:#6C6E7A;
+  --line:#2A2C35; --card:#1D1F26; --dot:#2C2F39; --accent:#5B8BFF;
+  --accent-soft:#20304F; --ground:#0F1014;
+  --shadow:0 1px 0 rgba(0,0,0,.3), 0 20px 44px -22px rgba(0,0,0,.7);
+}
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
+  line-height:1.6;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+a{color:inherit}
+img,svg{max-width:100%}
+
+.eyebrow{font-family:var(--mono);font-size:11.5px;letter-spacing:.24em;text-transform:uppercase;
+  color:var(--accent);font-weight:600}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 22px}
+
+/* ── legend / nav bar ─────────────────────────── */
+header.bar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--ground) 86%,transparent);
+  backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.bar .row{display:flex;align-items:center;gap:16px;height:60px}
+.brand{display:flex;align-items:center;gap:11px;font-weight:800;letter-spacing:-.01em;font-size:16px}
+.brand .mk{width:26px;height:26px;color:var(--ink);flex:none}
+.brand .mk polygon{fill:var(--accent)}
+.nav{margin-left:auto;display:flex;gap:4px;font-family:var(--mono);font-size:12px;letter-spacing:.04em}
+.nav a{padding:8px 12px;border-radius:8px;color:var(--ink-soft);text-decoration:none;text-transform:uppercase}
+.nav a:hover{color:var(--ink);background:var(--card)}
+.nav a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* ── hero ─────────────────────────────────────── */
+.hero{position:relative;overflow:hidden;border-bottom:1px solid var(--line);
+  background:radial-gradient(120% 90% at 82% -10%,var(--accent-soft),transparent 55%)}
+#mapcv{position:absolute;inset:0;width:100%;height:100%;opacity:.9}
+.hero .wrap{position:relative;padding:88px 22px 92px;max-width:var(--maxw)}
+.hero .col{max-width:640px}
+.hero h1{font-size:clamp(44px,9vw,92px);line-height:.94;letter-spacing:-.035em;font-weight:850;
+  margin:16px 0 0;text-wrap:balance}
+.hero h1 .dot{color:var(--accent)}
+.tagline{font-size:clamp(17px,2.6vw,22px);color:var(--ink);font-weight:600;margin:20px 0 0;max-width:26ch;
+  text-wrap:balance}
+.sub{color:var(--ink-soft);margin:14px 0 0;max-width:52ch;font-size:15.5px}
+.badges{display:flex;flex-wrap:wrap;gap:11px;margin-top:30px;align-items:center}
+.soon{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint);
+  width:100%;margin-bottom:-4px}
+.store{display:inline-flex;align-items:center;gap:9px;border:1.5px solid var(--line);background:var(--card);
+  border-radius:12px;padding:11px 16px;font-weight:700;font-size:14px;box-shadow:var(--shadow)}
+.store small{display:block;font-weight:500;font-size:10.5px;color:var(--ink-faint);letter-spacing:.02em}
+.store svg{width:19px;height:19px;flex:none;color:var(--ink)}
+
+/* ── sections ─────────────────────────────────── */
+section{padding:72px 0}
+.sechead{display:flex;align-items:baseline;gap:14px;margin-bottom:8px}
+.sechead h2{font-size:clamp(24px,3.6vw,32px);letter-spacing:-.02em;font-weight:800;margin:0}
+.lead{color:var(--ink-soft);max-width:var(--measure);font-size:16px;margin:6px 0 0}
+
+.features{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:34px}
+.feat{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px;box-shadow:var(--shadow)}
+.feat h3{margin:14px 0 6px;font-size:16.5px;letter-spacing:-.01em}
+.feat p{margin:0;color:var(--ink-soft);font-size:14px}
+.feat .ic{width:34px;height:34px;color:var(--accent)}
+
+/* ── support ──────────────────────────────────── */
+.support-band{background:var(--paper);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.contact{display:flex;flex-wrap:wrap;align-items:center;gap:16px 26px;margin-top:26px;
+  background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px 24px;box-shadow:var(--shadow)}
+.contact .mail{font-family:var(--mono);font-size:clamp(16px,3vw,22px);font-weight:600;color:var(--accent);
+  text-decoration:none;letter-spacing:-.01em;word-break:break-all}
+.contact .mail:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px}
+.topics{display:flex;flex-wrap:wrap;gap:8px;margin-left:auto}
+.chip{font-family:var(--mono);font-size:11.5px;letter-spacing:.04em;color:var(--ink-soft);
+  border:1px solid var(--line);border-radius:999px;padding:5px 11px}
+
+/* ── privacy (legal reading measure) ──────────── */
+.legal{max-width:var(--measure)}
+.legal .updated{font-family:var(--mono);font-size:12px;color:var(--ink-faint);letter-spacing:.03em;margin-top:6px}
+.legal h3{font-size:16px;letter-spacing:-.005em;margin:34px 0 8px;
+  display:flex;gap:10px;align-items:baseline}
+.legal h3 .num{font-family:var(--mono);font-size:12.5px;color:var(--accent);font-weight:600;flex:none}
+.legal p{margin:0 0 12px;color:var(--ink-soft);font-size:15px}
+.legal ul{margin:0 0 12px;padding-left:0;list-style:none;color:var(--ink-soft);font-size:15px}
+.legal li{position:relative;padding-left:20px;margin:8px 0}
+.legal li::before{content:"";position:absolute;left:4px;top:9px;width:5px;height:5px;border-radius:50%;
+  background:var(--accent);opacity:.7}
+.legal b{color:var(--ink);font-weight:650}
+.legal a{color:var(--accent);text-decoration:none}
+.legal a:hover{text-decoration:underline}
+
+/* ── footer ───────────────────────────────────── */
+footer{border-top:1px solid var(--line);background:var(--ground);padding:40px 0 56px}
+.foot{display:flex;flex-wrap:wrap;gap:14px 26px;align-items:center;font-size:13px;color:var(--ink-faint)}
+.foot .brand{font-size:14px;color:var(--ink-soft)}
+.foot a{color:var(--ink-soft);text-decoration:none;font-family:var(--mono);font-size:12px;letter-spacing:.03em}
+.foot a:hover{color:var(--ink)}
+.foot .sp{margin-left:auto}
+
+@media(max-width:760px){
+  .features{grid-template-columns:1fr}
+  .nav a{padding:8px 9px}
+  .topics{margin-left:0;width:100%}
+  section{padding:56px 0}
+}
+</style>
+
+<!-- ══ inline app mark (ported from lib/features/boot/boot_screen.dart) ══ -->
+<template id="mark">
+  <svg viewBox="0 0 100 100" class="mk" aria-hidden="true">
+    <polyline points="22,26 78,26 78,40 52,40 52,52 48,52 48,64 22,64 22,78 68,78"
+      fill="none" stroke="currentColor" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+    <polygon points="64,66 86,78 64,90"/>
+  </svg>
+</template>
+
+<header class="bar">
+  <div class="wrap row">
+    <a class="brand" href="#top" style="text-decoration:none">
+      <svg viewBox="0 0 100 100" class="mk" aria-hidden="true">
+        <polyline points="22,26 78,26 78,40 52,40 52,52 48,52 48,64 22,64 22,78 68,78"
+          fill="none" stroke="currentColor" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+        <polygon points="64,66 86,78 64,90"/>
+      </svg>
+      Atlas&nbsp;Arrows
+    </a>
+    <nav class="nav">
+      <a href="#about">About</a>
+      <a href="#support">Support</a>
+      <a href="#privacy">Privacy</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+  <!-- ══ hero ══ -->
+  <section class="hero" style="padding:0">
+    <canvas id="mapcv" aria-hidden="true"></canvas>
+    <div class="wrap">
+      <div class="col">
+        <span class="eyebrow">Logan Land · Puzzle</span>
+        <h1>Atlas<br>Arrows<span class="dot">.</span></h1>
+        <p class="tagline">Shift the arrows. Clear the maze. Cross the world.</p>
+        <p class="sub">A snake-arrow puzzle that carries you across a dotted world map — every
+          country a round, every city a silhouette to untangle.</p>
+        <div class="badges">
+          <span class="soon">Coming soon to</span>
+          <span class="store">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 12.6c0-2 1.6-3 1.7-3-.9-1.4-2.4-1.5-2.9-1.6-1.2-.1-2.4.7-3 .7-.6 0-1.6-.7-2.6-.7-1.3 0-2.6.8-3.2 2-1.4 2.4-.4 6 1 8 .6 1 1.4 2.1 2.4 2 1-.1 1.3-.6 2.5-.6s1.5.6 2.6.6c1 0 1.7-1 2.3-2 .7-1.1 1-2.2 1-2.3-.1 0-2.1-.8-2.1-3.2zM14.7 6.3c.5-.7.9-1.6.8-2.5-.8 0-1.7.5-2.3 1.2-.5.6-.9 1.5-.8 2.4.9.1 1.7-.4 2.3-1.1z"/></svg>
+            <span>App&nbsp;Store<small>iPhone · iPad</small></span>
+          </span>
+          <span class="store">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.6 2.3c-.2.2-.3.5-.3.9v17.6c0 .4.1.7.3.9l.1.1 9.9-9.8v-.2L3.6 2.3zm13.2 6.5L14 6.1 4.9 1c-.4-.2-.8-.2-1 0l12.9 7.8zM4 22.9c.2.2.6.2 1 0l12-6.8-2.8-2.8L4 22.9zm16.4-9.1l-2.6-1.5-3 3 3 3 2.6-1.5c.8-.5.8-1.5 0-2z"/></svg>
+            <span>Google&nbsp;Play<small>Android</small></span>
+          </span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ about ══ -->
+  <section id="about">
+    <div class="wrap">
+      <div class="sechead"><span class="eyebrow">The game</span></div>
+      <h2 style="font-size:clamp(26px,4vw,36px);letter-spacing:-.02em;margin:0 0 4px">One puzzle. Every country.</h2>
+      <p class="lead">Each arrow is a snake that can only leave the board straight ahead. Clear a
+        path for every one and the tile is solved — then you travel on to the next city, the next
+        border, the next silhouette on the map.</p>
+      <div class="features">
+        <div class="feat">
+          <svg class="ic" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M10 12h20v7H21v6h-4v7H10z"/><path d="M28 30l9 5-9 5z" fill="currentColor" stroke="none"/></svg>
+          <h3>Arrows that think</h3>
+          <p>A tight logic puzzle — read the board, free each arrow's exit, watch the maze come apart.</p>
+        </div>
+        <div class="feat">
+          <svg class="ic" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="24" cy="24" r="16"/><path d="M8 24h32M24 8c5 5 5 27 0 32M24 8c-5 5-5 27 0 32"/></svg>
+          <h3>A world to cross</h3>
+          <p>Countries in order of size become rounds, from Monaco to the giants — a whole atlas to complete.</p>
+        </div>
+        <div class="feat">
+          <svg class="ic" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M24 6c7 0 12 5 12 12 0 9-12 24-12 24S12 27 12 18C12 11 17 6 24 6z"/><circle cx="24" cy="18" r="4"/></svg>
+          <h3>Landmarks in ink</h3>
+          <p>City and country silhouettes become the boards themselves — Seoul, Tokyo, the coastline of home.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ support ══ -->
+  <section id="support" class="support-band">
+    <div class="wrap">
+      <div class="sechead"><span class="eyebrow">Support</span></div>
+      <h2 style="font-size:clamp(26px,4vw,36px);letter-spacing:-.02em;margin:0 0 4px">We read every message.</h2>
+      <p class="lead">Stuck on a level, missing a purchase, or found a bug? Email us and we'll
+        get back to you — usually within two business days.</p>
+      <div class="contact">
+        <a class="mail" href="mailto:support@loganland.app">support@loganland.app</a>
+        <div class="topics">
+          <span class="chip">Restore purchases</span>
+          <span class="chip">Delete account</span>
+          <span class="chip">Bug reports</span>
+          <span class="chip">Feedback</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ privacy ══ -->
+  <section id="privacy">
+    <div class="wrap legal">
+      <div class="sechead"><span class="eyebrow">Legal</span></div>
+      <h2 style="font-size:clamp(24px,3.6vw,32px);letter-spacing:-.02em;margin:0">Privacy Policy</h2>
+      <p class="updated">Atlas Arrows · Logan Land — Effective July 19, 2026</p>
+
+      <p style="margin-top:20px">This policy explains what Atlas Arrows (“the app”, “we”), published by
+        <b>Logan Land</b>, collects when you play, why, and the choices you have. Questions? Write to
+        <a href="mailto:support@loganland.app">support@loganland.app</a>.</p>
+
+      <h3><span class="num">01</span> Playing without an account</h3>
+      <p>You can install and play Atlas Arrows without creating an account or giving us your name.
+        Your level progress is stored on your device by default.</p>
+
+      <h3><span class="num">02</span> Information we process</h3>
+      <ul>
+        <li><b>Optional sign-in.</b> If you sign in with Apple or Google to sync progress or appear on
+          leaderboards, we store a stable user identifier — not your password.</li>
+        <li><b>Game progress.</b> Cleared stages and settings, kept on your device and, if you enable it,
+          synced through your Apple iCloud or Google account.</li>
+        <li><b>Purchases.</b> Hint packs and “remove ads” are processed by the Apple App Store or Google
+          Play. We receive a confirmation of purchase — never your card number.</li>
+        <li><b>Advertising.</b> We show ads through <b>Google AdMob</b>, which may process your device
+          identifier, approximate IP-based region, and ad interactions to serve and measure ads.</li>
+        <li><b>Game services.</b> Leaderboards and achievements use Apple Game Center / Google Play Games,
+          governed by Apple's and Google's own privacy policies.</li>
+        <li><b>Notifications.</b> Only if you allow them, your device's push token so we can send reminders.</li>
+        <li><b>Diagnostics.</b> The app stores may share aggregate, non-identifying crash and performance data.</li>
+      </ul>
+
+      <h3><span class="num">03</span> How we use it</h3>
+      <p>To run and save your game, process purchases, show and measure ads, power leaderboards, respond
+        to your support requests, and fix and improve the app. We do not use your data to build advertising
+        profiles beyond what AdMob does under your consent.</p>
+
+      <h3><span class="num">04</span> Personalized ads &amp; your consent</h3>
+      <p>On iOS, personalized ads are shown only if you allow tracking through Apple's App Tracking
+        Transparency prompt. In the EEA, UK, and Switzerland, we present a consent choice before serving
+        personalized ads. You can change your mind at any time in your device settings, and reset your
+        advertising identifier there too.</p>
+
+      <h3><span class="num">05</span> Sharing</h3>
+      <p>We do not sell your personal information. We share data only with the service providers that make
+        the app work — Google (AdMob, Play services), Apple (App Store, Game Center, iCloud) — and only as
+        needed for those functions, or where the law requires.</p>
+
+      <h3><span class="num">06</span> Your choices &amp; rights</h3>
+      <ul>
+        <li>Manage or withdraw ad-tracking consent in your device settings at any time.</li>
+        <li><b>Delete your account and associated data</b> from within the app, or by emailing
+          <a href="mailto:support@loganland.app">support@loganland.app</a>.</li>
+        <li>Turn notifications on or off in your device settings.</li>
+        <li>Depending on where you live (e.g. GDPR, CCPA), you may request access to or deletion of your
+          personal data — just contact us.</li>
+      </ul>
+
+      <h3><span class="num">07</span> Children</h3>
+      <p>Atlas Arrows is intended for a general audience and is not directed to children under 13 (or the
+        minimum age in your country). We do not knowingly collect personal data from children. The app's
+        store age rating reflects its content.</p>
+
+      <h3><span class="num">08</span> Retention, security &amp; transfers</h3>
+      <p>We keep data only as long as needed for the purposes above, then delete it. Purchases and
+        sign-in identifiers are protected by the platforms that process them. Because our providers operate
+        globally, your data may be processed in countries other than your own, under appropriate safeguards.</p>
+
+      <h3><span class="num">09</span> Changes</h3>
+      <p>If we update this policy we'll revise the date above and, for significant changes, note it in the
+        app. Continuing to play after an update means you accept the revised policy.</p>
+
+      <h3><span class="num">10</span> Contact</h3>
+      <p>Logan Land · <a href="mailto:support@loganland.app">support@loganland.app</a></p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <span class="brand">Atlas Arrows</span>
+    <span>© 2026 Logan Land. All rights reserved.</span>
+    <span class="sp"></span>
+    <a href="#support">Support</a>
+    <a href="#privacy">Privacy</a>
+    <a href="mailto:support@loganland.app">Contact</a>
+  </div>
+</footer>
+
+<script>
+// Dotted world-map motif — a quiet nod to the app's actual dot-matrix campaign map.
+(function(){
+  const cv = document.getElementById('mapcv');
+  if(!cv) return;
+  const ctx = cv.getContext('2d');
+  const cssv = n => getComputedStyle(document.body).getPropertyValue(n).trim();
+
+  // Abstract landmasses as overlapping ellipses in normalized space (u,v ∈ 0..1).
+  const land = [
+    [0.16,0.30,0.13,0.20],[0.20,0.55,0.10,0.22],[0.30,0.40,0.09,0.14],
+    [0.52,0.34,0.14,0.16],[0.60,0.58,0.10,0.18],[0.47,0.62,0.07,0.10],
+    [0.78,0.40,0.12,0.20],[0.86,0.68,0.08,0.13],[0.70,0.24,0.06,0.08]
+  ];
+  const inLand = (u,v)=>land.some(([cu,cv0,ru,rv])=>((u-cu)/ru)**2+((v-cv0)/rv)**2<=1);
+  // the "current" accent cluster — where you are on the journey
+  const here = [0.52,0.34,0.14,0.16];
+  const inHere = (u,v)=>((u-here[0])/here[2])**2+((v-here[1])/here[3])**2<=1;
+
+  function draw(){
+    const r = Math.min(window.devicePixelRatio||1,2);
+    const w = cv.clientWidth, h = cv.clientHeight;
+    if(!w||!h) return;
+    cv.width = w*r; cv.height = h*r;
+    ctx.setTransform(r,0,0,r,0,0);
+    ctx.clearRect(0,0,w,h);
+    const dot = cssv('--dot'), acc = cssv('--accent');
+    const step = Math.max(13, w/56);
+    const rad = step*0.20;
+    for(let y=step*0.6; y<h; y+=step){
+      for(let x=step*0.6; x<w; x+=step){
+        const u=x/w, v=y/h;
+        if(!inLand(u,v)) continue;
+        const hot = inHere(u,v);
+        ctx.beginPath();
+        ctx.arc(x, y, hot?rad*1.15:rad, 0, 7);
+        ctx.fillStyle = hot?acc:dot;
+        ctx.globalAlpha = hot?0.9:0.55;
+        ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+  draw();
+  addEventListener('resize', draw, {passive:true});
+  new MutationObserver(draw).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+  matchMedia('(prefers-color-scheme:dark)').addEventListener('change', draw);
+})();
+</script>
