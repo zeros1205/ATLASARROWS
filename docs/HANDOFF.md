@@ -20,6 +20,44 @@
 - **품질 게이트: `dart analyze` 클린 · `flutter test` 10/10 · `flutter build web` 성공.**
 - 브라우저 실행 검증: 홈 · 월드맵 · 라운드 인트로 렌더 확인.
 
+## 1-0. 문제은행 연결 — 앱이 실제로 끝까지 돌아감 (2026-07-20 새벽)
+
+**갤럭시 S23에서 온보딩→플레이→스테이지 진행→피날레→다음 국가 라운드까지 전 구간 확인.**
+
+- **런타임 생성 폐기, 구운 은행 사용.** `tools/atlas/all_boards.json`의 783개 보드
+  (국가 216 + 도시 567, 라인 포함·풀림 검증됨)를 `tools/atlas/build_bank.py`가
+  `assets/campaign/bank.json`(2.3MB)으로 포장. 앱은 이걸 읽는다.
+  - 도시→국가 매핑: `admin1_cities.json`(정본) + `world_campaign_order.json`(보완)
+  - **221 라운드 / 800 스테이지**. 도시 보유 라운드 143개.
+- **오프닝 5라운드 = `onboarding_boards.json` 사다리.** 화살 4→15개로 오르는 25판.
+  기존엔 캠페인 첫 판이 곧바로 국가 피날레(80화살)여서 신규 이탈 지점이었다.
+  **판이 촘촘한 순서로 재배열**했다 — 판의 긴 변이 셀 크기를 결정하므로
+  53행짜리 군도를 첫 판으로 주면 셀이 11px가 된다.
+- **모든 보드를 마스크에 맞춰 크롭**(라인 좌표도 같이 이동). 5셀 섬이 53×24 격자에
+  담겨 있던 낭비 제거.
+- **큰 보드 = 줌.** 칠레 138×26 / 272화살은 화면에 맞추면 셀이 4px다. 두 손가락
+  핀치 + **명시적 +/− 버튼**(핀치를 시도조차 안 하는 플레이어가 막히지 않도록).
+  한 손가락은 탭 전용 — 탭이 게임의 전부라 드래그로 판이 흔들리면 안 된다.
+- **월드맵 = 스테이지 단위 부분 채색.** 12판 중 1판 클리어 → 그 나라 점의 1/12가 칠해짐.
+- **부팅 병목 제거.** 광고·결제·Firebase·게임서비스 SDK 초기화를 순차로 await 하느라
+  로딩바가 50%에서 10초 이상 멈춰 있었다. 이제 첫 화면에 필요한 데이터만 기다린다.
+  보드 마스크도 지연 생성(800개를 미리 펼치면 부팅 때 수십만 레코드).
+- **스테이지 표기를 라운드 기준으로.** "641번째"가 아니라 "3 / 12".
+
+**테스트**: `campaign_bank_test`(800판 전수 — 유효 레벨·풀림·라운드 구조·완만한 시작),
+`campaign_progression_test`(221라운드 인덱스 경계). 전체 **31개 통과**.
+
+### ⚠️ 사용자 검수가 필요한 설계 판단
+
+1. **거대 국가 보드의 판 길이.** `PUZZLE_BANK_STRATEGY.md` 5장은 "299라인 = 7분 =
+   타임킬링 아님"이라며 셀 상한(≈300)+다운샘플을 권한다. 현재 확정 규격
+   (`export_boards.dart`)은 국가 80→300화살이라 칠레 272·브라질 334다.
+   **규격을 바꾸지 않고 줌으로만 대응**했다. 판 길이 자체를 줄일지는 결정 필요.
+2. **초반 라운드가 월드맵에 안 보인다.** 캠페인이 면적 오름차순이라 첫 수십 라운드가
+   미세 섬나라다. 성취 엔진(지도 채색)이 초반에 거의 작동하지 않는다.
+   임시로 "N개국 완료" 카운터를 넣었으나, **순서 자체를 재고할 여지**가 있다.
+3. **도시 없는 라운드 78개**는 1스테이지짜리다.
+
 ## 2-0. 앱 코어 세션 (2026-07-19 · 리네임 이후)
 
 부트→온보딩→플레이→맵→상점→설정 전 구간을 **더미 제거 + 실동작 연결**했다.
@@ -136,8 +174,10 @@
 lib/
   app/{app,shell,app_settings}.dart, app/tokens/*   토큰·테마·로케일(10개)
   features/
-    boot/boot_screen.dart        빈 스플래시→개발사→로딩(서비스 init: Progress/ShapeCatalog/
-                                 Campaign/WorldMap/Ads/Iap) → 온보딩 or 셸
+    boot/boot_screen.dart        빈 스플래시→개발사→로딩(데이터만 대기:
+                                 Progress/ShapeCatalog/Campaign/WorldMap.
+                                 Ads·Iap·Firebase·GameServices는 await 안 함)
+                                 → 온보딩 or 셸
     onboarding/onboarding_screen.dart   3장 규칙 캐러셀(첫 실행·설정에서 재생)
     onboarding/onboarding_diagram.dart  규칙별 루프 다이어그램(보드와 동일한 표현)
     home/home_screen.dart        신규/기존 CTA 분기
@@ -146,32 +186,52 @@ lib/
     game/game_screen.dart        플레이 크롬 + 라운드 인트로 오버레이 + 결과 시트
     shop/settings/…
   models/
-    campaign_repository.dart      라운드/스테이지 지연생성(_plan: 도시→path→…→국가)
-    world_map.dart                worldmap.json 로더 + land dot→캠페인 국가 해소
-    level_generator.dart          BoardMasks(rect/ellipse/diamond/blob) + generateLevel(풀림 보장)
+    campaign_repository.dart      bank.json 로더. 라운드=국가, 스테이지=구운 보드.
+                                  마스크·핀은 지연 생성, 레벨은 8개까지 LRU 캐시
+    world_map.dart                worldmap.json 로더 + 국가별 점 개수/서수(부분 채색용)
+    level_generator.dart          런타임 생성기 — 이제 캠페인엔 쓰이지 않음(도구·테스트용)
+  game/z_arrows_game.dart         보드 렌더·탭·핀치줌/팬(두 손가락)·zoomBy()
 tools/atlas/
-  build_worldmap.py             ne_50m_countries → worldmap.json (numpy PIP, 초소형국 centroid 스탬프)
-  world_campaign_order.json     국가별 도시 리스트(면적순) — campaign.json 재빌드 소스
-assets/campaign/{campaign.json, worldmap.json}
+  build_bank.py                 ★ all_boards + onboarding_boards → assets/campaign/bank.json
+  build_worldmap.py             ne_50m_countries → worldmap.json
+  all_boards.json               구운 보드 783개(국가+도시, 라인 포함)
+  onboarding_boards.json        튜토리얼 사다리 25판
+assets/campaign/{bank.json, worldmap.json}
 ```
 
 ## 4. 빌드/실행 (이 머신 함정 포함)
 
 ```powershell
-flutter test                 # 10개
+flutter test                 # 31개
 dart analyze                 # ⚠️ flutter analyze는 이 경로에서 크래시 → dart analyze 사용
 flutter build web --release  # 웹 미리보기
 python -m http.server 8791   # build/web 에서 → localhost:8791
 python tools/atlas/build_worldmap.py   # 월드맵 데이터 재생성
+python tools/atlas/build_bank.py       # ★ 캠페인 자산 재생성 (보드 은행 변경 시 필수)
 ```
+
+### 실기기 테스트
+
+```powershell
+flutter build apk --debug
+adb install -r build\app\outputs\flutter-apk\app-debug.apk
+```
+- 진행도를 임의 스테이지로 옮기려면(디버그 빌드 한정):
+  `adb shell run-as com.loganland.atlasarrows` → `shared_prefs/FlutterSharedPreferences.xml`의
+  `flutter.unlocked` 값을 바꾼다. 전역 스테이지 번호이며, 라운드 경계는
+  `build_bank.py` 출력 순서를 따른다.
+- ⚠️ `adb shell screencap`은 Git Bash에서 경로가 변환되므로 `MSYS_NO_PATHCONV=1` 필요.
+  PowerShell `>` 리다이렉션은 PNG를 깨뜨린다 — `adb pull`을 쓸 것.
 - ⚠️ **패키지 리네임 후 웹빌드가 옛 패키지명으로 깨지면 `flutter clean` 후 재빌드**.
 - 한글/★ 경로: `android/gradle.properties` overridePathCheck·kotlin.incremental=false 이미 적용.
 
 ## 5. 다음 할 일 (우선순위)
 
-1. **campaign.json 재빌드** — 현재 앱 asset은 120국·도시/블러브 없음(→ N Cities=0/Paths=9).
-   `world_campaign_order.json` + **거대국 admin-1 주(state)별 대표도시 1개**(미국 50→101스테이지)로
-   확장, 도시 실루엣 마스크 + 국가 소개(위키) 굽기. → 라운드 인트로 실측값·실도시 랜드마크 활성.
+0. **위 1-0절의 「검수가 필요한 설계 판단」 3건 결정** — 특히 거대 국가 판 길이와
+   캠페인 순서. 둘 다 기획서(`PUZZLE_BANK_STRATEGY.md`)와 확정 규격이 어긋나는 지점이다.
+1. ~~campaign.json 재빌드~~ — **완료.** `bank.json` 221라운드/800스테이지.
+   남은 것: **국가 소개문(위키) 굽기** — 현재 `intro`가 비어 있어 라운드 인트로가
+   대체 문구를 쓴다. 기획서에 따라 "읽기를 요구하지 않는" 한 줄 수준으로.
 2. **게임 로고** 제작(홈 중앙, 현재 워드마크 임시).
 3. **맵 폴리시**: 현재국가 파랑 줌인 시각 재확인, 초소형국 4개(Israel/Rwanda/Albania/N.Cyprus)
    셀 공유 해소(격자 상향 or centroid 충돌 회피).
