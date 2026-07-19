@@ -75,6 +75,31 @@
   → 콘솔 설정 절차는 `docs/FIREBASE.md`.
 - 검증: `dart analyze` 클린 · `flutter test` 19/19 · `flutter build apk --release` 성공.
 
+## 2-2. iOS 서명 파이프라인 실동작 확인 (2026-07-19)
+
+**Xcode 없이 서명 IPA 아카이브까지 CI에서 통과**(run `29687156452`). Android 서명
+AAB도 통과(run `29684013621`). 그 과정에서 고친 것:
+
+- **iOS 수동 서명 고정**(`ios/Flutter/Release.xcconfig`): CI엔 개발용 인증서가 없어
+  자동 서명이면 flutter가 `No valid code signing certificates were found`로 죽는다.
+  팀(`9YM6784Y87`)·프로파일·아이덴티티를 명시. **프로파일 이름 바꾸면 여기도 수정.**
+- **iOS 최소 버전 13.0 → 15.0**: firebase-core 요구사항. iOS 13~14 기기는 제외됨.
+- **애플 인증서 1개로 통일**: 배포 인증서는 계정당 2개가 상한이라 앱별 분리가
+  불가능하다. `Logan Land`(만료 2027/07/19) 하나로 3앱 공유, 프로파일만 앱별.
+  → 세 리포 시크릿 일괄 갱신 스크립트는 `docs/RELEASE.md` 부록.
+- **Play 서비스 계정**: `play-publisher@atlasarrows-7a720.iam.gserviceaccount.com`
+  (앱별 분리 원칙에 따라 Atlas Arrows 전용으로 신규 생성). Play Console
+  `사용자 및 권한`에서 Atlas Arrows에만 권한 부여.
+  ⚠️ Play Console의 **API 액세스 메뉴는 `설정`에 없다** — `사용자 및 권한` → ⋮ →
+  신규 사용자 초대에서 서비스 계정 이메일을 초대하는 방식으로 바뀌었다.
+
+⚠️ **이 작업에서 크게 돌아간 지점 두 가지** — 같은 실수를 반복하지 말 것:
+1. `.p12`를 OpenSSL 3 기본값으로 만들어 macOS가 "비밀번호 틀림"이라는 **거짓 오류**를
+   냈고, 비밀번호를 의심해 **인증서를 폐기·재발급하는 헛수고**를 했다.
+   → `docs/RELEASE.md` 「함정 1」.
+2. 프로파일 생성 시 **인증서를 확인 없이 추측으로 골라** 프로파일 전체를 다시
+   만들어야 했다. 어느 `.p12`를 보유 중인지 먼저 확인할 것.
+
 ## 2. 이전 세션에 바뀐 것 (2026-07-19)
 
 - **이름/패키지**: Z-Arrows → **Atlas Arrows**. applicationId/bundle = `com.loganland.atlasarrows`,
