@@ -72,6 +72,13 @@ android {
 
     buildTypes {
         release {
+            // R8 strips WorkManager's Room database, which google_mobile_ads
+            // pulls in and instantiates reflectively — the app then dies at
+            // process start. See proguard-rules.pro.
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
             // Play rejects debug-signed uploads, so a store build MUST resolve
             // real signing material. The debug fallback exists only so local
             // `flutter run --release` works without a keystore.
