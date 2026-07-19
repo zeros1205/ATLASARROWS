@@ -8,6 +8,7 @@ import '../../app/tokens/dimens.dart';
 import '../../app/tokens/typography.dart';
 import '../../models/campaign_repository.dart';
 import '../../models/shape_catalog.dart';
+import '../../models/world_map.dart';
 import '../../services/ads/ads.dart';
 import '../../services/iap.dart';
 import '../../services/progress.dart';
@@ -47,6 +48,7 @@ class _BootScreenState extends State<BootScreen> {
       () => Progress.instance.load(),
       () => ShapeCatalog.load(),
       () => CampaignRepository.instance.load(),
+      () => WorldMap.instance.load(),
       () => Ads.init(),
       () => IapService.instance.init(),
     ];

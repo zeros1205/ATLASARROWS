@@ -1,17 +1,18 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../app/tokens/colors.dart';
-import '../../app/tokens/dimens.dart';
-import '../../app/tokens/typography.dart';
 import '../../models/campaign_repository.dart';
+import '../../models/world_map.dart';
 import '../../services/progress.dart';
-import '../../shared/pressable.dart';
-import '../game/game_screen.dart';
+import '../../shared/meta_header.dart';
+import 'round_intro_screen.dart';
 
-/// The world campaign map. One country = one round, ordered by area so the
-/// atlas rises in difficulty; its stages sit as pins on the country
-/// silhouette, and a visa stamp lands in the corner once the whole country
-/// is cleared. Locked rounds/stages read faint; the current stage pulses.
+/// The map tab: a dotted world map. Land dots are coloured by campaign
+/// progress — in-progress country in accent blue, cleared countries dark
+/// grey, locked/other land grey, sea faint. Opens zoomed to the current
+/// country; pinch/pan to explore, tap a country to open its round intro.
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
 
@@ -20,73 +21,136 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
+  final _wm = WorldMap.instance;
   final _repo = CampaignRepository.instance;
-  late int _ci;
+  final _tc = TransformationController();
+  bool _ready = false;
+  bool _zoomed = false;
 
   @override
   void initState() {
     super.initState();
-    final (ci, _) = _repo.isLoaded
-        ? _repo.locate(Progress.instance.unlocked.value
-            .clamp(0, (_repo.totalStages - 1).clamp(0, 1 << 30)))
-        : (0, 0);
-    _ci = ci;
+    _load();
   }
 
-  void _step(int delta) {
-    setState(() => _ci = (_ci + delta).clamp(0, _repo.countries.length - 1));
+  Future<void> _load() async {
+    await _wm.load();
+    if (mounted) setState(() => _ready = true);
   }
 
-  Future<void> _openStage(int globalStage) async {
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => GameScreen(stage: globalStage)),
+  @override
+  void dispose() {
+    _tc.dispose();
+    super.dispose();
+  }
+
+  int get _currentCountry {
+    if (!_repo.isLoaded) return 0;
+    final u = Progress.instance.unlocked.value
+        .clamp(0, (_repo.totalStages - 1).clamp(0, 1 << 30));
+    return _repo.locate(u).$1;
+  }
+
+  void _zoomToCurrent(Size world, Size viewport) {
+    final ci = _currentCountry;
+    var minR = 1 << 30, minC = 1 << 30, maxR = -1, maxC = -1;
+    for (var r = 0; r < _wm.rows; r++) {
+      for (var c = 0; c < _wm.cols; c++) {
+        if (_wm.countryOfCell(_wm.cellAt(r, c)) == ci) {
+          minR = math.min(minR, r);
+          maxR = math.max(maxR, r);
+          minC = math.min(minC, c);
+          maxC = math.max(maxC, c);
+        }
+      }
+    }
+    if (maxR < 0) {
+      // current country isn't on the map — show the whole world, centred.
+      final s = (viewport.width / world.width).clamp(0.1, 8.0);
+      final ty = math.max(0.0, (viewport.height - world.height * s) / 2);
+      _tc.value = Matrix4(
+        s, 0, 0, 0, //
+        0, s, 0, 0, //
+        0, 0, 1, 0, //
+        0, ty, 0, 1, //
+      );
+      return;
+    }
+    final cw = world.width / _wm.cols, ch = world.height / _wm.rows;
+    final rect = Rect.fromLTRB(
+        (minC - 1) * cw, (minR - 1) * ch, (maxC + 2) * cw, (maxR + 2) * ch);
+    final scale = math
+        .min(viewport.width / rect.width, viewport.height / rect.height)
+        .clamp(1.0, 8.0);
+    final tx = viewport.width / 2 - rect.center.dx * scale;
+    final ty = viewport.height / 2 - rect.center.dy * scale;
+    // column-major scale + translate (p' = S·p + T)
+    _tc.value = Matrix4(
+      scale, 0, 0, 0, //
+      0, scale, 0, 0, //
+      0, 0, 1, 0, //
+      tx, ty, 0, 1, //
     );
-    if (mounted) setState(() {}); // refresh unlock states on return
+  }
+
+  void _onTapUp(TapUpDetails d, Size world) {
+    final cw = world.width / _wm.cols, ch = world.height / _wm.rows;
+    final c = (d.localPosition.dx / cw).floor();
+    final r = (d.localPosition.dy / ch).floor();
+    if (r < 0 || r >= _wm.rows || c < 0 || c >= _wm.cols) return;
+    final ci = _wm.countryOfCell(_wm.cellAt(r, c));
+    if (ci == null) return; // sea or non-campaign land
+    Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => RoundIntroScreen(countryIndex: ci)));
   }
 
   @override
   Widget build(BuildContext context) {
-    final c = AppColors.of(context);
-    if (!_repo.isLoaded) {
-      return SafeArea(
-        bottom: false,
-        child: Center(
-          child: Text('캠페인을 불러오지 못했어요',
-              style: AppText.body.copyWith(color: c.inkFaint)),
-        ),
-      );
-    }
-
-    final country = _repo.countries[_ci];
-    final first = _repo.firstStageOf(_ci);
-    final unlocked = Progress.instance.unlocked.value;
-    final countryCleared = unlocked >= first + country.stageCount;
-
+    final col = AppColors.of(context);
     return SafeArea(
       bottom: false,
       child: Column(
         children: [
-          _RoundSelector(
-            country: country,
-            index: _ci,
-            total: _repo.countries.length,
-            cleared: (unlocked - first).clamp(0, country.stageCount),
-            canPrev: _ci > 0,
-            canNext: _ci < _repo.countries.length - 1,
-            onPrev: () => _step(-1),
-            onNext: () => _step(1),
-          ),
+          const MetaHeader('맵'),
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
-              child: _CountryBoard(
-                country: country,
-                firstStage: first,
-                unlocked: unlocked,
-                cleared: countryCleared,
-                onTapStage: _openStage,
-              ),
-            ),
+            child: !_ready
+                ? Center(child: CircularProgressIndicator(color: col.accent))
+                : !_wm.isLoaded
+                    ? Center(
+                        child: Text('지도를 불러올 수 없습니다.',
+                            style: TextStyle(color: col.inkFaint)))
+                    : LayoutBuilder(
+                        builder: (context, cons) {
+                          final world = Size(
+                              cons.maxWidth, cons.maxWidth * _wm.rows / _wm.cols);
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (!_zoomed && mounted) {
+                              _zoomed = true;
+                              _zoomToCurrent(
+                                  world, Size(cons.maxWidth, cons.maxHeight));
+                              setState(() {});
+                            }
+                          });
+                          return ValueListenableBuilder<int>(
+                            valueListenable: Progress.instance.unlocked,
+                            builder: (context, _, _) => InteractiveViewer(
+                              transformationController: _tc,
+                              minScale: 1,
+                              maxScale: 8,
+                              constrained: false,
+                              boundaryMargin: const EdgeInsets.all(120),
+                              child: GestureDetector(
+                                onTapUp: (d) => _onTapUp(d, world),
+                                child: CustomPaint(
+                                  size: world,
+                                  painter:
+                                      _WorldPainter(_wm, _currentCountry, col),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
           ),
         ],
       ),
@@ -94,281 +158,42 @@ class _MapScreenState extends State<MapScreen> {
   }
 }
 
-class _RoundSelector extends StatelessWidget {
-  const _RoundSelector({
-    required this.country,
-    required this.index,
-    required this.total,
-    required this.cleared,
-    required this.canPrev,
-    required this.canNext,
-    required this.onPrev,
-    required this.onNext,
-  });
-
-  final CampaignCountry country;
-  final int index, total, cleared;
-  final bool canPrev, canNext;
-  final VoidCallback onPrev, onNext;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = AppColors.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
-      child: Row(
-        children: [
-          _Arrow(icon: Icons.chevron_left, enabled: canPrev, onTap: onPrev),
-          Expanded(
-            child: Column(
-              children: [
-                Text(country.displayName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppText.headline.copyWith(
-                        color: c.ink, fontWeight: FontWeight.w900)),
-                const SizedBox(height: 2),
-                Text('${index + 1} / $total · $cleared/${country.stageCount} 클리어',
-                    style: AppText.caption
-                        .copyWith(color: c.inkFaint, letterSpacing: 0.5)),
-              ],
-            ),
-          ),
-          _Arrow(icon: Icons.chevron_right, enabled: canNext, onTap: onNext),
-        ],
-      ),
-    );
-  }
-}
-
-class _Arrow extends StatelessWidget {
-  const _Arrow(
-      {required this.icon, required this.enabled, required this.onTap});
-  final IconData icon;
-  final bool enabled;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = AppColors.of(context);
-    final child = Container(
-      width: 44,
-      height: 44,
-      decoration: BoxDecoration(
-        color: c.surface,
-        shape: BoxShape.circle,
-        border: Border.all(color: c.line),
-      ),
-      child: Icon(icon,
-          color: enabled ? c.ink : c.inkFaint.withValues(alpha: 0.4)),
-    );
-    return enabled ? Pressable(onTap: onTap, child: child) : Opacity(opacity: 0.5, child: child);
-  }
-}
-
-/// The country silhouette (faint dots) with stage pins placed on it, plus a
-/// corner visa stamp once every stage in the country is cleared.
-class _CountryBoard extends StatelessWidget {
-  const _CountryBoard({
-    required this.country,
-    required this.firstStage,
-    required this.unlocked,
-    required this.cleared,
-    required this.onTapStage,
-  });
-
-  final CampaignCountry country;
-  final int firstStage;
-  final int unlocked;
-  final bool cleared;
-  final void Function(int globalStage) onTapStage;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = AppColors.of(context);
-    return LayoutBuilder(
-      builder: (context, box) {
-        final scale = _fitScale(box.maxWidth, box.maxHeight);
-        final drawnW = country.cols * scale;
-        final drawnH = country.rows * scale;
-        final ox = (box.maxWidth - drawnW) / 2;
-        final oy = (box.maxHeight - drawnH) / 2;
-
-        final pins = <Widget>[];
-        for (var i = 0; i < country.pins.length; i++) {
-          final (u, v) = country.pins[i];
-          final global = firstStage + i;
-          final state = global < unlocked
-              ? _Pin.done
-              : global == unlocked
-                  ? _Pin.current
-                  : _Pin.locked;
-          const r = 22.0;
-          pins.add(Positioned(
-            left: ox + u * drawnW - r,
-            top: oy + v * drawnH - r,
-            child: _StageNode(
-              number: i + 1,
-              state: state,
-              onTap: state == _Pin.locked ? null : () => onTapStage(global),
-            ),
-          ));
-        }
-
-        return Stack(
-          children: [
-            Positioned.fill(
-              child: CustomPaint(
-                painter: _SilhouettePainter(
-                  mask: country.mask,
-                  scale: scale,
-                  ox: ox,
-                  oy: oy,
-                  dot: c.dot,
-                ),
-              ),
-            ),
-            ...pins,
-            if (cleared)
-              Positioned(
-                right: 4,
-                top: 4,
-                child: _VisaStamp(label: country.name.toUpperCase()),
-              ),
-          ],
-        );
-      },
-    );
-  }
-
-  double _fitScale(double w, double h) {
-    final s = (w / country.cols) < (h / country.rows)
-        ? w / country.cols
-        : h / country.rows;
-    return s;
-  }
-}
-
-class _SilhouettePainter extends CustomPainter {
-  _SilhouettePainter({
-    required this.mask,
-    required this.scale,
-    required this.ox,
-    required this.oy,
-    required this.dot,
-  });
-
-  final Set<(int, int)> mask;
-  final double scale, ox, oy;
-  final Color dot;
+class _WorldPainter extends CustomPainter {
+  _WorldPainter(this.wm, this.current, this.c);
+  final WorldMap wm;
+  final int current;
+  final AppColors c;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = dot;
-    final radius = (scale * 0.12).clamp(1.5, 5.0);
-    for (final (r, c) in mask) {
-      canvas.drawCircle(
-        Offset(ox + (c + 0.5) * scale, oy + (r + 0.5) * scale),
-        radius,
-        paint,
-      );
+    final cw = size.width / wm.cols, ch = size.height / wm.rows;
+    final rLand = math.min(cw, ch) * 0.36, rSea = math.min(cw, ch) * 0.15;
+    final sea = Paint()..color = c.dot;
+    final accent = Paint()..color = c.accent;
+    final cleared = Paint()..color = c.inkSoft;
+    final locked = Paint()..color = c.inkFaint.withValues(alpha: 0.55);
+    for (var r = 0; r < wm.rows; r++) {
+      for (var col = 0; col < wm.cols; col++) {
+        final v = wm.cellAt(r, col);
+        final o = Offset(col * cw + cw / 2, r * ch + ch / 2);
+        if (v < 0) {
+          canvas.drawCircle(o, rSea, sea);
+          continue;
+        }
+        final ci = wm.countryOfCell(v);
+        final Paint p = ci == null
+            ? locked
+            : ci == current
+                ? accent
+                : ci < current
+                    ? cleared
+                    : locked;
+        canvas.drawCircle(o, rLand, p);
+      }
     }
   }
 
   @override
-  bool shouldRepaint(_SilhouettePainter old) =>
-      old.scale != scale || old.ox != ox || old.oy != oy || old.dot != dot;
-}
-
-enum _Pin { done, current, locked }
-
-class _StageNode extends StatelessWidget {
-  const _StageNode(
-      {required this.number, required this.state, required this.onTap});
-  final int number;
-  final _Pin state;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = AppColors.of(context);
-    late final Widget dot;
-    switch (state) {
-      case _Pin.done:
-        dot = _circle(
-          color: c.accent,
-          border: null,
-          child: Icon(Icons.check_rounded, size: 22, color: c.onAccent),
-        );
-      case _Pin.current:
-        dot = _circle(
-          color: c.surface,
-          border: Border.all(color: c.accent, width: 3),
-          child: Text('$number',
-              style: AppText.label.copyWith(
-                  color: c.accent, fontWeight: FontWeight.w900)),
-        );
-      case _Pin.locked:
-        dot = _circle(
-          color: c.surfaceMuted,
-          border: Border.all(color: c.line),
-          child: Icon(Icons.lock_outline_rounded,
-              size: 18, color: c.inkFaint.withValues(alpha: 0.6)),
-        );
-    }
-    if (onTap == null) return dot;
-    return Pressable(onTap: onTap, child: dot);
-  }
-
-  Widget _circle({required Color color, Border? border, required Widget child}) {
-    return Container(
-      width: 44,
-      height: 44,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: color,
-        shape: BoxShape.circle,
-        border: border,
-      ),
-      child: child,
-    );
-  }
-}
-
-/// A passport-style "cleared" visa stamp for a finished country, rotated a
-/// touch and set in the map's top-right corner.
-class _VisaStamp extends StatelessWidget {
-  const _VisaStamp({required this.label});
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = AppColors.of(context);
-    return Transform.rotate(
-      angle: -0.18,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(AppRadius.sm),
-          border: Border.all(color: c.danger, width: 2),
-        ),
-        child: Column(
-          children: [
-            Text('CLEARED',
-                style: AppText.caption.copyWith(
-                    color: c.danger,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 2)),
-            Text(label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppText.caption.copyWith(
-                    color: c.danger.withValues(alpha: 0.8),
-                    fontSize: 9,
-                    letterSpacing: 1)),
-          ],
-        ),
-      ),
-    );
-  }
+  bool shouldRepaint(_WorldPainter old) =>
+      old.current != current || old.c != c;
 }
