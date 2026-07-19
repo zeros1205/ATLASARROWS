@@ -1,20 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:in_app_purchase/in_app_purchase.dart';
 
 import '../../app/app_settings.dart';
+import '../../app/shell.dart';
 import '../../app/tokens/colors.dart';
 import '../../app/tokens/dimens.dart';
 import '../../app/tokens/typography.dart';
+import '../../services/iap.dart';
+import '../../services/progress.dart';
 import '../../shared/meta_header.dart';
+import '../../shared/pressable.dart';
+import '../onboarding/onboarding_screen.dart';
 
 /// Settings tab. Two themes only (light/dark). Language switch (one setting
-/// = one language for the whole UI). Working dark-mode toggle wired to
-/// AppSettings; other rows are skeletons.
+/// = one language for the whole UI). Every row here is live — sound and
+/// haptics gate [Sfx] and [Pressable], remove-ads / restore go to the store.
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     final settings = AppSettings.instance;
+    final progress = Progress.instance;
     return SafeArea(
       bottom: false,
       child: Column(
@@ -27,10 +34,18 @@ class SettingsScreen extends StatelessWidget {
                 _ToggleRow(
                   label: '다크 모드',
                   value: settings.themeMode == ThemeMode.dark,
-                  onChanged: (v) => settings.setDarkMode(v),
+                  onChanged: settings.setDarkMode,
                 ),
-                const _NavRow(label: '소리', trailing: '켜짐'),
-                const _NavRow(label: '진동', trailing: '켜짐'),
+                _BoundToggleRow(
+                  label: '소리',
+                  source: progress.soundOn,
+                  onChanged: progress.setSound,
+                ),
+                _BoundToggleRow(
+                  label: '진동',
+                  source: progress.hapticsOn,
+                  onChanged: progress.setHaptics,
+                ),
                 _NavRow(
                   label: '언어',
                   trailing: AppSettings
@@ -38,14 +53,41 @@ class SettingsScreen extends StatelessWidget {
                       '한국어',
                   onTap: () => _pickLanguage(context),
                 ),
-                const _NavRow(label: '광고 제거', trailing: '₩9,900 ›'),
-                const _NavRow(label: '구매 복원', trailing: '›'),
+                const SizedBox(height: AppGap.lg),
+                _NavRow(
+                  label: '튜토리얼 다시 보기',
+                  trailing: '›',
+                  onTap: () => _replayOnboarding(context),
+                ),
+                const SizedBox(height: AppGap.lg),
+                _RemoveAdsRow(),
+                _NavRow(
+                  label: '구매 복원',
+                  trailing: '›',
+                  onTap: IapService.instance.restore,
+                ),
                 const SizedBox(height: 12),
                 _Version(),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Replays the intro carousel and re-arms the first-stage coach. Campaign
+  /// progress is untouched — this is a refresher, not a reset.
+  void _replayOnboarding(BuildContext context) {
+    Progress.instance.replayOnboarding();
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (routeContext) => OnboardingScreen(
+          onDone: () {
+            Navigator.of(routeContext).pop();
+            appTab.value = 0;
+          },
+        ),
       ),
     );
   }
@@ -81,6 +123,50 @@ class SettingsScreen extends StatelessWidget {
   }
 }
 
+/// Remove-ads: shows the store price when the product is registered, 보유 중
+/// once owned, 준비중 while the store listing is still pending.
+class _RemoveAdsRow extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final iap = IapService.instance;
+    return ValueListenableBuilder<bool>(
+      valueListenable: Progress.instance.adsRemoved,
+      builder: (context, removed, _) {
+        if (removed) {
+          return const _NavRow(label: '광고 제거', trailing: '보유 중');
+        }
+        return ValueListenableBuilder<List<ProductDetails>>(
+          valueListenable: iap.products,
+          builder: (context, _, _) {
+            final product = iap.productFor(IapService.removeAdsProduct);
+            return _NavRow(
+              label: '광고 제거',
+              trailing: product == null ? '준비중' : '${product.price} ›',
+              onTap: product == null ? null : () => iap.buy(product),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+/// A toggle driven by a persistent [ValueNotifier] in [Progress].
+class _BoundToggleRow extends StatelessWidget {
+  const _BoundToggleRow(
+      {required this.label, required this.source, required this.onChanged});
+  final String label;
+  final ValueNotifier<bool> source;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder<bool>(
+        valueListenable: source,
+        builder: (context, value, _) =>
+            _ToggleRow(label: label, value: value, onChanged: onChanged),
+      );
+}
+
 class _ToggleRow extends StatelessWidget {
   const _ToggleRow(
       {required this.label, required this.value, required this.onChanged});
@@ -111,19 +197,17 @@ class _NavRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = AppColors.of(context);
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: _rowShell(
-        c,
-        child: Row(
-          children: [
-            Expanded(child: Text(label, style: AppText.label.copyWith(color: c.ink))),
-            Text(trailing, style: AppText.label.copyWith(color: c.inkFaint)),
-          ],
-        ),
+    final row = _rowShell(
+      c,
+      child: Row(
+        children: [
+          Expanded(child: Text(label, style: AppText.label.copyWith(color: c.ink))),
+          Text(trailing, style: AppText.label.copyWith(color: c.inkFaint)),
+        ],
       ),
     );
+    if (onTap == null) return Opacity(opacity: 0.65, child: row);
+    return Pressable(scale: 0.985, onTap: onTap, child: row);
   }
 }
 

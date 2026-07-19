@@ -6,7 +6,7 @@ import math
 import os
 import sys
 
-ATLAS = r"D:\Downloads\재혁\★PROJECT_BALI\P5_Z-ARROWS\z-arrows\tools\atlas"
+ATLAS = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, ATLAS)
 import world_atlas as wa  # noqa: E402
 

@@ -4,6 +4,7 @@ import '../features/home/home_screen.dart';
 import '../features/map/map_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/shop/shop_screen.dart';
+import '../services/iap.dart';
 import '../shared/pressable.dart';
 import 'tokens/colors.dart';
 import 'tokens/dimens.dart';
@@ -15,15 +16,43 @@ final ValueNotifier<int> appTab = ValueNotifier<int>(0);
 
 /// The 4-tab home shell: home / map / shop / settings, with a floating
 /// capsule tab bar. All tabs open from the start (no locking).
-class AppShell extends StatelessWidget {
+class AppShell extends StatefulWidget {
   const AppShell({super.key});
 
+  @override
+  State<AppShell> createState() => _AppShellState();
+}
+
+class _AppShellState extends State<AppShell> {
   static const _tabs = [
     (icon: Icons.home_outlined, active: Icons.home, label: '홈'),
     (icon: Icons.public_outlined, active: Icons.public, label: '맵'),
     (icon: Icons.storefront_outlined, active: Icons.storefront, label: '상점'),
     (icon: Icons.settings_outlined, active: Icons.settings, label: '설정'),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    // Purchase outcomes can land while the player is on any tab (or has left
+    // the store and come back), so the feedback lives at the shell.
+    IapService.instance.message.addListener(_showPurchaseMessage);
+  }
+
+  @override
+  void dispose() {
+    IapService.instance.message.removeListener(_showPurchaseMessage);
+    super.dispose();
+  }
+
+  void _showPurchaseMessage() {
+    final text = IapService.instance.message.value;
+    if (text == null || !mounted) return;
+    IapService.instance.message.value = null;
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(SnackBar(content: Text(text)));
+  }
 
   @override
   Widget build(BuildContext context) {

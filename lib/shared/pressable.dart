@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../app/tokens/dimens.dart';
+import '../services/progress.dart';
 
 /// The universal press signature: scale to 0.96 on press, release with an
 /// easeOutBack overshoot. A light haptic on tap. Degrades under reduce-motion.
@@ -52,7 +53,10 @@ class _PressableState extends State<Pressable>
       onTapUp: enabled && !noMotion ? (_) => _up() : null,
       onTap: enabled
           ? () {
-              if (widget.haptic) HapticFeedback.lightImpact();
+              // Settings › 진동 is the master switch for every press haptic.
+              if (widget.haptic && Progress.instance.hapticsOn.value) {
+                HapticFeedback.lightImpact();
+              }
               widget.onTap!();
             }
           : null,

@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 
+import '../../app/shell.dart';
 import '../../app/tokens/colors.dart';
 import '../../app/tokens/dimens.dart';
 import '../../app/tokens/typography.dart';
@@ -8,6 +11,7 @@ import '../../game/z_arrows_game.dart';
 import '../../models/campaign_repository.dart';
 import '../../services/ads/ads.dart';
 import '../../services/progress.dart';
+import '../../shared/motion.dart';
 import '../../shared/pressable.dart';
 
 /// One stage of the campaign, with the new chrome: 2-line header
@@ -34,10 +38,23 @@ class _GameScreenState extends State<GameScreen> {
   // Show the round-intro when we land on a country's first stage.
   late bool _showIntro = _loc.local == 0;
 
+  /// Pulses a free line every few seconds while the coach is up, so a stuck
+  /// first-time player is shown a legal move instead of being told about one.
+  Timer? _coachTimer;
+
   @override
   void initState() {
     super.initState();
     _game = _buildGame(AppColors.light);
+    if (!Progress.instance.coachDone.value) {
+      _coachTimer = Timer.periodic(const Duration(seconds: 3), (t) {
+        if (Progress.instance.coachDone.value) {
+          t.cancel();
+          return;
+        }
+        if (_result == _Result.none && !_showIntro) _game.showHint();
+      });
+    }
   }
 
   ZArrowsGame _buildGame(AppColors palette) => ZArrowsGame(
@@ -46,7 +63,17 @@ class _GameScreenState extends State<GameScreen> {
         onHeartsChanged: (h) => _hearts.value = h,
         onCleared: () => setState(() => _result = _Result.cleared),
         onFailed: () => setState(() => _result = _Result.failed),
+        onEscaped: _onEscaped,
+        onRemoveUsed: Progress.instance.useRemove,
       );
+
+  /// The coach retires itself the first time the player frees a line on their
+  /// own — the rule is learned by doing it, not by reading it twice.
+  void _onEscaped() {
+    if (!Progress.instance.coachDone.value) {
+      Progress.instance.setCoachDone(true);
+    }
+  }
 
   ({int countryIndex, int local}) get _loc {
     final (ci, local) = _repo.locate(_stage);
@@ -60,6 +87,12 @@ class _GameScreenState extends State<GameScreen> {
 
   void _next() {
     Progress.instance.markCleared(_stage);
+    // Interstitial cadence lives in Ads (never before level 10, then every
+    // 3rd clear); it no-ops for remove-ads owners and on web.
+    Ads.maybeShowInterstitial(
+      totalClears: Progress.instance.totalClears.value,
+      levelIndex: _stage,
+    );
     if (_stage + 1 >= _repo.totalStages) {
       Navigator.of(context).maybePop();
       return;
@@ -98,6 +131,7 @@ class _GameScreenState extends State<GameScreen> {
 
   @override
   void dispose() {
+    _coachTimer?.cancel();
     _hearts.dispose();
     super.dispose();
   }
@@ -129,6 +163,13 @@ class _GameScreenState extends State<GameScreen> {
                 const AdsBanner(),
               ],
             ),
+            // Coach cue, above the board but below every modal surface.
+            if (_result == _Result.none && !_showIntro)
+              ValueListenableBuilder<bool>(
+                valueListenable: Progress.instance.coachDone,
+                builder: (context, done, _) =>
+                    done ? const SizedBox.shrink() : const _CoachCue(),
+              ),
             if (_result != _Result.none)
               _ResultSheet(
                 result: _result,
@@ -146,6 +187,48 @@ class _GameScreenState extends State<GameScreen> {
                 onStart: () => setState(() => _showIntro = false),
               ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// First-play coach: a single non-blocking line of guidance pinned above the
+/// booster bar. It never covers the board and never needs dismissing — the
+/// screen retires it as soon as the player frees their first arrow.
+class _CoachCue extends StatelessWidget {
+  const _CoachCue();
+
+  @override
+  Widget build(BuildContext context) {
+    final c = AppColors.of(context);
+    return Positioned(
+      left: 0,
+      right: 0,
+      bottom: 132,
+      child: IgnorePointer(
+        child: EnterFade(
+          delay: const Duration(milliseconds: 500),
+          child: Center(
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                color: c.ink.withValues(alpha: 0.92),
+                borderRadius: BorderRadius.circular(AppRadius.pill),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.touch_app_outlined, size: 18, color: c.bg),
+                  const SizedBox(width: 7),
+                  Text('빛나는 화살표를 탭해 보세요',
+                      style: AppText.label.copyWith(
+                          color: c.bg, fontWeight: FontWeight.w700)),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -364,6 +447,13 @@ class _BoosterBar extends StatelessWidget {
   const _BoosterBar({required this.game});
   final ZArrowsGame game;
 
+  /// Running dry is the moment the shop is most relevant — the '+' badge takes
+  /// the player straight there instead of doing nothing.
+  void _toShop(BuildContext context) {
+    Navigator.of(context).popUntil((route) => route.isFirst);
+    appTab.value = 2;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -378,7 +468,11 @@ class _BoosterBar extends StatelessWidget {
               label: '힌트',
               count: n,
               onTap: () {
-                if (n <= 0) return;
+                if (n <= 0) {
+                  _toShop(context);
+                  return;
+                }
+                // Only debit when a hint was actually shown.
                 if (game.showHint()) Progress.instance.useHint();
               },
             ),
@@ -395,7 +489,11 @@ class _BoosterBar extends StatelessWidget {
                 count: n,
                 armed: armed,
                 onTap: () {
-                  if (n <= 0) return;
+                  if (n <= 0) {
+                    _toShop(context);
+                    return;
+                  }
+                  // Arming is free; the strike itself debits via onRemoveUsed.
                   game.armRemove();
                 },
               ),
@@ -500,21 +598,7 @@ class _ResultSheet extends StatelessWidget {
         child: Column(
           children: [
             // MREC pinned to the very top of the screen
-            Container(
-              height: 160,
-              color: c.dot,
-              alignment: Alignment.center,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('중간 배너 광고',
-                      style: AppText.label.copyWith(
-                          color: c.inkFaint, letterSpacing: 3)),
-                  Text('300 × 250',
-                      style: AppText.caption.copyWith(color: c.inkFaint)),
-                ],
-              ),
-            ),
+            const SafeArea(bottom: false, child: AdsMrec()),
             const Spacer(),
             Container(
               width: double.infinity,

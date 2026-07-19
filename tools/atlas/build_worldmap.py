@@ -1,10 +1,11 @@
 """Bake a dotted world map: rasterize ne_50m_countries into an equirectangular
 dot grid. Each cell = index into `names` (ADMIN country) or -1 for sea.
 Output: assets/campaign/worldmap.json (+ a preview PNG to eyeball it)."""
-import json, numpy as np
+import json, os, numpy as np
 from PIL import Image, ImageDraw
 
-HERE = "D:/Downloads/재혁/★PROJECT_BALI/P5_Z-ARROWS/z-arrows"
+# repo root, derived from this file's location (tools/atlas/ → ../..)
+HERE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 COLS = 168
 LON0, LON1 = -180.0, 180.0
 LAT0, LAT1 = -58.0, 82.0          # crop out Antarctica / empty poles

@@ -12,6 +12,8 @@ import '../../models/world_map.dart';
 import '../../services/ads/ads.dart';
 import '../../services/iap.dart';
 import '../../services/progress.dart';
+import '../../shared/motion.dart';
+import '../onboarding/onboarding_screen.dart';
 
 /// Boot sequence: blank off-black splash -> off-black studio page (logo +
 /// LOGAN LAND wordmark) -> paper loading plate with a progress bar while
@@ -61,15 +63,28 @@ class _BootScreenState extends State<BootScreen> {
     }
     await Future<void>.delayed(const Duration(milliseconds: 250));
     if (!mounted) return;
+    // First run goes through onboarding; it hands off to the shell itself.
+    final needsOnboarding = !Progress.instance.onboarded.value;
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         transitionDuration: AppDur.normal,
-        pageBuilder: (_, a, b) => const AppShell(),
+        pageBuilder: (context, a, b) => needsOnboarding
+            ? OnboardingScreen(onDone: () => _toShell(context))
+            : const AppShell(),
         transitionsBuilder: (_, a, b, child) =>
             FadeTransition(opacity: a, child: child),
       ),
     );
   }
+
+  void _toShell(BuildContext context) => Navigator.of(context).pushReplacement(
+        PageRouteBuilder(
+          transitionDuration: AppDur.normal,
+          pageBuilder: (_, a, b) => const AppShell(),
+          transitionsBuilder: (_, a, b, child) =>
+              FadeTransition(opacity: a, child: child),
+        ),
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -107,11 +122,19 @@ class _Studio extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _Mark(color: fg, accent: accent, size: 56),
+            EnterFade(
+              rise: 0,
+              duration: const Duration(milliseconds: 380),
+              child: _Mark(color: fg, accent: accent, size: 56),
+            ),
             const SizedBox(height: 16),
-            Text('LOGAN LAND',
-                style: AppText.title.copyWith(
-                    color: fg, letterSpacing: 3, fontWeight: FontWeight.w900)),
+            // The wordmark trails the mark by a beat, rising as it fades in.
+            EnterFade(
+              delay: const Duration(milliseconds: 140),
+              child: Text('LOGAN LAND',
+                  style: AppText.title.copyWith(
+                      color: fg, letterSpacing: 3, fontWeight: FontWeight.w900)),
+            ),
           ],
         ),
       );
@@ -128,27 +151,37 @@ class _Loading extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Center(
         key: const ValueKey('loading'),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _Mark(color: ink, accent: accent, size: 96),
-            const SizedBox(height: 26),
-            SizedBox(
-              width: 220,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(AppRadius.pill),
-                child: LinearProgressIndicator(
-                  value: progress == 0 ? null : progress,
-                  minHeight: 5,
-                  backgroundColor: faint.withValues(alpha: 0.18),
-                  valueColor: AlwaysStoppedAnimation(accent),
+        child: EnterFade(
+          rise: 6,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _Mark(color: ink, accent: accent, size: 96),
+              const SizedBox(height: 26),
+              SizedBox(
+                width: 220,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                  // Tween the fill so each service step glides instead of
+                  // snapping a fifth of the bar at a time.
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0, end: progress),
+                    duration: AppDur.normal,
+                    curve: AppCurve.gentle,
+                    builder: (context, value, _) => LinearProgressIndicator(
+                      value: value == 0 ? null : value,
+                      minHeight: 5,
+                      backgroundColor: faint.withValues(alpha: 0.18),
+                      valueColor: AlwaysStoppedAnimation(accent),
+                    ),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 10),
-            Text('화살표를 불러오는 중 ${(progress * 100).round()}%',
-                style: AppText.caption.copyWith(color: faint)),
-          ],
+              const SizedBox(height: 10),
+              Text('화살표를 불러오는 중 ${(progress * 100).round()}%',
+                  style: AppText.caption.copyWith(color: faint)),
+            ],
+          ),
         ),
       );
 }

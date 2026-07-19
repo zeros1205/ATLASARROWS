@@ -25,6 +25,8 @@ class ZArrowsGame extends FlameGame {
     this.onCleared,
     this.onHeartsChanged,
     this.onFailed,
+    this.onEscaped,
+    this.onRemoveUsed,
   });
 
   static const int maxHearts = 3;
@@ -35,6 +37,15 @@ class ZArrowsGame extends FlameGame {
 
   final VoidCallback? onCleared;
   final VoidCallback? onFailed;
+
+  /// Fired the moment a line successfully leaves the board. The screen uses it
+  /// to retire the first-stage coach once the player has done it themselves.
+  final VoidCallback? onEscaped;
+
+  /// Fired when an armed remove actually strikes a line — the screen debits
+  /// the player's inventory here, not when the item is armed (arming is
+  /// free and cancellable).
+  final VoidCallback? onRemoveUsed;
   final void Function(int hearts)? onHeartsChanged;
 
   int hearts = maxHearts;
@@ -138,6 +149,7 @@ class ZArrowsGame extends FlameGame {
   void _removeStrike(LineComponent lineComponent) {
     removeArmed.value = false;
     Sfx.pop(0);
+    onRemoveUsed?.call();
     logic.removeLine(lineComponent.line.id);
     lineComponent.vaporize(onGone: _checkCleared);
   }
@@ -152,6 +164,7 @@ class ZArrowsGame extends FlameGame {
     if (_combo >= 3) _zoomPunch();
     logic.removeLine(lineComponent.line.id);
     lineComponent.escape(onGone: _checkCleared);
+    onEscaped?.call();
   }
 
   void _checkCleared() {

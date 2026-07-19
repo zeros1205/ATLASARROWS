@@ -8,7 +8,7 @@
 | `world_atlas.py` | `ne_50m_countries.geojson` (스크립트 옆에 필요, [다운로드](https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_0_countries.geojson)) | `atlas_countries.json` — 233개국 |
 | `fetch_cities.py` | OSM Nominatim (1.1s/req, 캐시 `cities_raw.json`) | 도시 경계 GeoJSON 캐시 |
 | `raster_cities.py` | `cities_raw.json` | `atlas_cities.json` — 68개 도시 |
-| `extract_animals.py` | `P5_Z-ARROWS/shapes/` 실루엣 일러스트 | `atlas_animals.json` — 230마리 |
+| `extract_animals.py` | `P5_ATLASARROWS/shapes/` 실루엣 일러스트 | `atlas_animals.json` — 230마리 |
 | `build_atlas_page.py` | atlas_*.json + `atlas_template.html` | `world-atlas.html` 뷰어 |
 
 핵심 파라미터: 커버리지 임계값(0.32~0.35), 서브샘플 4×4, 국가별 클립박스

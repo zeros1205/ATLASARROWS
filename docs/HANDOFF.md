@@ -12,17 +12,54 @@
 
 ## 1. 지금 상태 (커밋 기준)
 
-- 저장소: https://github.com/zeros1205/z-arrows.git (레포명은 z-arrows 유지, **앱 이름은 Atlas Arrows**)
+- 저장소: https://github.com/zeros1205/ATLASARROWS.git (2026-07-19 `z-arrows` → `ATLASARROWS` 리네임)
+  - 로컬 작업 폴더도 `P5_ATLASARROWS/ATLASARROWS/`로 동시 리네임
 - 브랜치 `main`. 최신 커밋:
   - `9f0da2f` 점묘 월드맵(줌인/영토색/탭→라운드인트로)
   - `f2de32b` Atlas Arrows 리네임 + 라운드 캠페인 + 라운드 인트로 + 10로케일 + 부트 정리
 - **품질 게이트: `dart analyze` 클린 · `flutter test` 10/10 · `flutter build web` 성공.**
 - 브라우저 실행 검증: 홈 · 월드맵 · 라운드 인트로 렌더 확인.
 
-## 2. 이번 세션에 바뀐 것 (2026-07-19)
+## 2-0. 앱 코어 세션 (2026-07-19 · 리네임 이후)
+
+부트→온보딩→플레이→맵→상점→설정 전 구간을 **더미 제거 + 실동작 연결**했다.
+
+- **네이티브 스플래시 이음새 수정**: `NormalTheme`의 windowBackground가
+  `?android:colorBackground`(=흰색)라 스플래시와 첫 프레임 사이에 흰 플래시가 있었다.
+  `@color/splash_ink`(#23252E)로 교체(values / -v31 / -night / -night-v31 4곳).
+  ⚠️ `flutter_native_splash:create` 재실행 시 되돌아가므로 재적용 필요(pubspec에 경고 주석).
+- **개발사 인트로**: `EnterFade`(ease-out 페이드+상승, reduced-motion 시 정지)로 마크→워드마크
+  순차 등장. 로딩 진행바도 스텝 스냅 대신 트윈.
+- **온보딩 신규**(`lib/features/onboarding/`): 3장 캐러셀(탭→탈출 / 막힘→하트 / 비우면 클리어).
+  각 장은 **실제 보드와 같은 표현**(점격자·잉크 스트로크·삼각 화살촉)으로 그린 루프 다이어그램
+  (`onboarding_diagram.dart`, CustomPainter). 언제든 건너뛰기 가능.
+  부트가 `Progress.onboarded`로 분기해 첫 실행에만 노출.
+- **첫 판 코치**: `coachDone` 전까지 3초마다 탈출 가능한 라인을 자동 하이라이트 + 하단 안내 칩.
+  플레이어가 **직접 첫 탈출에 성공하면 자동 종료**(`ZArrowsGame.onEscaped`).
+- **플레이 갭 수정**:
+  - 제거 아이템이 소모되지 않던 버그 → `onRemoveUsed`(발동 시점 차감, 장전은 무료).
+  - 힌트/제거 0개일 때 `+` 배지가 **상점 탭으로 이동**(기존엔 무반응).
+  - **전면광고가 어디서도 호출되지 않던 문제** → `_next()`에서 `Ads.maybeShowInterstitial`.
+  - 결과시트 MREC 더미 → 실제 `AdsMrec`(AdSize.mediumRectangle).
+- **상점 실동작**: 보유량 헤더, 보상형 광고 힌트+1, IAP 상품 바인딩(스토어 현지화 가격),
+  미등록 상품은 `준비중`으로 비활성, 구매 복원. 구매 결과 스낵바는 `AppShell`에서 일괄 처리.
+- **설정 실동작**: 소리·진동 토글이 `Progress`에 연결(→`Sfx`·`Pressable` 실제 반영.
+  `Pressable`의 햅틱이 설정을 무시하던 것도 수정), 광고 제거/구매 복원 IAP 연결,
+  **튜토리얼 다시 보기**(진행도는 보존).
+- **광고 제거 반영**: `adsRemoved`면 배너·MREC·전면 전부 차단. **보상형은 유지**(플레이어가
+  자발적으로 시작하는 교환이므로).
+- **IAP 상품 id 접두어 확정 — `atlsars_`** (사용자 결정). 스토어 미등록 상태에서 4종 통일:
+  `atlsars_hints_10` · `atlsars_hints_50` · `atlsars_removes_5`(신규) ·
+  `atlsars_remove_ads`(신규·비소모성). 상품 id는 등록 후 영구 변경 불가라 지금이 마지막 기회였다.
+  스토어 등록 전까지는 상점에서 자동으로 `준비중`으로 뜨므로 **지금 막히는 것 없음**.
+- **테스트**: `test/progress_test.dart` 신규 9개(아이템 차감·온보딩 게이트·광고제거·언락 프론티어).
+  전체 **19/19 통과**, `dart analyze` 클린, `flutter build web` 성공.
+
+## 2. 이전 세션에 바뀐 것 (2026-07-19)
 
 - **이름/패키지**: Z-Arrows → **Atlas Arrows**. applicationId/bundle = `com.loganland.atlasarrows`,
-  Dart 패키지 `atlas_arrows`. 내부 클래스 `ZArrowsGame`·IAP SKU `zarrows_hints_10/50`는 유지.
+  Dart 패키지 `atlas_arrows`. 내부 클래스 `ZArrowsGame`은 유지.
+  (⚠️ 당시 IAP SKU `zarrows_hints_10/50` 유지로 적었으나 **이후 `atlsars_`로 통일 확정** — 2-0 참고)
 - **부트**: 네이티브 스플래시 = 오프블랙 **빈 화면**(마크 없음). 개발사 페이지 = 로고+`LOGAN LAND`
   (**PRESENTS 부제 없음**). 로딩 = 마크+진행바.
 - **홈**: 중앙 로고(현재 `ATLAS·ARROWS` 워드마크가 임시, **실제 로고 제작 예정**). 신규 플레이어
@@ -44,7 +81,9 @@ lib/
   app/{app,shell,app_settings}.dart, app/tokens/*   토큰·테마·로케일(10개)
   features/
     boot/boot_screen.dart        빈 스플래시→개발사→로딩(서비스 init: Progress/ShapeCatalog/
-                                 Campaign/WorldMap/Ads/Iap)
+                                 Campaign/WorldMap/Ads/Iap) → 온보딩 or 셸
+    onboarding/onboarding_screen.dart   3장 규칙 캐러셀(첫 실행·설정에서 재생)
+    onboarding/onboarding_diagram.dart  규칙별 루프 다이어그램(보드와 동일한 표현)
     home/home_screen.dart        신규/기존 CTA 분기
     map/map_screen.dart          점묘 월드맵(InteractiveViewer + _WorldPainter)
     map/round_intro_screen.dart  맵 진입용 라운드 인트로(플레이/잠김)
@@ -81,8 +120,11 @@ python tools/atlas/build_worldmap.py   # 월드맵 데이터 재생성
 3. **맵 폴리시**: 현재국가 파랑 줌인 시각 재확인, 초소형국 4개(Israel/Rwanda/Albania/N.Cyprus)
    셀 공유 해소(격자 상향 or centroid 충돌 회피).
 4. **UI i18n**(맨 마지막): 한국어 하드코딩 문자열 → 10개어(intl/ARB). CJK(일·간중)+키릴(러) 폰트 번들.
-5. **런칭 블로커(계정)**: AdMob 실ID(출시 후 발급), IAP 상품 등록(zarrows_hints_10/50),
-   릴리즈 keystore 서명, 스토어 스크린샷.
+5. **출시 이후/출시 준비 시점 작업** (⚠️ **지금 단계의 블로커가 아님** — `CLAUDE.md` 참고):
+   - **애드몹 실 광고 ID = 정식 출시해야 애드몹 앱 등록이 되고 그때 발급된다.**
+     출시 전엔 받을 방법이 없으므로 **구글 테스트 유닛이 현재로선 정답**이다. 할 일로 올리지 말 것.
+   - IAP 상품 등록(`atlsars_hints_10/50` · `atlsars_removes_5` · `atlsars_remove_ads`),
+     릴리즈 keystore 서명, 스토어 스크린샷 — 전부 스토어 콘솔 작업 시점에 처리.
 
 ## 6. 확정 사양·참고
 

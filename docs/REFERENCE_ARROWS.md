@@ -1,6 +1,6 @@
 # 레퍼런스 분석: "Arrows" 앱 (2026-07-18 캡처)
 
-원본: `P5_Z-ARROWS/reference/app_Arrows/` (스크린샷 7장 + 플레이 영상 103초).
+원본: `P5_ATLASARROWS/reference/app_Arrows/` (스크린샷 7장 + 플레이 영상 103초).
 동일 장르(스네이크 화살표 탭 탈출)의 라이브 서비스 앱. 우리와의 차이점 중심으로 정리.
 
 ## 1. 게임플레이 UX

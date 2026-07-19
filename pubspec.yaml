@@ -77,6 +77,10 @@ flutter_launcher_icons:
 
 # Blank off-black native splash (no mark) — carries into the app's off-black
 # splash phase seamlessly. Regenerate with: dart run flutter_native_splash:create
+# ⚠️ After regenerating, re-apply the hand patch in android/app/src/main/res/
+#    values*/styles.xml: NormalTheme's windowBackground must be @color/splash_ink,
+#    not ?android:colorBackground — otherwise a white frame flashes between the
+#    native splash and Flutter's first frame.
 flutter_native_splash:
   color: "#23252E"
   color_dark: "#23252E"

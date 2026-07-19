@@ -1,5 +1,5 @@
 """Extracts individual animal silhouettes from the user's sprite-sheet
-illustrations (P5_Z-ARROWS/shapes/) and rasterizes each to a cell grid.
+illustrations (P5_ATLASARROWS/shapes/) and rasterizes each to a cell grid.
 
 Pipeline per image: grayscale -> dark threshold -> dilate (merge broken
 parts like the panda's patches) -> connected components -> per-component
@@ -15,7 +15,9 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SRC = r"D:\Downloads\재혁\★PROJECT_BALI\P5_Z-ARROWS\shapes"
+# shapes/ lives beside the repo folder: tools/atlas/ -> ../../../shapes
+SRC = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(HERE))), "shapes")
 DARK = 128          # gray value below this = silhouette pixel
 DILATE = 3          # px iterations to merge nearby fragments
 MIN_AREA_FRac = 0.0006  # of image pixels; drops specks/watermark bits

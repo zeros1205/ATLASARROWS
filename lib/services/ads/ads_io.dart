@@ -3,9 +3,17 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
-import '../../theme.dart';
+import '../../app/tokens/colors.dart';
+import '../../app/tokens/typography.dart';
+import '../progress.dart';
 
-/// Google's official TEST ad units. Replace with production ids at launch.
+/// Google's official TEST ad units.
+///
+/// ⛔ These are CORRECT for the current stage — do not flag them as a defect,
+/// a TODO, or a launch blocker. Real AdMob unit ids only exist AFTER the app
+/// is officially published: you must ship first, then register the app in
+/// AdMob, and only then are production ids issued. There is no way to obtain
+/// them before release. Swapping them in is a post-launch task. See CLAUDE.md.
 String get _bannerId => Platform.isAndroid
     ? 'ca-app-pub-3940256099942544/6300978111'
     : 'ca-app-pub-3940256099942544/2934735716';
@@ -31,12 +39,16 @@ abstract final class Ads {
   static Future<void> init() async {
     if (!_supported) return;
     await MobileAds.instance.initialize();
+    // Remove-ads kills the interstitial and the banner, but NOT rewarded —
+    // those are opt-in trades the player starts themselves (heart refills,
+    // free hints), so payers keep access to them.
     _preloadInterstitial();
     _preloadRewarded();
   }
 
   static void _preloadInterstitial() {
     if (!_supported || _loading || _interstitial != null) return;
+    if (Progress.instance.adsRemoved.value) return;
     _loading = true;
     InterstitialAd.load(
       adUnitId: _interstitialId,
@@ -56,6 +68,7 @@ abstract final class Ads {
     required int levelIndex,
   }) {
     if (!_supported) return;
+    if (Progress.instance.adsRemoved.value) return;
     if (levelIndex < interstitialMinLevel) return;
     if (totalClears % interstitialEvery != 0) return;
     final ad = _interstitial;
@@ -124,6 +137,70 @@ abstract final class Ads {
   }
 }
 
+/// 300x250 medium rectangle shown above the result sheet. Uses the same
+/// banner unit at [AdSize.mediumRectangle]; collapses to a thin gap for
+/// remove-ads owners so the sheet doesn't leave a hole.
+class AdsMrec extends StatefulWidget {
+  const AdsMrec({super.key});
+
+  @override
+  State<AdsMrec> createState() => _AdsMrecState();
+}
+
+class _AdsMrecState extends State<AdsMrec> {
+  BannerAd? _ad;
+  bool _loaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_supported && !Progress.instance.adsRemoved.value) {
+      _ad = BannerAd(
+        adUnitId: _bannerId,
+        size: AdSize.mediumRectangle,
+        request: const AdRequest(),
+        listener: BannerAdListener(
+          onAdLoaded: (_) => setState(() => _loaded = true),
+          onAdFailedToLoad: (ad, _) => ad.dispose(),
+        ),
+      )..load();
+    }
+  }
+
+  @override
+  void dispose() {
+    _ad?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = AppColors.of(context);
+    return ValueListenableBuilder<bool>(
+      valueListenable: Progress.instance.adsRemoved,
+      builder: (context, removed, _) => removed
+          ? const SizedBox(height: 12)
+          : Container(
+              height: 250,
+              width: 300,
+              color: c.dot,
+              alignment: Alignment.center,
+              child: _loaded && _ad != null
+                  ? SizedBox(
+                      width: _ad!.size.width.toDouble(),
+                      height: _ad!.size.height.toDouble(),
+                      child: AdWidget(ad: _ad!),
+                    )
+                  : Text('AD',
+                      style: AppText.label.copyWith(
+                          color: c.inkFaint,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 4)),
+            ),
+    );
+  }
+}
+
 /// Bottom banner, present on every screen. Falls back to the reserved
 /// slot styling until the ad is loaded (or when unsupported).
 class AdsBanner extends StatefulWidget {
@@ -140,7 +217,7 @@ class _AdsBannerState extends State<AdsBanner> {
   @override
   void initState() {
     super.initState();
-    if (_supported) {
+    if (_supported && !Progress.instance.adsRemoved.value) {
       _banner = BannerAd(
         adUnitId: _bannerId,
         size: AdSize.banner,
@@ -161,24 +238,27 @@ class _AdsBannerState extends State<AdsBanner> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 60,
-      width: double.infinity,
-      color: ZTheme.dot,
-      alignment: Alignment.center,
-      child: _loaded && _banner != null
-          ? SizedBox(
-              width: _banner!.size.width.toDouble(),
-              height: _banner!.size.height.toDouble(),
-              child: AdWidget(ad: _banner!),
-            )
-          : const Text(
-              'AD',
-              style: TextStyle(
-                color: ZTheme.inkSoft,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 4,
-              ),
+    final c = AppColors.of(context);
+    return ValueListenableBuilder<bool>(
+      valueListenable: Progress.instance.adsRemoved,
+      builder: (context, removed, _) => removed
+          ? const SizedBox.shrink()
+          : Container(
+              height: 60,
+              width: double.infinity,
+              color: c.dot,
+              alignment: Alignment.center,
+              child: _loaded && _banner != null
+                  ? SizedBox(
+                      width: _banner!.size.width.toDouble(),
+                      height: _banner!.size.height.toDouble(),
+                      child: AdWidget(ad: _banner!),
+                    )
+                  : Text('AD',
+                      style: AppText.label.copyWith(
+                          color: c.inkFaint,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 4)),
             ),
     );
   }
