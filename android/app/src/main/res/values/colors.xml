@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ic_launcher_background">#F7F6F2</color>
-    <!-- Off-black splash ground. NormalTheme must match the native splash so
-         there is no white flash between the splash and Flutter's first frame
-         (the app's own splash phase is the same off-black). -->
-    <color name="splash_ink">#23252E</color>
+    <!-- LOGAN LAND off-black. NormalTheme must match the native splash so there
+         is no white flash between the splash and Flutter's first frame, and the
+         publisher card Flutter draws next is this same colour. Not the app's own
+         ink (#23252E) — this stretch of the launch belongs to the publisher. -->
+    <color name="splash_ink">#0D0D0D</color>
 </resources>

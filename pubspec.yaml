@@ -19,6 +19,13 @@ dependencies:
   games_services: ^5.1.0
   firebase_core: ^4.12.1
   firebase_auth: ^6.5.6
+  # LOGAN LAND cold-start brand sequence. Pinned to a tag on purpose: on `main`
+  # the publisher identity could change under us on any `pub get`.
+  loganland_boot:
+    git:
+      url: https://github.com/zeros1205/loganland_flutter_kit.git
+      path: packages/loganland_boot
+      ref: v1.0.0
 
 dev_dependencies:
   flutter_test:
@@ -32,6 +39,7 @@ flutter:
   assets:
     - assets/audio/
     - assets/shapes/
+    - assets/images/brand/
     - assets/images/icons/
     - assets/images/stamps/
     - assets/campaign/
@@ -78,15 +86,27 @@ flutter_launcher_icons:
     background_color: "#F7F6F2"
     theme_color: "#F7F6F2"
 
-# Blank off-black native splash (no mark) — carries into the app's off-black
-# splash phase seamlessly. Regenerate with: dart run flutter_native_splash:create
+# ── Native splash ─────────────────────────────────────────────────────
+# LOGAN LAND boot kit §5. Off-black (#0D0D0D) flat screen, matching the
+# publisher card Flutter draws next so there is no seam between them.
+# Android 12+ forces an icon onto the system splash, so there is no way to
+# ask for a genuinely blank screen — the icon is a dot in the *same*
+# #0D0D0D, which makes it invisible.
+# Regenerate with: dart run flutter_native_splash:create
 # ⚠️ After regenerating, re-apply the hand patch in android/app/src/main/res/
 #    values*/styles.xml: NormalTheme's windowBackground must be @color/splash_ink,
 #    not ?android:colorBackground — otherwise a white frame flashes between the
 #    native splash and Flutter's first frame.
 flutter_native_splash:
-  color: "#23252E"
-  color_dark: "#23252E"
+  color: "#0D0D0D"
+  color_dark: "#0D0D0D"
+  image: assets/icon/splash_dot.png
+  image_dark: assets/icon/splash_dot.png
+  android: true
+  ios: true
+  web: false
   android_12:
-    color: "#23252E"
-    color_dark: "#23252E"
+    image: assets/icon/splash_dot.png
+    image_dark: assets/icon/splash_dot.png
+    icon_background_color: "#0D0D0D"
+    icon_background_color_dark: "#0D0D0D"
