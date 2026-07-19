@@ -35,6 +35,21 @@ CLIP_OVERRIDES = {
     "Japan": (128.5, 30.0, 146.0, 45.8),                      # no Okinawa
 }
 
+# Islands that must appear on a country's board but cannot survive the
+# raster on their own. A cell here covers a few hundred km2 and only fills in
+# once COVERAGE of it is land, so Ulleungdo (73 km2) reaches about 20% and
+# Dokdo (0.19 km2) effectively 0% — and Dokdo is not in the 50m source at all.
+#
+# Listed points are stamped ON after coverage is computed and the frame is
+# widened to include them, so they always land as one cell at their true
+# position. Boards are zoomable, so the wider frame costs nothing.
+STAMPS = {
+    "South Korea": [
+        (130.876, 37.502),  # Ulleungdo
+        (131.867, 37.240),  # Dokdo
+    ],
+}
+
 
 def rings_of(geom):
     polys = ([geom["coordinates"]] if geom["type"] == "Polygon"
@@ -81,8 +96,14 @@ def frame(polys, override):
                 and metas[i][0] >= ma * KEEP_AREA)]
     xs = [x for poly in kept for x, _ in poly[0]]
     ys = [y for poly in kept for _, y in poly[0]]
-    padx = (max(xs) - min(xs)) * 0.02 + 0.01
-    pady = (max(ys) - min(ys)) * 0.02 + 0.01
+    w, h = max(xs) - min(xs), max(ys) - min(ys)
+    # Purely proportional. A fixed floor here (it used to be +0.01 deg) is
+    # larger than a micro-state is wide, so the country ends up occupying a
+    # fraction of its own frame and the grid trims down to a few cells —
+    # Vatican rasterised to 4x5. The tiny epsilon only guards a degenerate
+    # zero-extent bbox.
+    padx = w * 0.02 + w * 1e-6 + 1e-9
+    pady = h * 0.02 + h * 1e-6 + 1e-9
     return kept, (min(xs) - padx, min(ys) - pady,
                   max(xs) + padx, max(ys) + pady)
 
@@ -125,7 +146,7 @@ def long_side_for(e_deg):
     return int(round(min(44, max(14, 16 + 7 * math.log2(e_deg + 1)))))
 
 
-def rasterize(geom, override=None):
+def rasterize(geom, override=None, stamps=()):
     if override:
         # filter on raw coords BEFORE unwrapping, else antimeridian
         # countries (USA via Aleutians) get shifted out of the clip box
@@ -135,6 +156,9 @@ def rasterize(geom, override=None):
         kept, (lon0, lat0, lon1, lat1) = frame(polys, None)
     if not kept:
         return None
+    for sx, sy in stamps:
+        lon0, lon1 = min(lon0, sx - 0.05), max(lon1, sx + 0.05)
+        lat0, lat1 = min(lat0, sy - 0.05), max(lat1, sy + 0.05)
     midlat = math.radians(max(-85, min(85, (lat0 + lat1) / 2)))
     w_deg = (lon1 - lon0) * math.cos(midlat)
     h_deg = lat1 - lat0
@@ -162,6 +186,11 @@ def rasterize(geom, override=None):
                     i += 1
     hit = contains(edges, grid_pts).reshape(rows, cols, SUB * SUB)
     cover = hit.sum(axis=2) / (SUB * SUB)
+    for sx, sy in stamps:
+        c = int((sx - lon0) / (lon1 - lon0) * cols)
+        r = int((lat1 - sy) / (lat1 - lat0) * rows)
+        if 0 <= r < rows and 0 <= c < cols:
+            cover[r, c] = 1.0
     grid = ["".join("#" if cover[r, c] >= COVERAGE else "."
                     for c in range(cols)) for r in range(rows)]
     rs = [i for i, row in enumerate(grid) if "#" in row]
@@ -181,7 +210,8 @@ def main():
     for feat in feats:
         p = feat["properties"]
         name = p["ADMIN"]
-        grid = rasterize(feat["geometry"], CLIP_OVERRIDES.get(name))
+        grid = rasterize(feat["geometry"], CLIP_OVERRIDES.get(name),
+                         STAMPS.get(name, ()))
         if grid is None or sum(r.count("#") for r in grid) < 4:
             skipped.append(name)
             continue
