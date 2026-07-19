@@ -3,16 +3,13 @@ name: iOS · TestFlight
 # Archives a signed IPA on a macOS runner and uploads it to TestFlight via the
 # App Store Connect API.
 #
-# Triggers
-#   - push of a tag  v*   → build + upload
-#   - manual dispatch     → optionally build only
+# Manual dispatch only, optionally build-only. Nothing here fires by itself:
+# handing a build to TestFlight is a decision, not a side effect of a push.
 #
 # Requires an Apple Developer Program membership. Without the signing secrets
 # the job still runs `flutter build ios --no-codesign` so compile breakage is
 # caught, then stops before archiving. See docs/RELEASE.md.
 on:
-  push:
-    tags: ['v*']
   workflow_dispatch:
     inputs:
       build_only:

@@ -2,17 +2,14 @@ name: Android · Play Console
 
 # Builds a signed AAB and uploads it to Google Play.
 #
-# Triggers
-#   - push of a tag  v*        → uploads to the `internal` track
-#   - manual dispatch          → pick the track (internal / alpha / beta /
-#                                production) and whether to only build
+# Manual dispatch only — pick the track (internal / alpha / beta / production)
+# and whether to only build. Nothing here fires by itself: a release is a
+# decision, and it should never be a side effect of pushing a commit or a tag.
 #
 # Every store secret is optional at the job level: if signing or the Play
 # service account isn't configured yet, the workflow still builds and uploads
 # the AAB as a run artifact instead of failing red. See docs/RELEASE.md.
 on:
-  push:
-    tags: ['v*']
   workflow_dispatch:
     inputs:
       track:

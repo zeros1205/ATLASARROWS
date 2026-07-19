@@ -1,11 +1,12 @@
 name: CI
 
-# Quality gate for every push and PR. Mirrors the local gate documented in
-# CLAUDE.md: dart analyze clean, all tests pass, the web build compiles.
+# Quality gate: dart analyze clean, all tests pass, the web build compiles.
+# Mirrors the local gate documented in CLAUDE.md.
+#
+# Manual dispatch only. Every workflow in this repo is dispatch-only — nothing
+# builds unless someone asks for it. The routine check is `dart analyze` and
+# `flutter test` locally; run this when you want the web build verified too.
 on:
-  push:
-    branches: [main]
-  pull_request:
   workflow_dispatch:
 
 concurrency:
