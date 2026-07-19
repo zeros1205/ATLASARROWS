@@ -251,9 +251,15 @@ class _NavRow extends StatelessWidget {
   }
 }
 
+/// Every settings row is the same height. A Switch is taller than a line of
+/// text, so letting the rows size themselves made the toggles visibly taller
+/// than the links sitting right under them.
+const double _rowHeight = 56;
+
 Widget _rowShell(AppColors c, {required Widget child}) => Container(
+      height: _rowHeight,
       margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
         color: c.surface,
         border: Border.all(color: c.line),
