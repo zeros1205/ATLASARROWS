@@ -18,8 +18,9 @@ on:
         description: Release notes for testers
         type: string
         default: ''
-  push:
-    branches: [main]
+  # Dispatch only. This used to also fire on every push to main, which meant
+  # ordinary commits shipped builds to testers nobody had asked for. Handing a
+  # build to testers is a decision, not a side effect of saving work.
 
 concurrency:
   group: fad-${{ github.ref }}
