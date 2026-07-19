@@ -1,4 +1,4 @@
-﻿package com.loganland.zarrows
+package com.loganland.atlasarrows
 
 import io.flutter.embedding.android.FlutterActivity
 

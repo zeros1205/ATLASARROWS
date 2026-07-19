@@ -33,8 +33,9 @@ class SettingsScreen extends StatelessWidget {
                 const _NavRow(label: '진동', trailing: '켜짐'),
                 _NavRow(
                   label: '언어',
-                  trailing:
-                      settings.locale?.languageCode == 'en' ? 'English' : '한국어',
+                  trailing: AppSettings
+                          .languageNames[settings.locale?.languageCode] ??
+                      '한국어',
                   onTap: () => _pickLanguage(context),
                 ),
                 const _NavRow(label: '광고 제거', trailing: '₩9,900 ›'),
@@ -53,19 +54,27 @@ class SettingsScreen extends StatelessWidget {
     final settings = AppSettings.instance;
     showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
       builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final loc in AppSettings.supportedLocales)
-              ListTile(
-                title: Text(loc.languageCode == 'en' ? 'English' : '한국어'),
-                onTap: () {
-                  settings.setLocale(loc);
-                  Navigator.pop(context);
-                },
-              ),
-          ],
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.7),
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              for (final loc in AppSettings.supportedLocales)
+                ListTile(
+                  title: Text(
+                      AppSettings.languageNames[loc.languageCode] ??
+                          loc.languageCode),
+                  selected: settings.locale?.languageCode == loc.languageCode,
+                  onTap: () {
+                    settings.setLocale(loc);
+                    Navigator.pop(context);
+                  },
+                ),
+            ],
+          ),
         ),
       ),
     );

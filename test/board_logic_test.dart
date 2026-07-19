@@ -1,13 +1,13 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:z_arrows/game/board_logic.dart';
-import 'package:z_arrows/models/arrow_line.dart';
-import 'package:z_arrows/models/direction.dart';
-import 'package:z_arrows/models/level.dart';
-import 'package:z_arrows/models/level_generator.dart';
-import 'package:z_arrows/models/levels.dart';
-import 'package:z_arrows/models/shape_catalog.dart';
+import 'package:atlas_arrows/game/board_logic.dart';
+import 'package:atlas_arrows/models/arrow_line.dart';
+import 'package:atlas_arrows/models/direction.dart';
+import 'package:atlas_arrows/models/level.dart';
+import 'package:atlas_arrows/models/level_generator.dart';
+import 'package:atlas_arrows/models/levels.dart';
+import 'package:atlas_arrows/models/shape_catalog.dart';
 
 Level level(int rows, int cols, List<String> specs) =>
     Level.parse(rows: rows, cols: cols, lineSpecs: specs);

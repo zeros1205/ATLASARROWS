@@ -7,7 +7,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:z_arrows/models/level_generator.dart';
+import 'package:atlas_arrows/models/level_generator.dart';
 
 const minCells = 80; // atlas candidate floor
 

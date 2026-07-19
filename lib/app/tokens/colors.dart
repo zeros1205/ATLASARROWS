@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Semantic color tokens for Z-Arrows, resolved per theme via a
+/// Semantic color tokens for Atlas Arrows, resolved per theme via a
 /// [ThemeExtension]. Reach them with `AppColors.of(context)`.
 ///
 /// Identity: paper + ink. Off-white paper ground, off-black ink for the

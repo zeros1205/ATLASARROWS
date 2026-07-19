@@ -1,11 +1,11 @@
 {
-    "name": "Z-Arrows",
-    "short_name": "Z-Arrows",
+    "name": "Atlas Arrows",
+    "short_name": "Atlas Arrows",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#F7F6F2",
     "theme_color": "#F7F6F2",
-    "description": "Z-Arrows — Shift the Arrows, Clear the Maze.",
+    "description": "Atlas Arrows — Shift the Arrows, Clear the Maze.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

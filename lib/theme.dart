@@ -1,6 +1,6 @@
 import 'dart:ui';
 
-/// Z-Arrows visual identity: paper-like off-white board with off-black
+/// Atlas Arrows visual identity: paper-like off-white board with off-black
 /// ink lines — the maze itself is the graphic. Color only speaks on
 /// action: blue while a line escapes, red on a mistake.
 abstract final class ZTheme {

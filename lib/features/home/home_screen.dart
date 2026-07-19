@@ -9,8 +9,9 @@ import '../../services/progress.dart';
 import '../../shared/pressable.dart';
 import '../game/game_screen.dart';
 
-/// Home: wordmark + primary PLAY (resume) + a secondary map entry. No
-/// hearts/gem in the header (hearts live in-play; gem is unused).
+/// Home: centred game logo, then the play CTAs. A brand-new player sees a
+/// single '시작하기'; a returning player sees '이어서 플레이' + '맵에서 플레이'.
+/// No hearts/gem in the header (hearts live in-play; gem is unused).
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
@@ -26,42 +27,50 @@ class HomeScreen extends StatelessWidget {
 
     return Scaffold(
       body: SafeArea(
-        child: Column(
-          children: [
-            const Spacer(flex: 3),
-            Text.rich(
-              TextSpan(children: [
-                const TextSpan(text: 'Z'),
-                TextSpan(text: '·', style: TextStyle(color: c.accent)),
-                const TextSpan(text: 'ARROWS'),
-              ]),
-              style: AppText.display.copyWith(
-                  color: c.ink, fontSize: 40, letterSpacing: -1),
-            ),
-            const SizedBox(height: 6),
-            Text('SHIFT THE ARROWS',
-                style: AppText.caption
-                    .copyWith(color: c.inkFaint, letterSpacing: 2.5)),
-            const Spacer(flex: 2),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 34),
-              child: Column(
-                children: [
-                  _PrimaryButton(
-                    label: '플레이',
-                    sub: _resumeLabel(),
-                    onTap: play,
-                  ),
-                  const SizedBox(height: AppGap.md),
-                  _SecondaryButton(
-                      label: '세계지도',
-                      icon: Icons.public_outlined,
-                      onTap: () => appTab.value = 1),
-                ],
-              ),
-            ),
-            const Spacer(flex: 3),
-          ],
+        child: ValueListenableBuilder<int>(
+          valueListenable: Progress.instance.unlocked,
+          builder: (context, unlocked, _) {
+            final isNew = unlocked <= 0;
+            return Column(
+              children: [
+                const Spacer(flex: 3),
+                // Centred game logo (wordmark stands in until the logo art lands).
+                Text.rich(
+                  TextSpan(children: [
+                    const TextSpan(text: 'ATLAS'),
+                    TextSpan(text: '·', style: TextStyle(color: c.accent)),
+                    const TextSpan(text: 'ARROWS'),
+                  ]),
+                  style: AppText.display.copyWith(
+                      color: c.ink, fontSize: 38, letterSpacing: -1),
+                ),
+                const SizedBox(height: 6),
+                Text('SHIFT THE ARROWS',
+                    style: AppText.caption
+                        .copyWith(color: c.inkFaint, letterSpacing: 2.5)),
+                const Spacer(flex: 2),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 34),
+                  child: isNew
+                      ? _PrimaryButton(label: '시작하기', onTap: play)
+                      : Column(
+                          children: [
+                            _PrimaryButton(
+                                label: '이어서 플레이',
+                                sub: _resumeLabel(),
+                                onTap: play),
+                            const SizedBox(height: AppGap.md),
+                            _SecondaryButton(
+                                label: '맵에서 플레이',
+                                icon: Icons.public_outlined,
+                                onTap: () => appTab.value = 1),
+                          ],
+                        ),
+                ),
+                const Spacer(flex: 3),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -78,9 +87,9 @@ String _resumeLabel() {
 }
 
 class _PrimaryButton extends StatelessWidget {
-  const _PrimaryButton(
-      {required this.label, required this.sub, required this.onTap});
-  final String label, sub;
+  const _PrimaryButton({required this.label, this.sub, required this.onTap});
+  final String label;
+  final String? sub;
   final VoidCallback onTap;
 
   @override
@@ -96,15 +105,18 @@ class _PrimaryButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppRadius.xl),
         ),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Text(label,
                 style: AppText.headline
                     .copyWith(color: c.onAccent, fontWeight: FontWeight.w900)),
-            const SizedBox(height: 2),
-            Text(sub,
-                style: AppText.caption.copyWith(
-                    color: c.onAccent.withValues(alpha: 0.8),
-                    letterSpacing: 1)),
+            if (sub != null && sub!.isNotEmpty) ...[
+              const SizedBox(height: 2),
+              Text(sub!,
+                  style: AppText.caption.copyWith(
+                      color: c.onAccent.withValues(alpha: 0.8),
+                      letterSpacing: 1)),
+            ],
           ],
         ),
       ),

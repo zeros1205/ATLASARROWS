@@ -18,7 +18,7 @@ class ZArrowsApp extends StatelessWidget {
       builder: (context, _) {
         final locale = settings.locale;
         return MaterialApp(
-          title: 'Z-Arrows',
+          title: 'Atlas Arrows',
           debugShowCheckedModeBanner: false,
           themeMode: settings.themeMode,
           theme: buildTheme(Brightness.light, locale),

@@ -31,6 +31,8 @@ class _GameScreenState extends State<GameScreen> {
   final _hearts = ValueNotifier<int>(ZArrowsGame.maxHearts);
   _Result _result = _Result.none;
   bool _freeRefillUsed = false;
+  // Show the round-intro when we land on a country's first stage.
+  late bool _showIntro = _loc.local == 0;
 
   @override
   void initState() {
@@ -62,10 +64,12 @@ class _GameScreenState extends State<GameScreen> {
       Navigator.of(context).maybePop();
       return;
     }
+    final crossedIntoNewCountry = _repo.locate(_stage + 1).$2 == 0;
     setState(() {
       _stage++;
       _freeRefillUsed = false;
       _result = _Result.none;
+      _showIntro = crossedIntoNewCountry;
     });
     _game.loadLevel(_repo.levelAt(_stage));
   }
@@ -135,11 +139,126 @@ class _GameScreenState extends State<GameScreen> {
                 onRestart: _restart,
                 onRefill: _refill,
               ),
+            if (_showIntro && _repo.isLoaded)
+              _RoundIntro(
+                round: _loc.countryIndex + 1,
+                country: _repo.countries[_loc.countryIndex],
+                onStart: () => setState(() => _showIntro = false),
+              ),
           ],
         ),
       ),
     );
   }
+}
+
+/// The round-intro page, shown when entering a new country: round number,
+/// country name, a short blurb, and the round's stage / city / path makeup.
+class _RoundIntro extends StatelessWidget {
+  const _RoundIntro({
+    required this.round,
+    required this.country,
+    required this.onStart,
+  });
+  final int round;
+  final CampaignCountry country;
+  final VoidCallback onStart;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = AppColors.of(context);
+    return Positioned.fill(
+      child: Container(
+        color: c.bg,
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(28, 24, 28, 28),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('ROUND ${round.toString().padLeft(2, '0')}',
+                    style: AppText.label.copyWith(
+                        color: c.accent, letterSpacing: 4, fontSize: 13)),
+                const SizedBox(height: 12),
+                Text(country.displayName,
+                    style: AppText.display.copyWith(
+                        color: c.ink, fontWeight: FontWeight.w900, height: 1.05)),
+                if (country.ko.isNotEmpty && country.name != country.ko)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(country.name,
+                        style: AppText.body.copyWith(color: c.inkFaint)),
+                  ),
+                const SizedBox(height: 20),
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Builder(builder: (context) {
+                      final lang = Localizations.localeOf(context).languageCode;
+                      final blurb = country.introFor(lang);
+                      return Text(
+                        blurb.isNotEmpty
+                            ? blurb
+                            : '${country.displayName}의 도시들을 이어가며 라운드를 완주해 보세요.',
+                        style: AppText.body.copyWith(
+                            color: c.inkSoft, height: 1.55, fontSize: 15),
+                      );
+                    }),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    _stat(c, '${country.stageCount}', 'Stages'),
+                    _stat(c, '${country.cityCount}', 'Cities'),
+                    _stat(c, '${country.pathCount}', 'Paths'),
+                  ],
+                ),
+                const SizedBox(height: 22),
+                Pressable(
+                  onTap: onStart,
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 15),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: c.accent,
+                      borderRadius: BorderRadius.circular(AppRadius.pill),
+                    ),
+                    child: Text('라운드 시작',
+                        style: AppText.headline.copyWith(
+                            color: c.onAccent, fontWeight: FontWeight.w900)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _stat(AppColors c, String value, String label) => Expanded(
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          decoration: BoxDecoration(
+            color: c.surface,
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            border: Border.all(color: c.line, width: 1.5),
+          ),
+          child: Column(
+            children: [
+              Text(value,
+                  style: AppText.title.copyWith(
+                      color: c.ink, fontWeight: FontWeight.w900, fontSize: 26)),
+              const SizedBox(height: 2),
+              Text(label,
+                  style: AppText.caption.copyWith(
+                      color: c.inkFaint, letterSpacing: 1.5, fontSize: 11)),
+            ],
+          ),
+        ),
+      );
 }
 
 class _Header extends StatelessWidget {

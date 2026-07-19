@@ -1,5 +1,5 @@
-name: z_arrows
-description: "Z-Arrows — Shift the Arrows, Clear the Maze."
+name: atlas_arrows
+description: "Atlas Arrows — Shift the Arrows, Clear the Maze."
 publish_to: 'none'
 version: 0.1.0+1
 
@@ -75,10 +75,11 @@ flutter_launcher_icons:
     background_color: "#F7F6F2"
     theme_color: "#F7F6F2"
 
-# Regenerate with: dart run flutter_native_splash:create
+# Blank off-black native splash (no mark) — carries into the app's off-black
+# splash phase seamlessly. Regenerate with: dart run flutter_native_splash:create
 flutter_native_splash:
-  color: "#F7F6F2"
-  image: assets/icon/splash.png
+  color: "#23252E"
+  color_dark: "#23252E"
   android_12:
-    color: "#F7F6F2"
-    image: assets/icon/splash.png
+    color: "#23252E"
+    color_dark: "#23252E"

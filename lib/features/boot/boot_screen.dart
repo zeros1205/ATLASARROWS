@@ -12,9 +12,9 @@ import '../../services/ads/ads.dart';
 import '../../services/iap.dart';
 import '../../services/progress.dart';
 
-/// Boot sequence: off-black splash (single dot) -> off-black studio page
-/// (LOGAN LAND) -> paper loading plate with a progress bar while services
-/// initialize -> the 4-tab shell.
+/// Boot sequence: blank off-black splash -> off-black studio page (logo +
+/// LOGAN LAND wordmark) -> paper loading plate with a progress bar while
+/// services initialize -> the 4-tab shell.
 class BootScreen extends StatefulWidget {
   const BootScreen({super.key});
 
@@ -78,8 +78,8 @@ class _BootScreenState extends State<BootScreen> {
       body: AnimatedSwitcher(
         duration: AppDur.normal,
         child: switch (_phase) {
-          _Phase.splash => _Splash(color: c.bg),
-          _Phase.studio => _Studio(fg: c.bg, accent: c.accent, faint: c.inkFaint),
+          _Phase.splash => const _Splash(),
+          _Phase.studio => _Studio(fg: c.bg, accent: c.accent),
           _Phase.loading => _Loading(
               ink: c.ink, accent: c.accent, faint: c.inkSoft, progress: _progress),
         },
@@ -88,22 +88,17 @@ class _BootScreenState extends State<BootScreen> {
   }
 }
 
+/// Native splash carries straight into a blank off-black screen (no mark).
 class _Splash extends StatelessWidget {
-  const _Splash({required this.color});
-  final Color color;
+  const _Splash();
   @override
-  Widget build(BuildContext context) => Center(
-        key: const ValueKey('splash'),
-        child: Container(
-          width: 15, height: 15,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-      );
+  Widget build(BuildContext context) =>
+      const SizedBox.expand(key: ValueKey('splash'));
 }
 
 class _Studio extends StatelessWidget {
-  const _Studio({required this.fg, required this.accent, required this.faint});
-  final Color fg, accent, faint;
+  const _Studio({required this.fg, required this.accent});
+  final Color fg, accent;
   @override
   Widget build(BuildContext context) => Center(
         key: const ValueKey('studio'),
@@ -115,10 +110,6 @@ class _Studio extends StatelessWidget {
             Text('LOGAN LAND',
                 style: AppText.title.copyWith(
                     color: fg, letterSpacing: 3, fontWeight: FontWeight.w900)),
-            const SizedBox(height: 4),
-            Text('PRESENTS',
-                style: AppText.caption
-                    .copyWith(color: faint, letterSpacing: 4)),
           ],
         ),
       );

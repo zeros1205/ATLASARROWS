@@ -17,7 +17,36 @@ class AppSettings extends ChangeNotifier {
   ThemeMode get themeMode => _themeMode;
   Locale? get locale => _locale;
 
-  static const supportedLocales = [Locale('en'), Locale('ko')];
+  /// Ten service languages. Latin (Outfit) + Hangul (Paperlogy) cover most;
+  /// Japanese (kana/kanji) and Simplified Chinese (hanzi) need a CJK font
+  /// (Noto Sans CJK covers both), and Russian needs Cyrillic glyph coverage.
+  static final supportedLocales = <Locale>[
+    const Locale('en'),
+    const Locale('de'),
+    const Locale('fr'),
+    const Locale('it'),
+    const Locale('ja'),
+    const Locale('ko'),
+    const Locale('pt'),
+    const Locale('ru'),
+    const Locale('es'),
+    const Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
+  ];
+
+  /// Native language names (autonyms) for the language picker, keyed by
+  /// language code.
+  static const languageNames = <String, String>{
+    'en': 'English',
+    'de': 'Deutsch',
+    'fr': 'Français',
+    'it': 'Italiano',
+    'ja': '日本語',
+    'ko': '한국어',
+    'pt': 'Português',
+    'ru': 'Русский',
+    'es': 'Español',
+    'zh': '简体中文',
+  };
 
   Future<void> load() async {
     final p = await SharedPreferences.getInstance();
