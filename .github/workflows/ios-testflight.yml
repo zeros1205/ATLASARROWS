@@ -27,9 +27,19 @@ concurrency:
 jobs:
   release:
     name: Archive and upload to TestFlight
-    runs-on: macos-15
+    # App Store Connect rejects builds made with an SDK older than iOS 26, so
+    # the runner image has to carry Xcode 26+. macos-15 ships Xcode 16 (iOS
+    # 18.5 SDK) and its uploads fail validation at the very last step.
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
+
+      # Printed so a future SDK-version rejection is one glance away instead of
+      # a 409 from Apple after a full archive.
+      - name: Show Xcode version
+        run: |
+          xcodebuild -version
+          xcodebuild -showsdks | grep -i iphoneos || true
 
       - uses: subosito/flutter-action@v2
         with:

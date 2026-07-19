@@ -124,7 +124,8 @@ jobs:
 
   ios:
     name: iOS ad-hoc IPA → App Distribution
-    runs-on: macos-15
+    # Same Xcode 26 requirement as the TestFlight workflow.
+    runs-on: macos-26
     # Only worth spending a macOS runner when ad-hoc signing is actually set up.
     if: >-
       github.event_name == 'workflow_dispatch'
