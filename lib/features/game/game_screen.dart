@@ -8,7 +8,7 @@ import '../../app/tokens/colors.dart';
 import '../../app/tokens/dimens.dart';
 import '../../app/tokens/typography.dart';
 import '../../game/z_arrows_game.dart';
-import '../../models/campaign_repository.dart';
+import '../../models/campaign_repository.dart' show CampaignCountry, CampaignRepository, StageKind;
 import '../../services/ads/ads.dart';
 import '../../services/game_services.dart';
 import '../../services/progress.dart';
@@ -98,9 +98,27 @@ class _GameScreenState extends State<GameScreen> {
     return (countryIndex: ci, local: local);
   }
 
-  String get _placeName {
+  /// The country this stage belongs to.
+  String get _countryName {
     if (!_repo.isLoaded) return '';
     return _repo.countries[_loc.countryIndex].displayName;
+  }
+
+  /// What this particular board depicts — a city, or the country itself on the
+  /// round's last stage. This is the label worth showing while playing; the
+  /// country is already established by the round intro.
+  String get _placeName => _repo.stageAt(_stage)?.displayName ?? _countryName;
+
+  bool get _isFinale =>
+      _repo.stageAt(_stage)?.kind == StageKind.country;
+
+  /// "3 / 12" — position inside the round. A global stage number would read as
+  /// "stage 641 of 775", which says nothing a player cares about.
+  String get _localStageLabel {
+    if (!_repo.isLoaded) return '${_stage + 1}';
+    final loc = _loc;
+    final total = _repo.countries[loc.countryIndex].stageCount;
+    return '${loc.local + 1} / $total';
   }
 
   void _next() {
@@ -172,10 +190,12 @@ class _GameScreenState extends State<GameScreen> {
             Column(
               children: [
                 _Header(
-                  stage: _stage + 1,
+                  stage: _localStageLabel,
                   place: _placeName,
+                  finale: _isFinale,
                   onBack: () => Navigator.of(context).maybePop(),
                   onRestart: _restart,
+                  onResetView: _game.resetView,
                 ),
                 Container(height: 1, color: c.line),
                 _HeartsStrip(hearts: _hearts),
@@ -190,13 +210,21 @@ class _GameScreenState extends State<GameScreen> {
             if (_result == _Result.none && !_showIntro)
               ValueListenableBuilder<bool>(
                 valueListenable: Progress.instance.coachDone,
-                builder: (context, done, _) =>
-                    done ? const SizedBox.shrink() : const _CoachCue(),
+                builder: (context, done, _) => !done
+                    ? const _CoachCue('빛나는 화살표를 탭해 보세요',
+                        icon: Icons.touch_app_outlined)
+                    // A board wider than the screen can hold at a tappable
+                    // size is the one case where the player has to be told
+                    // about the gesture.
+                    : _game.needsZoom
+                        ? const _CoachCue('두 손가락으로 확대해 보세요',
+                            icon: Icons.pinch_outlined)
+                        : const SizedBox.shrink(),
               ),
             if (_result != _Result.none)
               _ResultSheet(
                 result: _result,
-                stage: _stage + 1,
+                stage: _localStageLabel,
                 place: _placeName,
                 freeRefillUsed: _freeRefillUsed,
                 onNext: _next,
@@ -220,7 +248,9 @@ class _GameScreenState extends State<GameScreen> {
 /// booster bar. It never covers the board and never needs dismissing — the
 /// screen retires it as soon as the player frees their first arrow.
 class _CoachCue extends StatelessWidget {
-  const _CoachCue();
+  const _CoachCue(this.label, {required this.icon});
+  final String label;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
@@ -243,9 +273,9 @@ class _CoachCue extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.touch_app_outlined, size: 18, color: c.bg),
+                  Icon(icon, size: 18, color: c.bg),
                   const SizedBox(width: 7),
-                  Text('빛나는 화살표를 탭해 보세요',
+                  Text(label,
                       style: AppText.label.copyWith(
                           color: c.bg, fontWeight: FontWeight.w700)),
                 ],
@@ -301,10 +331,16 @@ class _RoundIntro extends StatelessWidget {
                     child: Builder(builder: (context) {
                       final lang = Localizations.localeOf(context).languageCode;
                       final blurb = country.introFor(lang);
+                      // The fallback has to match the round it describes: a
+                      // one-board round has no cities to "connect".
+                      final fallback = country.teaches.isNotEmpty
+                          ? '이번 라운드에서 배울 것 — ${country.teaches}'
+                          : country.cityCount > 0
+                              ? '${country.displayName}의 도시 ${country.cityCount}곳을 지나 '
+                                  '마지막에 나라 전체를 풀어냅니다.'
+                              : '${country.displayName}의 영토를 한 판으로 풀어냅니다.';
                       return Text(
-                        blurb.isNotEmpty
-                            ? blurb
-                            : '${country.displayName}의 도시들을 이어가며 라운드를 완주해 보세요.',
+                        blurb.isNotEmpty ? blurb : fallback,
                         style: AppText.body.copyWith(
                             color: c.inkSoft, height: 1.55, fontSize: 15),
                       );
@@ -314,9 +350,9 @@ class _RoundIntro extends StatelessWidget {
                 const SizedBox(height: 20),
                 Row(
                   children: [
-                    _stat(c, '${country.stageCount}', 'Stages'),
-                    _stat(c, '${country.cityCount}', 'Cities'),
-                    _stat(c, '${country.pathCount}', 'Paths'),
+                    _stat(c, '${country.stageCount}', '스테이지'),
+                    _stat(c, '${country.cityCount}', '도시'),
+                    _stat(c, '1', '국가'),
                   ],
                 ),
                 const SizedBox(height: 22),
@@ -371,11 +407,16 @@ class _Header extends StatelessWidget {
   const _Header(
       {required this.stage,
       required this.place,
+      required this.finale,
       required this.onBack,
-      required this.onRestart});
-  final int stage;
+      required this.onRestart,
+      required this.onResetView});
+  final String stage;
   final String place;
-  final VoidCallback onBack, onRestart;
+
+  /// The country silhouette that closes a round — worth calling out.
+  final bool finale;
+  final VoidCallback onBack, onRestart, onResetView;
 
   @override
   Widget build(BuildContext context) {
@@ -389,19 +430,36 @@ class _Header extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text('STAGE $stage',
-                    style: AppText.label.copyWith(
-                        color: c.ink,
-                        fontWeight: FontWeight.w900,
-                        height: 1.05,
-                        fontSize: 15)),
-                if (place.isNotEmpty)
-                  Text(place,
-                      style: AppText.caption.copyWith(
-                          color: c.inkFaint, height: 1.05, fontSize: 11)),
+                // The place is the headline: the player is solving Seoul, not
+                // "stage 7". The counter rides underneath as context.
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (finale)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 5),
+                        child: Icon(Icons.flag_rounded,
+                            size: 14, color: c.accent),
+                      ),
+                    Flexible(
+                      child: Text(place,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppText.label.copyWith(
+                              color: c.ink,
+                              fontWeight: FontWeight.w900,
+                              height: 1.05,
+                              fontSize: 15)),
+                    ),
+                  ],
+                ),
+                Text(stage,
+                    style: AppText.caption.copyWith(
+                        color: c.inkFaint, height: 1.05, fontSize: 11)),
               ],
             ),
           ),
+          _iconBtn(c, Icons.center_focus_strong_outlined, onResetView),
           _iconBtn(c, Icons.refresh, onRestart),
         ],
       ),
@@ -605,7 +663,7 @@ class _ResultSheet extends StatelessWidget {
     required this.onRefill,
   });
   final _Result result;
-  final int stage;
+  final String stage;
   final String place;
   final bool freeRefillUsed;
   final VoidCallback onNext, onRestart;
@@ -642,7 +700,7 @@ class _ResultSheet extends StatelessWidget {
   Widget _clear(AppColors c) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text('STAGE $stage${place.isEmpty ? '' : ' · $place'}',
+          Text('${place.isEmpty ? '' : '$place · '}$stage',
               style: AppText.caption.copyWith(color: c.inkFaint, letterSpacing: 3)),
           const SizedBox(height: 6),
           Text('클리어!',

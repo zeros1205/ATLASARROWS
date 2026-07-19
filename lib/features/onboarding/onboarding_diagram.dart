@@ -157,9 +157,11 @@ class _DiagramPainter extends CustomPainter {
   void _escape(Canvas canvas, double cell) {
     const head = 2, col = 2;
     final at = _c(head, col, cell);
-    // 0.00–0.25 idle+tap · 0.25–0.75 slide out · 0.75–1.0 empty beat
+    // 0.00–0.25 idle+tap · 0.25–0.85 slide out · 0.85–1.0 empty beat. The
+    // empty tail is kept short: a diagram that sits blank for a quarter of
+    // its loop reads as a rendering bug rather than a pause.
     final tapT = (t / 0.25).clamp(0.0, 1.0);
-    final slideT = ((t - 0.25) / 0.5).clamp(0.0, 1.0);
+    final slideT = ((t - 0.25) / 0.6).clamp(0.0, 1.0);
     final gone = slideT >= 1;
     if (!gone) {
       final eased = Curves.easeInCubic.transform(slideT);

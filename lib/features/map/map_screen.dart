@@ -51,6 +51,18 @@ class _MapScreenState extends State<MapScreen> {
     return _repo.locate(u).$1;
   }
 
+  /// How many of the current country's dots are coloured in — its cleared
+  /// stages as a share of its round.
+  int get _currentFilled {
+    if (!_repo.isLoaded) return 0;
+    final u = Progress.instance.unlocked.value
+        .clamp(0, (_repo.totalStages - 1).clamp(0, 1 << 30));
+    final (ci, local) = _repo.locate(u);
+    final total = _repo.countries[ci].stageCount;
+    if (total == 0) return 0;
+    return (_wm.dotsOf(ci) * local / total).round();
+  }
+
   void _zoomToCurrent(Size world, Size viewport) {
     final ci = _currentCountry;
     var minR = 1 << 30, minC = 1 << 30, maxR = -1, maxC = -1;
@@ -143,8 +155,8 @@ class _MapScreenState extends State<MapScreen> {
                                 onTapUp: (d) => _onTapUp(d, world),
                                 child: CustomPaint(
                                   size: world,
-                                  painter:
-                                      _WorldPainter(_wm, _currentCountry, col),
+                                  painter: _WorldPainter(_wm, _currentCountry,
+                                      _currentFilled, col),
                                 ),
                               ),
                             ),
@@ -158,10 +170,18 @@ class _MapScreenState extends State<MapScreen> {
   }
 }
 
+/// Paints the dotted world, coloured by campaign progress.
+///
+/// The map is the game's reward surface, so it has to move every single stage,
+/// not once per country: the country in play is filled in proportion to the
+/// stages cleared inside it.
 class _WorldPainter extends CustomPainter {
-  _WorldPainter(this.wm, this.current, this.c);
+  _WorldPainter(this.wm, this.current, this.currentFilled, this.c);
   final WorldMap wm;
   final int current;
+
+  /// Dots of the current country that are already coloured in.
+  final int currentFilled;
   final AppColors c;
 
   @override
@@ -169,25 +189,26 @@ class _WorldPainter extends CustomPainter {
     final cw = size.width / wm.cols, ch = size.height / wm.rows;
     final rLand = math.min(cw, ch) * 0.36, rSea = math.min(cw, ch) * 0.15;
     final sea = Paint()..color = c.dot;
-    final accent = Paint()..color = c.accent;
-    final cleared = Paint()..color = c.inkSoft;
+    final done = Paint()..color = c.accent;
     final locked = Paint()..color = c.inkFaint.withValues(alpha: 0.55);
     for (var r = 0; r < wm.rows; r++) {
       for (var col = 0; col < wm.cols; col++) {
-        final v = wm.cellAt(r, col);
+        final i = r * wm.cols + col;
+        final v = wm.cells[i];
         final o = Offset(col * cw + cw / 2, r * ch + ch / 2);
         if (v < 0) {
           canvas.drawCircle(o, rSea, sea);
           continue;
         }
         final ci = wm.countryOfCell(v);
-        final Paint p = ci == null
-            ? locked
-            : ci == current
-                ? accent
-                : ci < current
-                    ? cleared
-                    : locked;
+        final Paint p;
+        if (ci == null || ci > current) {
+          p = locked;
+        } else if (ci < current) {
+          p = done; // finished rounds stay lit
+        } else {
+          p = wm.ordinalAt(i) < currentFilled ? done : locked;
+        }
         canvas.drawCircle(o, rLand, p);
       }
     }
@@ -195,5 +216,7 @@ class _WorldPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_WorldPainter old) =>
-      old.current != current || old.c != c;
+      old.current != current ||
+      old.currentFilled != currentFilled ||
+      old.c != c;
 }

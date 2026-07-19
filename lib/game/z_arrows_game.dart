@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flame/components.dart';
 import 'package:flame/effects.dart';
+import 'package:flame/events.dart';
 import 'package:flame/game.dart';
 import 'package:flame/text.dart';
 import 'package:flutter/animation.dart';
@@ -18,7 +19,7 @@ import 'sfx.dart';
 /// The Flame game for one stage. Level-agnostic: it plays whatever [Level]
 /// it is given and reports outcomes via callbacks; the surrounding Flutter
 /// screen owns stage progression, hearts UI and result sheets.
-class ZArrowsGame extends FlameGame {
+class ZArrowsGame extends FlameGame with ScaleCallbacks {
   ZArrowsGame({
     required this.initialLevel,
     required this.palette,
@@ -120,14 +121,78 @@ class ZArrowsGame extends FlameGame {
     if (_board != null) _layoutBoard(size);
   }
 
+  /// Scale at which the whole board is visible.
+  double _fitScale = 1;
+
+  /// Smallest on-screen cell we consider tappable, in logical pixels. Well
+  /// under the 44pt guideline — a full-screen country silhouette simply cannot
+  /// reach that — but far enough above the ~3px a 138-column board would get
+  /// that zooming in stays a choice rather than a requirement.
+  static const double _minTappableCell = 26;
+
+  /// True when the board is too wide to be both fully visible and tappable, so
+  /// the player has to pinch. Drives the one-time zoom hint.
+  bool get needsZoom => _fitScale * BoardComponent.cell < _minTappableCell;
+
   void _layoutBoard(Vector2 canvas) {
     final board = _board!;
-    final s = math.min(
+    _fitScale = math.min(
       canvas.x * 0.94 / board.size.x,
       canvas.y * 0.94 / board.size.y,
     );
-    board.scale = Vector2.all(s);
+    // Open on the whole silhouette: recognising the country is the point of
+    // the board, and zoom is one pinch away.
+    board.scale = Vector2.all(_fitScale);
     board.position = Vector2(canvas.x / 2, canvas.y / 2);
+  }
+
+  /// Clamps the board so it can never be flung entirely off-screen: at least
+  /// this fraction of the viewport always holds board.
+  static const double _keepOnScreen = 0.35;
+
+  void _clampBoard() {
+    final board = _board;
+    if (board == null || size.x == 0) return;
+    final half = Vector2(
+      board.size.x * board.scale.x / 2,
+      board.size.y * board.scale.y / 2,
+    );
+    final slackX = math.max(0.0, half.x - size.x * _keepOnScreen);
+    final slackY = math.max(0.0, half.y - size.y * _keepOnScreen);
+    board.position = Vector2(
+      board.position.x.clamp(size.x / 2 - slackX, size.x / 2 + slackX),
+      board.position.y.clamp(size.y / 2 - slackY, size.y / 2 + slackY),
+    );
+  }
+
+  double _scaleStart = 1;
+
+  @override
+  void onScaleStart(ScaleStartEvent event) {
+    super.onScaleStart(event);
+    _scaleStart = _board?.scale.x ?? 1;
+  }
+
+  /// Two fingers pan and zoom the board. One finger is left alone: tapping is
+  /// the entire game, and a single-finger drag that shifted the board would
+  /// make every mistap feel like the board moved under you.
+  @override
+  void onScaleUpdate(ScaleUpdateEvent event) {
+    final board = _board;
+    if (board == null || event.pointerCount < 2) return;
+    // Never shrink past "all of it", and stop zooming once a cell fills a
+    // comfortable thumb.
+    final next = (_scaleStart * event.scale)
+        .clamp(_fitScale, math.max(_fitScale, 64 / BoardComponent.cell))
+        .toDouble();
+    board.scale = Vector2.all(next);
+    board.position += event.focalPointDelta;
+    _clampBoard();
+  }
+
+  /// Snaps back to the whole silhouette.
+  void resetView() {
+    if (size.x > 0 && _board != null) _layoutBoard(size);
   }
 
   void handleTap(LineComponent lineComponent) {
