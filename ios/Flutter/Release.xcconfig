@@ -1,1 +1,17 @@
 #include "Generated.xcconfig"
+
+// Manual signing for release builds.
+//
+// Without a DEVELOPMENT_TEAM the flutter tool tries to auto-select a signing
+// identity and fails with "No valid code signing certificates were found",
+// because CI only imports the Apple *Distribution* certificate — there is no
+// development certificate in the runner's keychain, and no Xcode to pick one.
+// Declaring the team and profile here makes the build fully deterministic and
+// skips that lookup entirely.
+//
+// The values are not secrets: the team id ships inside every signed binary and
+// the profile name is just a label. See docs/RELEASE.md.
+CODE_SIGN_STYLE = Manual
+DEVELOPMENT_TEAM = 9YM6784Y87
+PROVISIONING_PROFILE_SPECIFIER = com.loganland.atlasarrows AppStore
+CODE_SIGN_IDENTITY = Apple Distribution
