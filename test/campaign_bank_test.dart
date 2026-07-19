@@ -82,34 +82,37 @@ void main() {
     expect(unsolved, isEmpty, reason: 'unsolvable boards: $unsolved');
   });
 
-  test('the opening rounds stay small enough to tap without zooming', () {
-    // A board's longest side sets how small its cells get when fitted to a
-    // phone. The first rounds have to be comfortable before the player has
-    // been taught to pinch.
-    for (final country in countries.take(2).cast<Map<String, dynamic>>()) {
-      final first = (country['stages'] as List).first as Map<String, dynamic>;
-      final longest = [
-        (first['rows'] as num).toInt(),
-        (first['cols'] as num).toInt(),
-      ].reduce((a, b) => a > b ? a : b);
-      expect(longest, lessThanOrEqualTo(16),
-          reason: '${country['name']} opens on a ${first['rows']}x'
-              '${first['cols']} board');
-    }
+  test('the campaign keeps the order baked into the bank', () {
+    // Round order is decided when the boards are generated — rank 1..216,
+    // Vatican through Russia — and the bake must not re-sort it, however
+    // tempting some other measure looks.
+    final ranks = [
+      for (final c in countries.cast<Map<String, dynamic>>()) c['rank'] as int,
+    ];
+    expect(ranks, List.generate(ranks.length, (i) => i + 1),
+        reason: 'rounds are not in the bank\'s own rank order');
+    expect((countries.first as Map<String, dynamic>)['name'], 'Vatican');
+    expect((countries.last as Map<String, dynamic>)['name'], 'Russia');
   });
 
-  test('the campaign opens gently and every round is playable', () {
-    final firstRound =
-        (countries.first as Map<String, dynamic>)['stages'] as List;
-    final firstBoard = firstRound.first as Map<String, dynamic>;
-    expect((firstBoard['lines'] as List).length, lessThanOrEqualTo(6),
-        reason: 'the very first board should be a handful of arrows');
-
+  test('no board falls under the 60-arrow floor', () {
+    // Under 60 arrows a board is a demonstration, not a puzzle. The generated
+    // bank sits at 80 and up; this catches anything slipping in below it.
     for (final country in countries.cast<Map<String, dynamic>>()) {
       for (final stage
           in (country['stages'] as List).cast<Map<String, dynamic>>()) {
-        expect((stage['lines'] as List), isNotEmpty,
-            reason: '${country['name']} / ${stage['name']} has no arrows');
+        expect((stage['lines'] as List).length, greaterThanOrEqualTo(60),
+            reason: '${country['name']} / ${stage['name']}');
+      }
+    }
+  });
+
+  test('the campaign is city and country boards only', () {
+    for (final country in countries.cast<Map<String, dynamic>>()) {
+      for (final stage
+          in (country['stages'] as List).cast<Map<String, dynamic>>()) {
+        expect(stage['kind'], anyOf('city', 'country'),
+            reason: '${country['name']} carries a ${stage['kind']} stage');
       }
     }
   });

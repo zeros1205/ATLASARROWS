@@ -5,17 +5,19 @@ already generated and verified solvable, but it is a flat list with no notion
 of rounds. The app needs the campaign shape instead: countries in play order,
 each carrying its city boards followed by the country finale.
 
-Two things happen here that the app would otherwise have to do at runtime:
+Round order is **not decided here**. The board bank already carries it: every
+country board has a `rank` running 1..216, Vatican through Russia, and that
+sequence is the campaign. Cities inside a round are ordered by arrow count so
+the round climbs to its own finale.
 
-* **The opening five rounds come from `onboarding_boards.json`.** Those are
-  five small island nations rendered as a difficulty ladder (4 -> 15 arrows)
-  that teaches tap, then zoom, then drag. Without them the campaign's very
-  first board is a full country finale, which is the hardest thing a newcomer
-  could be handed.
-* **Every board is cropped to its mask.** A 5-cell island upscaled to a
-  53x24 grid is mostly empty margin; fitting that bounding box to the screen
-  shrinks the playable cells for nothing. Cropping moves the line coordinates
-  with the mask.
+Nothing is generated here. The bank is used exactly as it was authored; the
+only edit is a crop:
+
+* **Every board is cropped to its mask.** A silhouette can sit in a grid with
+  wide empty margins, and fitting that bounding box to the screen shrinks the
+  playable cells for nothing. Cropping moves the line coordinates with the
+  mask, so the puzzle itself is untouched — verified by comparing the baked
+  boards against the source geometry.
 
 City -> country comes from two sources, in this order:
   1. admin1_cities.json  — every entry names its country outright
@@ -103,7 +105,6 @@ def stage(board, kind, ko_fallback="", teaches=""):
 boards = load("all_boards.json")["boards"]
 admin1 = load("admin1_cities.json")["cities"]
 order = load("world_campaign_order.json")["countries"]
-onboarding = load("onboarding_boards.json")["boards"]
 
 country_boards = {b["name"]: b for b in boards if b["kind"] == "country"}
 
@@ -131,70 +132,28 @@ for name, bs in city_boards.items():
         continue
     by_country.setdefault(country, []).extend(bs)
 
-# --- the tutorial ladder, in the order it teaches --------------------------
-ladder = {}
-for b in onboarding:
-    ladder.setdefault(b["name"], []).append(b)
-
-
-def span(name):
-    """Longest side of a ladder's opening board, after cropping."""
-    b = crop(ladder[name][0])
-    return max(b["rows"], b["cols"])
-
-
-# Compact shapes first. A board's longest side decides how small its cells get
-# when fitted to the screen, and the first thing a new player touches must be
-# comfortably tappable without pinching — an archipelago spread over 53 rows
-# gives ~11px cells on a phone. The teaching labels ride along with their own
-# boards, so ordering by shape costs nothing pedagogically.
-ladder_order = sorted(ladder, key=span)
-
-
-def country_entry(name, stages, rank, meta):
-    return {
-        "rank": rank,
-        "name": name,
-        "ko": meta.get("ko", ""),
-        "continent": meta.get("continent", ""),
-        "area_km2": meta.get("area_km2", 0),
-        "stages": stages,
-    }
+def arrows(board):
+    """Difficulty, as the project defines it."""
+    return len(board["lines"])
 
 
 countries = []
-rank = 0
-
-# Opening rounds: the ladder countries, gentlest first. The last rung of each
-# ladder is the round's finale — these boards *are* the country silhouette at
-# rising density, so no separate finale is needed or wanted.
-for name in ladder_order:
-    rungs = ladder[name]
-    # These islands are small enough that several have no entry in the main
-    # country bank, so fall back to the ladder board's own Korean name.
-    meta = dict(country_boards.get(name, {}))
-    meta.setdefault("ko", "")
-    if not meta["ko"]:
-        meta["ko"] = next((b.get("ko", "") for b in rungs if b.get("ko")), "")
-    stages = []
-    for i, b in enumerate(rungs):
-        kind = "country" if i == len(rungs) - 1 else "city"
-        stages.append(stage(b, kind, teaches=b.get("teaches", "")))
-    rank += 1
-    countries.append(country_entry(name, stages, rank, meta))
-
-# Then the rest of the world by territory area, skipping anything already used
-# as a tutorial round.
+# The campaign order is already decided: `rank` runs 1..216, Vatican to Russia,
+# and it is baked into the boards themselves. This file does not get to
+# re-sort it. Cities inside a round climb to their own finale.
 for cb in sorted(country_boards.values(), key=lambda b: b["rank"]):
     name = cb["name"]
-    if name in ladder:
-        continue
-    cities = sorted(by_country.get(name, []),
-                    key=lambda b: -city_pop.get(b["name"], 0))
+    cities = sorted(by_country.get(name, []), key=arrows)
     stages = [stage(c, "city", city_ko.get(c["name"], "")) for c in cities]
     stages.append(stage(cb, "country"))
-    rank += 1
-    countries.append(country_entry(name, stages, rank, cb))
+    countries.append({
+        "rank": cb["rank"],
+        "name": name,
+        "ko": cb.get("ko", ""),
+        "continent": cb.get("continent", ""),
+        "area_km2": cb.get("area_km2", 0),
+        "stages": stages,
+    })
 
 for c in countries:
     for s in c["stages"]:
@@ -208,9 +167,15 @@ with open(dest, "w", encoding="utf-8") as f:
 
 total = sum(len(c["stages"]) for c in countries)
 with_city = sum(1 for c in countries if len(c["stages"]) > 1)
+floor = min(len(s["lines"]) for c in countries for s in c["stages"])
 size = os.path.getsize(dest) / 1024 / 1024
-print(f"countries : {len(countries)}  (multi-stage: {with_city})")
+first, last = countries[0], countries[-1]
+print(f"countries : {len(countries)}  (with cities: {with_city})")
 print(f"stages    : {total}")
-print(f"tutorial  : {' -> '.join(ladder_order)}")
+print(f"arrows    : {floor} at the easiest board")
+print(f"first     : {first['ko'] or first['name']} "
+      f"({arrows(first['stages'][-1])} arrows)")
+print(f"last      : {last['ko'] or last['name']} "
+      f"({arrows(last['stages'][-1])} arrows)")
 print(f"orphans   : {len(orphans)} city boards had no country")
 print(f"written   : {dest}  ({size:.2f} MB)")
