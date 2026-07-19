@@ -25,10 +25,35 @@
    → `google-services.json` 다운로드 → **`android/app/`** 에 배치
 3. **iOS 앱 추가** — 번들 ID `com.loganland.atlasarrows`
    → `GoogleService-Info.plist` 다운로드 → **`ios/Runner/`** 에 배치
-   (Xcode에서 Runner 타깃에 추가해야 번들에 포함된다)
 
 두 파일은 `.gitignore` 대상이다. 파일을 넣는 순간 gradle 플러그인이 자동으로
 붙고 `FirebaseService.init()`이 성공한다. **코드 수정은 필요 없다.**
+
+> **Xcode 없이 iOS를 쓰기 위한 처리 (이 프로젝트 상태)**
+> 원래는 Xcode에서 plist를 Runner 타깃에 추가해야 앱 번들에 복사된다.
+> Xcode를 못 쓰는 환경이라 **`project.pbxproj`를 직접 편집해 등록해 뒀다**
+> (fileRef `A7F1B000…` + Resources 빌드 페이즈). 그러니 파일을 `ios/Runner/`에
+> 두기만 하면 된다.
+>
+> ⚠️ **그 대가로, 이제 이 파일이 없으면 iOS 빌드가 실패한다** (Xcode가 참조된
+> 리소스를 못 찾음). 그래서 CI 워크플로가 빌드 전에 시크릿에서 복원한다.
+
+### CI로 설정 파일 전달 — base64 시크릿
+
+리포에는 커밋하지 않기로 했으므로(사용자 결정), 두 파일을 시크릿으로 넣는다.
+
+```powershell
+# Windows에서 인코딩
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("android\app\google-services.json")) | Set-Clipboard
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("ios\Runner\GoogleService-Info.plist")) | Set-Clipboard
+```
+
+| 시크릿 | 필수 여부 |
+|---|---|
+| `FIREBASE_ANDROID_CONFIG_BASE64` | 선택 — 없으면 Firebase 없이 빌드 |
+| `FIREBASE_IOS_CONFIG_BASE64` | **필수** — 없으면 iOS 빌드 실패 |
+
+⚠️ 콘솔에서 파일을 다시 받으면 **시크릿도 다시 등록**해야 한다.
 
 > `flutterfire configure` / `firebase_options.dart`는 쓰지 않는다.
 > 네이티브 설정 파일만으로 초기화하므로 생성 파일을 동기화할 일이 없다.
@@ -71,14 +96,24 @@ static const bool androidConfigured = false;   // ← 설정 끝나면 true
 
 ---
 
-## 3. Game Center (App Store Connect 필요)
+## 3. Game Center (App Store Connect 필요) — Xcode 없이
 
 킬 스위치가 필요 없다. Game Center는 앱 단위 ID가 없고, 등록되지 않은
 리더보드 ID로 호출하면 그냥 그 호출만 실패한다(우리는 삼킨다).
 
-1. Xcode › Runner › Signing & Capabilities → **Game Center** 케이퍼빌리티 추가
-2. App Store Connect › 앱 › **Game Center** → 리더보드/업적 생성
-3. 거기서 정한 ID를 `game_services.dart`의 `ios:` 필드에 반영
+원래 절차는 "Xcode › Signing & Capabilities → Game Center 추가"인데, 그건
+결국 **두 가지**를 하는 것뿐이다. 둘 다 Xcode 없이 가능하다:
+
+1. **App ID에 Game Center 활성화** — developer.apple.com › Certificates,
+   Identifiers & Profiles › Identifiers › `com.loganland.atlasarrows`
+   → Game Center 체크 → Save.
+   ⚠️ 활성화 후 **프로비저닝 프로파일을 재발급**받아야 반영된다
+   (기존 프로파일은 무효화됨 → 시크릿도 재등록).
+2. **엔타이틀먼트 파일** — `ios/Runner/Runner.entitlements`에
+   `com.apple.developer.game-center`를 넣고 pbxproj의
+   `CODE_SIGN_ENTITLEMENTS`로 연결. 이건 **아직 안 해 뒀다**(아래 5절 참고).
+3. App Store Connect › 앱 › **Game Center** → 리더보드/업적 생성
+4. 거기서 정한 ID를 `game_services.dart`의 `ios:` 필드에 반영
 
 ---
 
@@ -108,6 +143,16 @@ fire-and-forget으로 보낸다.
 ---
 
 ## 5. 아직 안 한 것 (의도적)
+
+- **iOS Game Center 엔타이틀먼트**: `Runner.entitlements` 생성 + pbxproj 연결은
+  하지 않았다. 지금 넣으면 **엔타이틀먼트를 지원하지 않는 프로비저닝
+  프로파일로 서명할 때 빌드가 실패**하는데, Apple Developer 계정과 프로파일이
+  아직 없어서 순서가 맞지 않는다. 위 3절 1번(App ID에서 Game Center 활성화 +
+  프로파일 재발급)을 먼저 하고, **그 다음** 엔타이틀먼트를 추가해야 한다.
+  → 계정이 준비되면 말해 주면 그때 넣는다.
+- **iOS 수동 서명 전환**: 프로젝트가 `CODE_SIGN_STYLE = Automatic`이다. CI는
+  수동 프로파일로 export하므로, 실제 첫 아카이브에서 조정이 필요할 수 있다.
+  프로파일이 생겨야 검증 가능한 항목이라 미리 건드리지 않았다.
 
 - **Firebase Auth ↔ Play Games 계정 연동**: `firebase_auth`는 의존성만 넣어
   뒀다. 실제 연동은 `GameAuth.getAuthCode()`로 server auth code를 받아

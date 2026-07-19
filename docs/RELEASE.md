@@ -78,11 +78,41 @@ Play Console › 설정 › API 액세스에서 해당 계정에 **릴리즈 관
 | `ASC_KEY_ID` | API 키 ID |
 | `ASC_PRIVATE_KEY` | .p8 키 파일 **내용 전문** |
 
-Apple Developer Program(연 $99) 멤버십 필요. 인증서/프로파일 생성은 Mac이 있어야
-편하지만, 없으면 Apple Developer 웹 콘솔 + CSR로도 가능하다.
+Apple Developer Program(연 $99) 멤버십 필요.
 
 시크릿이 없으면 iOS 잡은 `flutter build ios --no-codesign`까지만 돌려서
 **컴파일 깨짐은 잡아준다.**
+
+#### Mac / Xcode 없이 iOS 배포하기
+
+**이 프로젝트의 전제다.** 빌드는 GitHub의 macOS 러너가 하므로 Mac은 필요 없고,
+인증서·프로파일도 웹 콘솔 + OpenSSL로 만들 수 있다.
+
+```powershell
+# 1) 개인키 + CSR 생성 (Mac Keychain 대신 OpenSSL)
+openssl genrsa -out ios_dist.key 2048
+openssl req -new -key ios_dist.key -out ios_dist.csr `
+  -subj "/emailAddress=jax1205@gmail.com/CN=Atlas Arrows Distribution/C=KR"
+
+# 2) developer.apple.com에서 CSR 업로드 → distribution.cer 다운로드
+
+# 3) .cer → .p12 (워크플로가 요구하는 형식)
+openssl x509 -in distribution.cer -inform DER -out ios_dist.pem -outform PEM
+openssl pkcs12 -export -inkey ios_dist.key -in ios_dist.pem -out ios_dist.p12
+
+# 4) base64로 인코딩해 시크릿에 등록
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("ios_dist.p12")) | Set-Clipboard
+```
+
+프로비저닝 프로파일은 developer.apple.com에서 만들어 받은 뒤 같은 방식으로
+base64 인코딩한다. App Store Connect API 키(.p8)도 웹에서 발급된다.
+
+⚠️ **Xcode 전용 작업이라 대신 처리해 둔 것**: `GoogleService-Info.plist`를
+앱 번들에 넣는 설정을 `project.pbxproj`에 직접 등록했다. 자세한 건
+`docs/FIREBASE.md` 1절.
+
+⚠️ **아직 못 하는 것**: Game Center 엔타이틀먼트는 프로파일이 생긴 뒤에 넣어야
+한다(`docs/FIREBASE.md` 5절).
 
 ### Firebase App Distribution
 

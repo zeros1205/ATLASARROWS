@@ -40,6 +40,20 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      # Runner.xcodeproj lists GoogleService-Info.plist as a bundled resource,
+      # so the archive FAILS outright if the file is absent — this step is not
+      # optional for a signed build. The file is git-ignored and delivered as a
+      # base64 secret (see docs/FIREBASE.md).
+      - name: Restore Firebase iOS config
+        env:
+          CONFIG_BASE64: ${{ secrets.FIREBASE_IOS_CONFIG_BASE64 }}
+        run: |
+          if [ -z "$CONFIG_BASE64" ]; then
+            echo "::error::FIREBASE_IOS_CONFIG_BASE64 is not set. The Xcode project references ios/Runner/GoogleService-Info.plist, so the build cannot proceed without it."
+            exit 1
+          fi
+          echo "$CONFIG_BASE64" | base64 --decode > ios/Runner/GoogleService-Info.plist
+
       - name: Check signing secrets
         id: signing
         env:

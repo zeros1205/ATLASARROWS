@@ -55,6 +55,18 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      # Optional on Android: the gradle plugin is applied only when this file
+      # exists, so a missing secret just builds without Firebase.
+      - name: Restore Firebase Android config
+        env:
+          CONFIG_BASE64: ${{ secrets.FIREBASE_ANDROID_CONFIG_BASE64 }}
+        run: |
+          if [ -z "$CONFIG_BASE64" ]; then
+            echo "::warning::FIREBASE_ANDROID_CONFIG_BASE64 is not set — building without Firebase."
+          else
+            echo "$CONFIG_BASE64" | base64 --decode > android/app/google-services.json
+          fi
+
       # Decode the release keystore from a secret into a file Gradle can read.
       # `has_signing` gates every later step so a repo without secrets still
       # produces a (debug-signed) build artifact for inspection.
