@@ -9,7 +9,7 @@ Originals stay put under tools/atlas/stamps_raw/ (git-ignored) so a stamp can
 be re-encoded at a different size without paying to generate it again.
 
 Usage:
-  python tools/atlas/optimize_stamps.py            # 512px, quality 82
+  python tools/atlas/optimize_stamps.py            # 512px, quality 85
   python tools/atlas/optimize_stamps.py 640 88     # size, quality
 """
 import os
@@ -24,7 +24,7 @@ SRC = os.path.join(REPO, "assets", "images", "stamps")
 RAW = os.path.join(HERE, "stamps_raw")
 
 SIZE = int(sys.argv[1]) if len(sys.argv) > 1 else 512
-QUALITY = int(sys.argv[2]) if len(sys.argv) > 2 else 82
+QUALITY = int(sys.argv[2]) if len(sys.argv) > 2 else 85
 
 
 def main():
