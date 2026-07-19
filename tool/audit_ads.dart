@@ -3,6 +3,7 @@
 /// kept, so the player continues rather than restarting).
 library;
 
+import 'dart:io';
 import 'dart:math';
 
 import 'package:atlas_arrows/game/board_logic.dart';
