@@ -130,9 +130,11 @@ class ZArrowsGame extends FlameGame with ScaleCallbacks {
   /// that zooming in stays a choice rather than a requirement.
   static const double _minTappableCell = 26;
 
-  /// True when the board is too wide to be both fully visible and tappable, so
-  /// the player has to pinch. Drives the one-time zoom hint.
-  bool get needsZoom => _fitScale * BoardComponent.cell < _minTappableCell;
+  /// True when the board is too large to be both fully visible and tappable,
+  /// so the player has to zoom. A notifier rather than a getter because it is
+  /// only known once the board has been laid out, which happens after the
+  /// surrounding widget first builds — reading it directly always said false.
+  final ValueNotifier<bool> needsZoom = ValueNotifier(false);
 
   void _layoutBoard(Vector2 canvas) {
     final board = _board!;
@@ -140,6 +142,7 @@ class ZArrowsGame extends FlameGame with ScaleCallbacks {
       canvas.x * 0.94 / board.size.x,
       canvas.y * 0.94 / board.size.y,
     );
+    needsZoom.value = _fitScale * BoardComponent.cell < _minTappableCell;
     // Open on the whole silhouette: recognising the country is the point of
     // the board, and zoom is one pinch away.
     board.scale = Vector2.all(_fitScale);
@@ -194,6 +197,30 @@ class ZArrowsGame extends FlameGame with ScaleCallbacks {
   void resetView() {
     if (size.x > 0 && _board != null) _layoutBoard(size);
   }
+
+  double get _maxScale => math.max(_fitScale, 64 / BoardComponent.cell);
+
+  /// Steps the zoom about the centre of the view. Pinching is the natural
+  /// gesture, but a country like Chile is unplayable until you zoom in, so it
+  /// cannot be the only way to get there — some players never try it, and it
+  /// is awkward one-handed.
+  void zoomBy(double factor) {
+    final board = _board;
+    if (board == null || size.x == 0) return;
+    final before = board.scale.x;
+    final next = (before * factor).clamp(_fitScale, _maxScale).toDouble();
+    if (next == before) return;
+    // Keep whatever is under the middle of the screen in the middle.
+    final centre = Vector2(size.x / 2, size.y / 2);
+    board.position = centre + (board.position - centre) * (next / before);
+    board.scale = Vector2.all(next);
+    _clampBoard();
+  }
+
+  /// Whether zooming further in or out would change anything — lets the
+  /// controls grey themselves out at the ends.
+  bool get canZoomIn => (_board?.scale.x ?? 0) < _maxScale - 0.0001;
+  bool get canZoomOut => (_board?.scale.x ?? 0) > _fitScale + 0.0001;
 
   void handleTap(LineComponent lineComponent) {
     if (_inputLocked || lineComponent.animating) return;

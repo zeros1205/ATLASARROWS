@@ -200,7 +200,28 @@ class _GameScreenState extends State<GameScreen> {
                 Container(height: 1, color: c.line),
                 _HeartsStrip(hearts: _hearts),
                 Expanded(
-                  child: GameWidget(game: _game),
+                  child: Stack(
+                    children: [
+                      // Flame paints the board wherever it sits, so a zoomed
+                      // board would otherwise spill over the header and the
+                      // hearts above it.
+                      Positioned.fill(
+                        child: ClipRect(child: GameWidget(game: _game)),
+                      ),
+                      // Only worth the screen space on boards that actually
+                      // need zooming; a 7x7 island fits fine as it is.
+                      Positioned(
+                        right: 8,
+                        bottom: 8,
+                        child: ValueListenableBuilder<bool>(
+                          valueListenable: _game.needsZoom,
+                          builder: (context, needed, _) => needed
+                              ? _ZoomControls(game: _game)
+                              : const SizedBox.shrink(),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 _BoosterBar(game: _game),
                 const AdsBanner(),
@@ -213,13 +234,15 @@ class _GameScreenState extends State<GameScreen> {
                 builder: (context, done, _) => !done
                     ? const _CoachCue('빛나는 화살표를 탭해 보세요',
                         icon: Icons.touch_app_outlined)
-                    // A board wider than the screen can hold at a tappable
-                    // size is the one case where the player has to be told
-                    // about the gesture.
-                    : _game.needsZoom
-                        ? const _CoachCue('두 손가락으로 확대해 보세요',
-                            icon: Icons.pinch_outlined)
-                        : const SizedBox.shrink(),
+                    // A board too large to tap at fit scale is the one case
+                    // where the player has to be told about the gesture.
+                    : ValueListenableBuilder<bool>(
+                        valueListenable: _game.needsZoom,
+                        builder: (context, needed, _) => needed
+                            ? const _CoachCue('두 손가락으로 확대하거나 + 버튼을 누르세요',
+                                icon: Icons.pinch_outlined)
+                            : const SizedBox.shrink(),
+                      ),
               ),
             if (_result != _Result.none)
               _ResultSheet(
@@ -240,6 +263,52 @@ class _GameScreenState extends State<GameScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Zoom in / out for boards too large to tap at fit scale. Deliberately plain
+/// buttons rather than only a pinch: a country silhouette can carry 270
+/// arrows, and a player who never thinks to pinch would simply be stuck.
+class _ZoomControls extends StatefulWidget {
+  const _ZoomControls({required this.game});
+  final ZArrowsGame game;
+
+  @override
+  State<_ZoomControls> createState() => _ZoomControlsState();
+}
+
+class _ZoomControlsState extends State<_ZoomControls> {
+  void _zoom(double factor) {
+    widget.game.zoomBy(factor);
+    setState(() {}); // refresh the enabled/disabled look
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = AppColors.of(context);
+    Widget button(IconData icon, bool enabled, VoidCallback onTap) => Pressable(
+          onTap: enabled ? onTap : null,
+          child: Container(
+            width: 44,
+            height: 44,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: c.surface.withValues(alpha: 0.94),
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              border: Border.all(color: c.line),
+            ),
+            child: Icon(icon,
+                size: 22, color: enabled ? c.ink : c.inkFaint),
+          ),
+        );
+
+    return Column(
+      children: [
+        button(Icons.add, widget.game.canZoomIn, () => _zoom(1.6)),
+        const SizedBox(height: 6),
+        button(Icons.remove, widget.game.canZoomOut, () => _zoom(1 / 1.6)),
+      ],
     );
   }
 }
