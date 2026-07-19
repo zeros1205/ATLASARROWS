@@ -6,7 +6,7 @@
 
 ## 0. 한 줄 요약
 
-**Atlas Arrows** = 스네이크 화살표 퍼즐 + **세계지도 캠페인**. 국가=라운드(면적 오름차순),
+**Atlas Arrows: Tap Puzzle** = 화살표 탭 탈출 퍼즐 + **세계지도 캠페인**. 국가=라운드(면적 오름차순),
 라운드는 사각형 path 퍼즐 + 도시/국가 실루엣 랜드마크로 구성. 점묘(dot-matrix) 월드맵에서
 국가를 골라 플레이한다.
 
@@ -54,6 +54,26 @@
   스토어 등록 전까지는 상점에서 자동으로 `준비중`으로 뜨므로 **지금 막히는 것 없음**.
 - **테스트**: `test/progress_test.dart` 신규 9개(아이템 차감·온보딩 게이트·광고제거·언락 프론티어).
   전체 **19/19 통과**, `dart analyze` 클린, `flutter build web` 성공.
+
+## 2-1. 배포 파이프라인 + 게임서비스 세션 (2026-07-19)
+
+- **릴리즈 서명**: `build.gradle.kts`의 release가 **디버그 키로 서명**되고 있었다
+  (Play가 거부하는 상태). `key.properties`(로컬) → 환경변수(CI) → 디버그 폴백 순으로 해결.
+- **GitHub Actions 4종**(`.github/workflows/`): `ci`(analyze·test·web) /
+  `android-play`(AAB→Play) / `ios-testflight`(IPA→TestFlight) /
+  `firebase-distribution`(APK→FAD). 버전코드=`run_number`.
+  **시크릿 없으면 빌드만 하고 스킵**, 단 `v*` 태그인데 서명 없으면 실패시킨다.
+  → 시크릿 전체 목록·발급 절차는 `docs/RELEASE.md`.
+- **게임서비스**(`lib/services/game_services.dart`): Play Games + Game Center를 한 API로.
+  리더보드 2종(스테이지/국가) · 업적 5종. 스테이지 진행 시 fire-and-forget 제출,
+  설정에 연결/리더보드/업적 행 추가. **미로그인·오프라인·미설정이면 전부 무해한 no-op.**
+  ⚠️ **Play Games는 매니페스트 APP_ID가 placeholder면 네이티브 크래시**(Dart로 못 잡음) →
+  `GameServices.androidConfigured` 킬 스위치가 false로 막고 있다. 실제 ID 넣는 커밋에서만 true.
+- **Firebase**(`lib/services/firebase.dart`): `google-services.json` /
+  `GoogleService-Info.plist`가 **있으면 자동으로 붙고 없으면 없는 채로 빌드**된다
+  (gradle 플러그인도 조건부 적용). `flutterfire configure`·`firebase_options.dart` 안 씀.
+  → 콘솔 설정 절차는 `docs/FIREBASE.md`.
+- 검증: `dart analyze` 클린 · `flutter test` 19/19 · `flutter build apk --release` 성공.
 
 ## 2. 이전 세션에 바뀐 것 (2026-07-19)
 

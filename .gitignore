@@ -44,6 +44,25 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# Signing + store credentials. NONE of this may ever be committed — losing the
+# release keystore means never being able to update the app on Play again, and
+# leaking it lets anyone ship as us. Keep backups outside the repo.
+android/key.properties
+**/*.jks
+**/*.keystore
+**/*.p12
+**/*.p8
+**/*.mobileprovision
+**/*.cer
+ios/certificates/
+play-service-account.json
+firebase-service-account.json
+
+# Firebase native config — per-project identifiers, pulled from the console.
+# See docs/FIREBASE.md; the build wires itself up when these are present.
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+
 tools/atlas/*.geojson
 
 # Scratch design research (stock reference images)

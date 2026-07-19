@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Play Games Services app id.
+
+  ⚠️ `games_app_id` MUST be the numeric project id from
+     Play Console › Play Games Services › Configuration (looks like 123456789012).
+     The Play Games v2 SDK reads it at process start and **crashes natively** if
+     it is missing or malformed — a failure Dart cannot catch.
+
+  That is why the placeholder below is paired with a kill switch in Dart:
+  `GameServices.androidConfigured` in lib/services/game_services.dart. Sign-in
+  is skipped entirely while it is false, so this placeholder can never crash a
+  build. Flip it to true in the SAME commit that fills in the real id.
+
+  See docs/FIREBASE.md.
+-->
+<resources>
+    <string name="games_app_id" translatable="false">0</string>
+</resources>

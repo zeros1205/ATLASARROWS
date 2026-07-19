@@ -36,11 +36,33 @@
 
 Z-Arrows에서 **Atlas Arrows**로 리네임됐다. 새로 만드는 식별자는 전부 새 브랜드를 쓴다.
 
+- **스토어 제목 = `Atlas Arrows: Tap Puzzle`** (확정, 24자 / 구글플레이 30자 제한).
+  동종 앱(Arrow Puzzle: Tap Puzzle Games, Arrows – Puzzle Escape 등)의 관례를 따른 것 —
+  이 장르는 수식어를 **입력(tap)과 목표(escape)**에서 뽑는다.
+- ⛔ **화살표의 생김새를 형용하는 수식어를 붙이지 말 것.** 특히 **"스네이크/snake" 금지**
+  (사용자 지시). 동종 앱 중 모양을 형용하는 곳은 한 곳도 없고, 저희만 쓰던 잉여어였다.
+  장르는 그냥 **"화살표 탭 탈출 퍼즐"**. 코드 주석도 `an ordered path of cells`처럼
+  정의로 설명하면 충분하다.
+- 참고: 저희와 동종 앱의 진짜 차이는 화살표가 한 칸 타일이 아니라 **여러 칸이 꺾여 이어진
+  선**이라는 점이다. 이건 제목 수식어가 아니라 **스토어 설명의 차별점 문장**으로 쓴다.
+
 - 패키지 `atlas_arrows` / applicationId·bundle `com.loganland.atlasarrows`
 - **스토어 IAP 상품 id 접두어 = `atlsars_`** (확정. 4종:
   `atlsars_hints_10` · `atlsars_hints_50` · `atlsars_removes_5` · `atlsars_remove_ads`)
   ⚠️ 상품 id는 스토어 등록 후 **영구히 변경 불가**다. 등록 전인 지금이 마지막 수정 기회였다.
 - 예외는 내부 클래스명 `ZArrowsGame` 하나뿐. **새로 만드는 식별자에 `zarrows_`를 쓰지 말 것.**
+
+## 배포 파이프라인
+
+- GitHub Actions 4종: `ci` · `android-play` · `ios-testflight` · `firebase-distribution`.
+  **시크릿이 없으면 빌드만 하고 업로드는 건너뛴다**(실패로 처리하지 않음).
+  단 태그 `v*` 릴리즈인데 서명이 없으면 일부러 실패시킨다.
+- 시크릿 목록·발급 절차: `docs/RELEASE.md` / Firebase·게임서비스: `docs/FIREBASE.md`
+- ⚠️ **Play Games는 매니페스트 APP_ID가 잘못되면 네이티브 크래시**(Dart로 못 잡음).
+  `GameServices.androidConfigured` 킬 스위치가 막고 있다. 실제 ID를 넣는
+  **같은 커밋에서만** true로 바꿀 것.
+- Firebase는 `google-services.json` / `GoogleService-Info.plist`가 있으면 자동으로
+  붙고, 없으면 없는 채로 빌드된다. `flutterfire configure`는 쓰지 않는다.
 
 ## 작업 원칙
 

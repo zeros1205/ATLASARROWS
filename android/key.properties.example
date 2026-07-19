@@ -1,0 +1,10 @@
+# Copy to android/key.properties for local release builds. NEVER commit the
+# real file or the .jks — both are git-ignored. CI passes the same values as
+# ANDROID_KEYSTORE_PATH / ANDROID_KEYSTORE_PASSWORD / ANDROID_KEY_ALIAS /
+# ANDROID_KEY_PASSWORD instead. See docs/RELEASE.md.
+#
+# storeFile is resolved relative to android/app/.
+storeFile=../atlasarrows-release.jks
+storePassword=CHANGEME
+keyAlias=atlasarrows
+keyPassword=CHANGEME

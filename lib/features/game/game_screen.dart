@@ -10,6 +10,7 @@ import '../../app/tokens/typography.dart';
 import '../../game/z_arrows_game.dart';
 import '../../models/campaign_repository.dart';
 import '../../services/ads/ads.dart';
+import '../../services/game_services.dart';
 import '../../services/progress.dart';
 import '../../shared/motion.dart';
 import '../../shared/pressable.dart';
@@ -75,6 +76,23 @@ class _GameScreenState extends State<GameScreen> {
     }
   }
 
+  /// Pushes the clear to Play Games / Game Center. Fire-and-forget: the call
+  /// no-ops when the player isn't signed in, and never blocks stage advance.
+  void _reportToGameServices({required bool countryCompleted}) {
+    final countriesDone =
+        _repo.isLoaded ? _loc.countryIndex + (countryCompleted ? 1 : 0) : 0;
+    unawaited(GameServices.submitProgress(
+      stagesCleared: Progress.instance.totalClears.value,
+      countriesCompleted: countriesDone,
+    ));
+    unawaited(GameServices.reportClear(
+      totalClears: Progress.instance.totalClears.value,
+      countryCompleted: countryCompleted,
+      // No heart lost on this stage — the strict-play achievement.
+      flawless: _hearts.value == ZArrowsGame.maxHearts,
+    ));
+  }
+
   ({int countryIndex, int local}) get _loc {
     final (ci, local) = _repo.locate(_stage);
     return (countryIndex: ci, local: local);
@@ -87,17 +105,22 @@ class _GameScreenState extends State<GameScreen> {
 
   void _next() {
     Progress.instance.markCleared(_stage);
+    final atCampaignEnd = _stage + 1 >= _repo.totalStages;
+    // A country is finished when the next stage starts a new one (or the
+    // campaign has run out of stages entirely).
+    final crossedIntoNewCountry =
+        atCampaignEnd || _repo.locate(_stage + 1).$2 == 0;
+    _reportToGameServices(countryCompleted: crossedIntoNewCountry);
     // Interstitial cadence lives in Ads (never before level 10, then every
     // 3rd clear); it no-ops for remove-ads owners and on web.
     Ads.maybeShowInterstitial(
       totalClears: Progress.instance.totalClears.value,
       levelIndex: _stage,
     );
-    if (_stage + 1 >= _repo.totalStages) {
+    if (atCampaignEnd) {
       Navigator.of(context).maybePop();
       return;
     }
-    final crossedIntoNewCountry = _repo.locate(_stage + 1).$2 == 0;
     setState(() {
       _stage++;
       _freeRefillUsed = false;

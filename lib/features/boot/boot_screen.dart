@@ -10,6 +10,8 @@ import '../../models/campaign_repository.dart';
 import '../../models/shape_catalog.dart';
 import '../../models/world_map.dart';
 import '../../services/ads/ads.dart';
+import '../../services/firebase.dart';
+import '../../services/game_services.dart';
 import '../../services/iap.dart';
 import '../../services/progress.dart';
 import '../../shared/motion.dart';
@@ -53,6 +55,10 @@ class _BootScreenState extends State<BootScreen> {
       () => WorldMap.instance.load(),
       () => Ads.init(),
       () => IapService.instance.init(),
+      () => FirebaseService.init(),
+      // Sign-in is best-effort: a declined or unavailable games account must
+      // not hold up boot, so this never throws and never blocks.
+      () => GameServices.init(),
     ];
     for (var i = 0; i < steps.length; i++) {
       try {
@@ -186,7 +192,7 @@ class _Loading extends StatelessWidget {
       );
 }
 
-/// The Z snake-line mark drawn inline (ink line + blue arrowhead).
+/// The Z ink-line mark drawn inline (ink line + blue arrowhead).
 class _Mark extends StatelessWidget {
   const _Mark({required this.color, required this.accent, required this.size});
   final Color color, accent;

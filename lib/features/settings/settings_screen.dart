@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 
@@ -6,6 +7,7 @@ import '../../app/shell.dart';
 import '../../app/tokens/colors.dart';
 import '../../app/tokens/dimens.dart';
 import '../../app/tokens/typography.dart';
+import '../../services/game_services.dart';
 import '../../services/iap.dart';
 import '../../services/progress.dart';
 import '../../shared/meta_header.dart';
@@ -54,6 +56,10 @@ class SettingsScreen extends StatelessWidget {
                   onTap: () => _pickLanguage(context),
                 ),
                 const SizedBox(height: AppGap.lg),
+                if (GameServices.supported) ...[
+                  _GameServicesRows(),
+                  const SizedBox(height: AppGap.lg),
+                ],
                 _NavRow(
                   label: '튜토리얼 다시 보기',
                   trailing: '›',
@@ -118,6 +124,40 @@ class SettingsScreen extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Play Games / Game Center entry points. Only built on mobile. When the
+/// player isn't signed in the first row offers sign-in; the platform sheets
+/// prompt for it themselves too, so tapping a board before signing in still
+/// works.
+class _GameServicesRows extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<bool>(
+      valueListenable: GameServices.signedIn,
+      builder: (context, signedIn, _) => Column(
+        children: [
+          _NavRow(
+            label: defaultTargetPlatform == TargetPlatform.iOS
+                ? 'Game Center'
+                : 'Play 게임즈',
+            trailing: signedIn ? '연결됨' : '연결하기 ›',
+            onTap: signedIn ? null : GameServices.signIn,
+          ),
+          _NavRow(
+            label: '리더보드',
+            trailing: '›',
+            onTap: GameServices.showLeaderboards,
+          ),
+          _NavRow(
+            label: '업적',
+            trailing: '›',
+            onTap: GameServices.showAchievements,
+          ),
+        ],
       ),
     );
   }

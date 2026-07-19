@@ -1,0 +1,187 @@
+name: Firebase App Distribution
+
+# Ships a test build to the tester group. This is the fast lane — no store
+# review, no track promotion — so it runs on demand and on every push to main
+# once the Firebase secrets exist.
+#
+# Android is the default path (APK, since FAD serves APKs to testers directly).
+# The iOS job only runs when ad-hoc signing secrets are present, because
+# TestFlight's App Store profile cannot be used for FAD distribution.
+on:
+  workflow_dispatch:
+    inputs:
+      groups:
+        description: FAD tester groups (comma-separated)
+        type: string
+        default: internal
+      notes:
+        description: Release notes for testers
+        type: string
+        default: ''
+  push:
+    branches: [main]
+
+concurrency:
+  group: fad-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android:
+    name: Android APK → App Distribution
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check Firebase secrets
+        id: fad
+        env:
+          APP_ID: ${{ secrets.FIREBASE_ANDROID_APP_ID }}
+          CREDENTIALS: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -z "$APP_ID" ] || [ -z "$CREDENTIALS" ]; then
+            echo "::warning::Firebase secrets are not set — building the APK only. Attach it from this run's artifacts."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ vars.FLUTTER_VERSION || '3.44.0' }}
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # Testers should exercise the same signing as production when possible,
+      # but an unsigned/debug-signed APK is still installable for FAD, so this
+      # step is best-effort rather than required.
+      - name: Decode keystore
+        id: signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "has_signing=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.jks"
+          echo "has_signing=true" >> "$GITHUB_OUTPUT"
+
+      - name: Build APK
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ steps.signing.outputs.has_signing == 'true' && format('{0}/release.jks', runner.temp) || '' }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: flutter build apk --release --build-number=${{ github.run_number }}
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-${{ github.run_number }}
+          path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 14
+
+      - name: Distribute to testers
+        if: steps.fad.outputs.ready == 'true'
+        uses: wzieba/Firebase-Distribution-Github-Action@v1
+        with:
+          appId: ${{ secrets.FIREBASE_ANDROID_APP_ID }}
+          serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          groups: ${{ inputs.groups || 'internal' }}
+          file: build/app/outputs/flutter-apk/app-release.apk
+          releaseNotes: |
+            ${{ inputs.notes || format('main {0} — {1}', github.sha, github.event.head_commit.message) }}
+
+  ios:
+    name: iOS ad-hoc IPA → App Distribution
+    runs-on: macos-15
+    # Only worth spending a macOS runner when ad-hoc signing is actually set up.
+    if: >-
+      github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check ad-hoc secrets
+        id: adhoc
+        env:
+          APP_ID: ${{ secrets.FIREBASE_IOS_APP_ID }}
+          CERT: ${{ secrets.IOS_DIST_CERT_P12_BASE64 }}
+          PROFILE: ${{ secrets.IOS_ADHOC_PROFILE_BASE64 }}
+          CREDENTIALS: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -z "$APP_ID" ] || [ -z "$CERT" ] || [ -z "$PROFILE" ] || [ -z "$CREDENTIALS" ]; then
+            echo "::notice::iOS ad-hoc distribution is not configured — skipping. (Needs FIREBASE_IOS_APP_ID + IOS_ADHOC_PROFILE_BASE64.)"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: subosito/flutter-action@v2
+        if: steps.adhoc.outputs.ready == 'true'
+        with:
+          flutter-version: ${{ vars.FLUTTER_VERSION || '3.44.0' }}
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        if: steps.adhoc.outputs.ready == 'true'
+        run: flutter pub get
+
+      - name: Import signing certificate
+        if: steps.adhoc.outputs.ready == 'true'
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.IOS_DIST_CERT_P12_BASE64 }}
+          p12-password: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
+
+      - name: Install ad-hoc profile
+        if: steps.adhoc.outputs.ready == 'true'
+        env:
+          PROFILE_BASE64: ${{ secrets.IOS_ADHOC_PROFILE_BASE64 }}
+        run: |
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "$PROFILE_BASE64" | base64 --decode \
+            > ~/Library/MobileDevice/Provisioning\ Profiles/adhoc.mobileprovision
+
+      - name: Build ad-hoc IPA
+        if: steps.adhoc.outputs.ready == 'true'
+        env:
+          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          PROFILE_NAME: ${{ secrets.IOS_ADHOC_PROFILE_NAME }}
+        run: |
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>release-testing</string>
+            <key>teamID</key><string>${TEAM_ID}</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>com.loganland.atlasarrows</key><string>${PROFILE_NAME}</string>
+            </dict>
+          </dict>
+          </plist>
+          PLIST
+          flutter build ipa --release \
+            --build-number=${{ github.run_number }} \
+            --export-options-plist="$RUNNER_TEMP/ExportOptions.plist"
+
+      - name: Distribute to testers
+        if: steps.adhoc.outputs.ready == 'true'
+        uses: wzieba/Firebase-Distribution-Github-Action@v1
+        with:
+          appId: ${{ secrets.FIREBASE_IOS_APP_ID }}
+          serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          groups: ${{ inputs.groups || 'internal' }}
+          file: build/ios/ipa/atlas_arrows.ipa
+          releaseNotes: ${{ inputs.notes || 'manual ad-hoc build' }}

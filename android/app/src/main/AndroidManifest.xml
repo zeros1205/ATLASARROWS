@@ -30,10 +30,19 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
-        <!-- AdMob app id — Google's TEST id; swap for the production id at launch. -->
+        <!-- AdMob app id — Google's TEST id. Production ids only exist after
+             the app is published and registered in AdMob (see CLAUDE.md), so
+             this is the correct value for now, not a TODO. -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="ca-app-pub-3940256099942544~3347511713" />
+        <!-- Play Games Services. The id lives in res/values/games_ids.xml and
+             is a placeholder until the Play Console setup is done; Dart-side
+             sign-in stays disabled until then so the SDK is never initialized
+             with a bad id. -->
+        <meta-data
+            android:name="com.google.android.gms.games.APP_ID"
+            android:value="@string/games_app_id" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and
