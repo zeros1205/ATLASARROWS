@@ -44,9 +44,9 @@ final kBootConfig = LoganLandBootConfig(
     final lang =
         WidgetsBinding.instance.platformDispatcher.locale.languageCode;
     return switch (lang) {
-      'ko' => '화살표를 불러오는 중 $percent%',
-      'ja' => '矢印を読み込み中 $percent%',
-      _ => 'Loading arrows $percent%',
+      'ko' => '지도를 불러오는 중 $percent%',
+      'ja' => '地図を読み込み中 $percent%',
+      _ => 'Loading the map $percent%',
     };
   },
 );
