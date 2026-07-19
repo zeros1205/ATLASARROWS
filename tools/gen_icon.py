@@ -1,6 +1,6 @@
 """Draws the app icon set from the ZTheme palette (stdlib + Pillow).
 
-The mark is the game itself: an ink snake-line tracing a "Z" on paper,
+The mark is the game itself: an ink line tracing a "Z" on paper,
 escaping right through a blue arrowhead. Outputs into assets/icon/:
 
   icon.png      1024x1024, off-white background  (launcher icon, stores)

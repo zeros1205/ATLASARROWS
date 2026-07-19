@@ -1,5 +1,7 @@
 /// Difficulty proxy per stage slot: average branching factor (how many lines
 /// are escapable at each step of a solve). Low = tight/forced = hard.
+library;
+
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;

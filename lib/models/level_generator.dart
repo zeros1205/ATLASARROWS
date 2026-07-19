@@ -54,6 +54,25 @@ abstract final class BoardMasks {
   }
 }
 
+/// Relative weights for the three bands an arrow's length is drawn from:
+/// short (2–3 cells), mid (4–6), long (7–[maxLen]). Shifting weight toward
+/// `long` raises the board's average arrow length. Walks that run out of
+/// room finish early, so the realised average always lands below the
+/// nominal one — the presets below are calibrated against real campaign
+/// masks at `maxLen: 20`, not derived arithmetically.
+typedef LenMix = ({double short, double mid, double long});
+
+abstract final class LenMixes {
+  /// Realised average ≈ 3.7 cells.
+  static const shorter = (short: 0.46, mid: 0.42, long: 0.12);
+
+  /// Realised average ≈ 4.1 cells. The historical 38/42/20 split.
+  static const balanced = (short: 0.38, mid: 0.42, long: 0.20);
+
+  /// Realised average ≈ 4.9 cells.
+  static const longer = (short: 0.22, mid: 0.40, long: 0.38);
+}
+
 /// Generates a dense maze level inside [mask], solvable by construction:
 /// lines are inserted one by one, and each line's straight exit ray must
 /// avoid the cells of every line inserted BEFORE it — so removing lines
@@ -66,6 +85,7 @@ Level generateLevel({
   required int seed,
   double fill = 0.88,
   int maxLen = 12,
+  LenMix lenMix = LenMixes.balanced,
 }) {
   final rng = Random(seed);
   final occupied = <(int, int)>{};
@@ -117,12 +137,16 @@ Level generateLevel({
     return true;
   }
 
-  // Mixed lengths: plenty of short arrows (they drive the line count and
-  // the scan difficulty), mid corridors, and a few long snakes.
+  // Mixed lengths: short arrows drive the line count and the scan difficulty,
+  // mid ones read as corridors, long ones cross the board. The split comes
+  // from [lenMix] so callers can aim for a target average length.
+  final wShort = lenMix.short;
+  final wMid = wShort + lenMix.mid;
+  final wTotal = wMid + lenMix.long;
   int sampleLen() {
-    final x = rng.nextDouble();
-    if (x < 0.38) return 2 + rng.nextInt(2); // 2–3
-    if (x < 0.80) return 4 + rng.nextInt(3); // 4–6
+    final x = rng.nextDouble() * wTotal;
+    if (x < wShort) return 2 + rng.nextInt(2); // 2–3
+    if (x < wMid) return 4 + rng.nextInt(3); // 4–6
     return 7 + rng.nextInt(max(1, maxLen - 6)); // 7–maxLen
   }
 

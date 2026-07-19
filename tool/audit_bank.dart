@@ -1,6 +1,8 @@
 /// Audits the live problem bank: regenerates every campaign stage exactly as
 /// CampaignRepository does and reports density, line counts, solvability and
 /// generation cost. Usage: dart run tool/audit_bank.dart
+library;
+
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;

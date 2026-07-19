@@ -1,6 +1,6 @@
 import 'direction.dart';
 
-/// One snake-like arrow: an ordered path of grid cells from tail to head.
+/// One arrow: an ordered path of grid cells from tail to head.
 /// Cells are (row, col) records; the arrowhead sits on [cells.last] and
 /// points along the delta between the last two cells.
 class ArrowLine {
