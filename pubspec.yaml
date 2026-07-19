@@ -29,6 +29,10 @@ dependencies:
   # the exact thing the kit exists to prevent.
   loganland_boot:
     path: packages/loganland_boot
+  firebase_storage: ^13.4.5
+  path_provider: ^2.1.6
+  archive: ^4.0.9
+  crypto: ^3.0.7
 
 dev_dependencies:
   flutter_test:
@@ -44,7 +48,11 @@ flutter:
     - assets/shapes/
     - assets/images/brand/
     - assets/images/icons/
-    - assets/images/stamps/
+    # assets/images/stamps/ is deliberately NOT here. The masters are 216
+    # 1024px PNGs — 419 MB — and even re-encoded the set does not belong in the
+    # APK. It ships from Firebase Storage a continent at a time; see
+    # lib/services/stamp_store.dart and tools/atlas/build_stamp_packs.py.
+    # Only the manifest (a couple of KB, under assets/campaign/) is bundled.
     - assets/campaign/
   fonts:
     - family: Outfit

@@ -1,0 +1,18 @@
+rules_version = '2';
+
+// Stamp packs only. They are game art that ships with a public app, so there
+// is nothing to protect by hiding them — but nothing may be written from a
+// client either. Uploads go through tools/atlas/upload_stamp_packs.sh with
+// developer credentials.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /stamps/{version}/{pack} {
+      allow read: if true;
+      allow write: if false;
+    }
+    // Anything else that ever lands in this bucket is closed by default.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -10,6 +10,7 @@ import '../services/firebase.dart';
 import '../services/game_services.dart';
 import '../services/iap.dart';
 import '../services/progress.dart';
+import '../services/stamp_store.dart';
 import 'app_settings.dart';
 
 /// Lockup colours, sampled from `assets/images/brand/atlas_arrows_wordmark.png`
@@ -69,6 +70,10 @@ Future<void> bootServices(void Function(double) onProgress) async {
     ('progress', Progress.instance.load),
     ('shapes', ShapeCatalog.load),
     ('campaign', CampaignRepository.instance.load),
+    // Manifest + a look at what is already cached. No network here — the
+    // download itself waits for the preload half, where a slow connection
+    // costs the player a progress bar rather than a launch.
+    ('stamps', StampStore.instance.load),
   ];
   for (var i = 0; i < steps.length; i++) {
     try {
@@ -91,8 +96,9 @@ Future<void> initDeferredServices() async {
 }
 
 /// The post-attach half of the bar (0.65 → 1). Only what the first screen
-/// actually shows: the world map behind the campaign tab, and the icons the
-/// shell and the board draw immediately.
+/// actually shows: the world map behind the campaign tab, the stamps for
+/// wherever the player currently is, and the icons the shell and the board
+/// draw immediately.
 Future<void> preloadFirstFrame(
   BuildContext context, {
   required void Function(double) onProgress,
@@ -102,7 +108,15 @@ Future<void> preloadFirstFrame(
   } catch (e) {
     debugPrint('preload: world map failed — $e');
   }
-  onProgress(0.5);
+  onProgress(0.3);
+
+  // One continent's stamps, not all of them. This is the only step here that
+  // touches the network, so it owns the widest slice of the bar — and it is
+  // allowed to come back empty: the map draws rounds without their stamp until
+  // the pack lands, and StampStore retries the next time the player is here.
+  await _fetchStampsForCurrentRound((p) => onProgress(0.3 + p * 0.5));
+  onProgress(0.8);
+
   if (!context.mounted) return;
   const icons = [
     'assets/images/icons/heart.png',
@@ -116,4 +130,15 @@ Future<void> preloadFirstFrame(
     if (!context.mounted) return;
   }
   onProgress(1);
+}
+
+Future<void> _fetchStampsForCurrentRound(
+    void Function(double) onProgress) async {
+  final store = StampStore.instance;
+  final repo = CampaignRepository.instance;
+  if (!store.isLoaded || !repo.isLoaded) return;
+  // Rounds run 1..216 in bank order, so the round index is the rank.
+  final rank = repo.locate(Progress.instance.unlocked.value).$1 + 1;
+  if (store.hasPackFor(rank)) return;
+  await store.ensurePackFor(rank, onProgress: onProgress);
 }
