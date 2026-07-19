@@ -68,3 +68,8 @@ tools/atlas/*.geojson
 # Scratch design research (stock reference images)
 tools/atlas_materials/
 tools/gpt_atlas/
+
+# Stamp originals — 1024px PNGs at ~1.9MB each, kept out of the repo.
+# assets/images/stamps/ ships the WebP versions; these are only here so a
+# stamp can be re-encoded at another size without paying to generate it again.
+tools/atlas/stamps_raw/
