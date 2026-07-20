@@ -176,19 +176,23 @@ class ZArrowsGame extends FlameGame with ScaleCallbacks {
     _scaleStart = _board?.scale.x ?? 1;
   }
 
-  /// Two fingers pan and zoom the board. One finger is left alone: tapping is
-  /// the entire game, and a single-finger drag that shifted the board would
-  /// make every mistap feel like the board moved under you.
+  /// One finger drags the board, two fingers drag and zoom. Single-finger pan
+  /// is safe now that a line only fires on a clean tap (see
+  /// [LineComponent.onTapUp]): the gesture recogniser claims a drag past the
+  /// touch slop, which cancels the tap, so moving the board never launches an
+  /// arrow.
   @override
   void onScaleUpdate(ScaleUpdateEvent event) {
     final board = _board;
-    if (board == null || event.pointerCount < 2) return;
-    // Never shrink past "all of it", and stop zooming once a cell fills a
-    // comfortable thumb.
-    final next = (_scaleStart * event.scale)
-        .clamp(_fitScale, math.max(_fitScale, 64 / BoardComponent.cell))
-        .toDouble();
-    board.scale = Vector2.all(next);
+    if (board == null || event.pointerCount < 1) return;
+    // Two fingers also zoom; never shrink past "all of it", and stop zooming
+    // once a cell fills a comfortable thumb.
+    if (event.pointerCount >= 2) {
+      final next = (_scaleStart * event.scale)
+          .clamp(_fitScale, math.max(_fitScale, 64 / BoardComponent.cell))
+          .toDouble();
+      board.scale = Vector2.all(next);
+    }
     board.position += event.focalPointDelta;
     _clampBoard();
   }
