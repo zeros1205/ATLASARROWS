@@ -108,10 +108,15 @@ class _GameScreenState extends State<GameScreen> {
     _applyBoardTransform(scale, offset);
   }
 
+  /// Terrain reveal is a demo on the first few stages only for now.
+  static const int _terrainStages = 3;
+  void _syncTerrain() => _game.terrainEnabled = _stage < _terrainStages;
+
   @override
   void initState() {
     super.initState();
     _game = _buildGame(AppColors.light);
+    _syncTerrain();
     if (_coachEnabled && !Progress.instance.coachDone.value) {
       _coachTimer = Timer.periodic(const Duration(seconds: 3), (t) {
         if (Progress.instance.coachDone.value) {
@@ -183,13 +188,13 @@ class _GameScreenState extends State<GameScreen> {
   /// The two header lines: city over country. A country board — the round's
   /// finale, and the only stage a country without cities ever has — would
   /// otherwise repeat its own name twice, so it stands alone on one line.
-  (String, String?) get _headerLines {
-    final stage = _repo.isLoaded ? _repo.stageAt(_stage) : null;
-    if (stage == null || stage.kind == StageKind.country) {
-      return (_countryName, null);
-    }
-    return (stage.displayName, _countryName);
-  }
+  // The place name is held back for the clear reveal now; the header is just
+  // the stage number.
+  (String, String?) get _headerLines => ('STAGE ${_stage + 1}', null);
+
+  /// The flag emoji of the country this stage belongs to (shown on clear).
+  String get _flag =>
+      _repo.isLoaded ? _repo.countries[_loc.countryIndex].flagEmoji : '';
 
   /// "3 / 12" — position inside the round. A global stage number would read as
   /// "stage 641 of 775", which says nothing a player cares about.
@@ -225,6 +230,7 @@ class _GameScreenState extends State<GameScreen> {
       _showIntro = _introEnabled && crossedIntoNewCountry;
     });
     _game.loadLevel(_repo.levelAt(_stage));
+    _syncTerrain();
     _resetBoardView();
   }
 
@@ -234,6 +240,7 @@ class _GameScreenState extends State<GameScreen> {
       _result = _Result.none;
     });
     _game.restartLevel();
+    _syncTerrain();
     _resetBoardView();
   }
 
@@ -354,6 +361,7 @@ class _GameScreenState extends State<GameScreen> {
                 result: _result,
                 stage: _localStageLabel,
                 place: _placeName,
+                flag: _flag,
                 freeRefillUsed: _freeRefillUsed,
                 onNext: _next,
                 onRestart: _restart,
@@ -900,6 +908,7 @@ class _ResultSheet extends StatelessWidget {
     required this.result,
     required this.stage,
     required this.place,
+    required this.flag,
     required this.freeRefillUsed,
     required this.onNext,
     required this.onRestart,
@@ -908,6 +917,7 @@ class _ResultSheet extends StatelessWidget {
   final _Result result;
   final String stage;
   final String place;
+  final String flag;
   final bool freeRefillUsed;
   final VoidCallback onNext, onRestart;
   final void Function({required bool viaAd}) onRefill;
@@ -943,12 +953,20 @@ class _ResultSheet extends StatelessWidget {
   Widget _clear(AppColors c) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text('${place.isEmpty ? '' : '$place · '}$stage',
+          Text(stage,
               style: AppText.caption.copyWith(color: c.inkFaint, letterSpacing: 3)),
-          const SizedBox(height: 6),
+          const SizedBox(height: 10),
+          // The place name + flag — held back from the header, revealed here so
+          // clearing a board is where you learn where you were.
+          if (place.isNotEmpty)
+            Text(flag.isEmpty ? place : '$flag  $place',
+                textAlign: TextAlign.center,
+                style: AppText.title.copyWith(
+                    color: c.ink, fontWeight: FontWeight.w800, fontSize: 22)),
+          const SizedBox(height: 4),
           Text('클리어!',
-              style: AppText.title.copyWith(
-                  color: c.accent, fontWeight: FontWeight.w900, fontSize: 24)),
+              style: AppText.headline.copyWith(
+                  color: c.accent, fontWeight: FontWeight.w900)),
           const SizedBox(height: 18),
           _bigButton(c, '다음 스테이지', c.accent, c.onAccent, onNext),
         ],

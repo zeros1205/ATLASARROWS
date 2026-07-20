@@ -117,10 +117,14 @@ _ABSORB = {
     "Mauritius": "Africa",
     "Heard Island and McDonald Islands": "Oceania",
 }
+_campaign = load("campaign.json")["countries"]
 continent_by_name = {
     c["name"]: _ABSORB.get(c["name"], c.get("continent", ""))
-    for c in load("campaign.json")["countries"]
+    for c in _campaign
 }
+# ISO 3166-1 alpha-2 per country (for the flag shown on clear). Empty for
+# disputed territories without a standard code.
+iso_by_name = {c["name"]: c.get("iso", "") for c in _campaign}
 
 country_boards = {b["name"]: b for b in boards if b["kind"] == "country"}
 
@@ -167,6 +171,7 @@ for cb in sorted(country_boards.values(), key=lambda b: b["rank"]):
         "name": name,
         "ko": cb.get("ko", ""),
         "continent": continent_by_name.get(name, cb.get("continent", "")),
+        "iso": iso_by_name.get(name, ""),
         "area_km2": cb.get("area_km2", 0),
         "stages": stages,
     })
