@@ -48,6 +48,12 @@ class SettingsScreen extends StatelessWidget {
                   source: progress.hapticsOn,
                   onChanged: progress.setHaptics,
                 ),
+                _SegmentRow(
+                  label: '화살 속도',
+                  source: progress.escapeSpeed,
+                  labels: const ['느림', '보통', '빠름'],
+                  onChanged: progress.setEscapeSpeed,
+                ),
                 _NavRow(
                   label: '언어',
                   trailing: AppSettings
@@ -205,6 +211,57 @@ class _BoundToggleRow extends StatelessWidget {
         builder: (context, value, _) =>
             _ToggleRow(label: label, value: value, onChanged: onChanged),
       );
+}
+
+/// A row whose right side is a small segmented control, bound to a persistent
+/// [ValueNotifier<int>] in [Progress] (used for 화살 속도: 느림/보통/빠름).
+class _SegmentRow extends StatelessWidget {
+  const _SegmentRow(
+      {required this.label,
+      required this.source,
+      required this.labels,
+      required this.onChanged});
+  final String label;
+  final ValueNotifier<int> source;
+  final List<String> labels;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = AppColors.of(context);
+    return ValueListenableBuilder<int>(
+      valueListenable: source,
+      builder: (context, value, _) => _rowShell(
+        c,
+        child: Row(
+          children: [
+            Expanded(
+                child: Text(label, style: AppText.label.copyWith(color: c.ink))),
+            for (var i = 0; i < labels.length; i++)
+              Pressable(
+                scale: 0.96,
+                onTap: () => onChanged(i),
+                child: Container(
+                  margin: EdgeInsets.only(left: i == 0 ? 0 : 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: i == value ? c.accent : c.surfaceMuted,
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                  ),
+                  child: Text(
+                    labels[i],
+                    style: AppText.caption.copyWith(
+                      color: i == value ? c.onAccent : c.inkSoft,
+                      fontWeight: i == value ? FontWeight.w700 : FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _ToggleRow extends StatelessWidget {
