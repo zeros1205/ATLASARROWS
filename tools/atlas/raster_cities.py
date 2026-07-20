@@ -14,6 +14,7 @@ CITY_LONG_SIDE = 30
 # cities whose admin polygon includes far-flung islands
 CITY_CLIPS = {
     "Tokyo": (138.94, 35.49, 139.95, 35.92),  # mainland, no Izu/Ogasawara
+    "Kaohsiung": (120.15, 22.40, 120.95, 23.55),  # mainland, no Pratas/Taiping
 }
 
 
