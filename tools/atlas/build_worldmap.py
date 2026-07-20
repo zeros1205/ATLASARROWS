@@ -8,7 +8,7 @@ from PIL import Image, ImageDraw
 HERE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 COLS = 168
 LON0, LON1 = -180.0, 180.0
-LAT0, LAT1 = -58.0, 82.0          # crop out Antarctica / empty poles
+LAT0, LAT1 = -58.0, 90.0          # crop out Antarctica, keep the full north edge
 ROWS = round(COLS * (LAT1 - LAT0) / (LON1 - LON0))
 
 g = json.load(open(HERE + "/tools/atlas/ne_50m_countries.geojson", encoding="utf-8"))
