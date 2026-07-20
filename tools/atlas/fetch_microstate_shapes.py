@@ -99,13 +99,26 @@ def circularity(gj):
     return circ if best else 0.0
 
 
-def fetch(query):
+def _search(query):
     url = "https://nominatim.openstreetmap.org/search?" + urllib.parse.urlencode({
-        "q": query, "format": "jsonv2", "limit": 10, "polygon_geojson": 1,
+        "q": query, "format": "jsonv2", "limit": 15, "polygon_geojson": 1,
     })
     req = urllib.request.Request(url, headers={"User-Agent": UA})
     with urllib.request.urlopen(req, timeout=60) as resp:
-        results = json.load(resp)
+        return json.load(resp)
+
+
+def fetch(query):
+    """Best non-circular boundary for `query`.
+
+    For a small island the administrative relation is its 12-nautical-mile
+    territorial water, which comes back as a circle. The landmass lives under
+    place=island instead, so that is asked for too and preferred.
+    """
+    results = _search(query)
+    island_q = query.split(",")[0].strip() + " island"
+    time.sleep(SLEEP)
+    results += _search(island_q)
     best = None
     for res in results:
         gj = res.get("geojson", {})
@@ -118,9 +131,11 @@ def fetch(query):
             continue
         if circularity(gj) > 0.85:
             continue  # territorial waters, not the island
-        if best is None or npoints(gj) > npoints(best[0]):
-            best = (gj, res.get("display_name", ""))
-    return best
+        # a real landmass outranks any administrative area of the same name
+        score = (res.get("type") == "island", npoints(gj))
+        if best is None or score > best[2]:
+            best = (gj, res.get("display_name", ""), score)
+    return best[:2] if best else None
 
 
 def main():
