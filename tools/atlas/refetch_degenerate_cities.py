@@ -49,6 +49,9 @@ QUERY_OVERRIDE = {
     "Tirana": "Bashkia Tiranë, Albania",
     "Copenhagen": "Københavns Kommune, Denmark",
     "Baguio": "City of Baguio, Philippines",
+    # Not degenerate, but matched the wrong continent — verify_city_countries.py
+    # put this one 6157 km outside Venezuela (it had grabbed Valencia, Spain).
+    "Valencia": "Valencia, Carabobo, Venezuela",
 }
 
 # The city polygon must be a settlement, not the region that contains it.
@@ -118,6 +121,8 @@ def main():
     ap.add_argument("--min-pts", type=int, default=6,
                     help="entries with fewer points than this are refetched")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--city", action="append", default=[],
+                    help="refetch these cities regardless of point count")
     args = ap.parse_args()
 
     with open(RAW, encoding="utf-8") as f:
@@ -132,7 +137,8 @@ def main():
             if stage.get("kind") == "city":
                 country_of[stage["name"]] = entry["name"]
 
-    targets = [n for n, v in raw.items() if npoints(v.get("geojson")) < args.min_pts]
+    targets = ([c for c in args.city if c in raw] if args.city
+               else [n for n, v in raw.items() if npoints(v.get("geojson")) < args.min_pts])
     print(f"degenerate entries: {len(targets)}")
     if args.dry_run:
         for n in targets:
@@ -150,7 +156,7 @@ def main():
             failed += 1
             time.sleep(SLEEP)
             continue
-        if not got or npoints(got[0]) <= before:
+        if not got or (npoints(got[0]) <= before and not args.city):
             got_n = npoints(got[0]) if got else 0
             print(f"  [{i}/{len(targets)}] {name}: no better polygon ({before} -> {got_n}) q={query!r}")
             failed += 1
