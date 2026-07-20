@@ -97,6 +97,28 @@ World      Continent  Country   City
 - 칭호는 홈 화면 로고 아래 / 설정 상단에 표시 (한 줄, 읽기를 요구하지 않음)
 - **여러 개 보유 시 가장 최근 것 표시 + 전체는 여권 화면에서 확인**
 
+#### ✅ 확정 업적 목록 (2026-07-20) — Play Games / Game Center 등록 대상
+
+사용자 확정: **6대륙 흡수**(Seven seas 별도 유지 안 함 → "칠대양 표류자" **폐기**) +
+**기존 일반 5종 전부 유지** = **총 11종**.
+
+**대륙 완주 6종** (해당 대륙 모든 국가 클리어 시):
+| 키 | 칭호 | 대륙 | 국가 수(흡수 후) |
+|---|---|---|---|
+| `europe` | 구대륙 순례자 | Europe | 50 |
+| `asia` | 실크로드 대상 | Asia | 52 |
+| `africa` | 사바나 종단자 | Africa | 55 (세이셸·모리셔스·BIOT 흡수) |
+| `north_america` | 신대륙 개척자 | North America | 31 |
+| `south_america` | 안데스 등정자 | South America | 13 |
+| `oceania` | 남십자성 항해사 | Oceania | 15 (허드 맥도널드 흡수) |
+
+**일반 5종** (기존 `game_services.dart` 유지): `first_clear` · `first_country` ·
+`stages_50` · `stages_250` · `flawless`.
+
+⚠️ **선행 데이터 작업**: 앱이 읽는 `bank.json`에 `continent`가 비어 있다(대륙 완주
+감지 불가). `build_bank.py`가 위 흡수 매핑을 적용해 continent를 bank.json까지 싣고
+재생성해야 한다. 그 뒤 게임에 대륙별 완주 집계 → 해당 업적 unlock 로직 추가.
+
 ### 2.3 최종 칭호
 
 6개 대륙 스탬프 전부 → **Grand Tourist / 그랜드 투어리스트**
