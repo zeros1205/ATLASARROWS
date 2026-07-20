@@ -76,3 +76,6 @@ tools/atlas/stamps_raw/
 
 # Generated Play Games import bundles
 tools/game_services/out/
+
+# Generated review page (4.6MB, rebuild with tools/atlas/build_review_page.py)
+tools/atlas/atlas_review.html

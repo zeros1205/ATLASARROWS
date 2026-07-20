@@ -52,18 +52,28 @@ QUERY_OVERRIDE = {
     # Not degenerate, but matched the wrong continent — verify_city_countries.py
     # put this one 6157 km outside Venezuela (it had grabbed Valencia, Spain).
     "Valencia": "Valencia, Carabobo, Venezuela",
+    # Plain "Glasgow, United Kingdom" resolves to a Point; the council area
+    # carries the boundary.
+    "Glasgow": "Glasgow City, Scotland",
 }
 
 # The city polygon must be a settlement, not the region that contains it.
 GOOD_TYPES = {"city", "town", "municipality", "village", "borough", "suburb",
               "city_district", "district", "county"}
 BAD_TYPES = {"state", "region", "province", "state_district"}
-MAX_SPAN_KM = 150  # a city bigger than this is almost certainly a province
 
-# Municipalities that legitimately administer far-flung islands, so their true
+# Size is the reliable discriminator; addresstype alone is not. Asuncion's
+# boundary is tagged "region" (Distrito Capital) yet spans only 18 km, while
+# Aleppo's only polygon is a 195 km governorate. So anything city-sized is
+# accepted whatever its type, and a region-typed result is rejected only when
+# it is also large.
+CITY_SPAN_KM = 60    # at or under this it is a city, regardless of type
+MAX_SPAN_KM = 250    # settlement-typed results may reach this (Jakarta ~153)
+
+# Municipalities that legitimately administer far-flung islands or sea, so the
 # bounding box dwarfs the built-up area. raster_cities.py clips these back to
 # the mainland; without the exemption the span guard would reject them.
-SPAN_EXEMPT = {"Kaohsiung"}
+SPAN_EXEMPT = {"Kaohsiung", "Tokyo", "Jakarta", "Ho Chi Minh City"}
 
 
 def npoints(gj):
@@ -106,10 +116,12 @@ def fetch(query, exempt_span=False):
         if gj.get("type") not in ("Polygon", "MultiPolygon"):
             continue
         atype = (res.get("addresstype") or "").lower()
-        if atype in BAD_TYPES:
-            continue
-        if not exempt_span and span_km(gj) > MAX_SPAN_KM:
-            continue
+        span = span_km(gj)
+        if not exempt_span:
+            if atype in BAD_TYPES and span > CITY_SPAN_KM:
+                continue  # the province/governorate, not the city
+            if span > MAX_SPAN_KM:
+                continue
         score = (atype in GOOD_TYPES, npoints(gj))
         if best is None or score > best[2]:
             best = (gj, res.get("display_name", ""), score)
