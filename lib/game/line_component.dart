@@ -22,6 +22,11 @@ class LineComponent extends PositionComponent
 
   static const double cell = BoardComponent.cell;
 
+  /// How far a touch may travel and still count as a tap rather than the
+  /// start of a drag/pan. Matches Flutter's touch slop; anything past this is
+  /// the player moving the board, not launching a line.
+  static const double _tapSlop = 18;
+
   final ArrowLine line;
 
   late final ui.PathMetric _metric;
@@ -35,6 +40,10 @@ class LineComponent extends PositionComponent
   VoidCallback? _onGone;
   VoidCallback? _onImpact;
   bool _impactFired = false;
+
+  /// Canvas point where the current touch began, or null between touches.
+  /// Used to tell a tap from the first frame of a board-pan.
+  Vector2? _touchDown;
 
   bool get animating => _anim != _Anim.idle;
 
@@ -126,8 +135,10 @@ class LineComponent extends PositionComponent
       case _Anim.idle:
         break;
       case _Anim.escaping:
+        // Escape speed is fixed at the fastest preset (2.2x); the setting was
+        // removed. Applied to the visual slide so the acceleration curve holds.
         _speed += cell * 26 * dt;
-        _slide += _speed * dt;
+        _slide += _speed * dt * 2.2;
         if (_slide >= _metric.length) {
           removeFromParent();
           _onGone?.call();
@@ -183,10 +194,28 @@ class LineComponent extends PositionComponent
     return (p - (a + ab * t)).distance;
   }
 
+  // Fire on tap-*up*, not tap-down: launching a line the instant a finger
+  // landed meant the first touch of a drag/pan fired whatever arrow sat under
+  // it. Now the touch has to lift roughly where it landed to count as a tap;
+  // a drag past the slop pans the board and never launches a line.
   @override
   void onTapDown(TapDownEvent event) {
     event.handled = true;
+    _touchDown = event.canvasPosition.clone();
+  }
+
+  @override
+  void onTapUp(TapUpEvent event) {
+    final down = _touchDown;
+    _touchDown = null;
+    if (down == null) return;
+    if ((event.canvasPosition - down).length > _tapSlop) return;
     game.handleTap(this);
+  }
+
+  @override
+  void onTapCancel(TapCancelEvent event) {
+    _touchDown = null;
   }
 
   @override
@@ -202,7 +231,7 @@ class LineComponent extends PositionComponent
       visible,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = cell * 0.13
+        ..strokeWidth = cell * 0.3
         ..strokeCap = StrokeCap.round
         ..strokeJoin = StrokeJoin.round
         ..color = color,

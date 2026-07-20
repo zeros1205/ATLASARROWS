@@ -2,8 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flame/components.dart';
 import 'package:flame/effects.dart';
-import 'package:flame/events.dart';
 import 'package:flame/game.dart';
+import 'package:flame/sprite.dart';
 import 'package:flame/text.dart';
 import 'package:flutter/animation.dart';
 import 'package:flutter/foundation.dart';
@@ -19,7 +19,7 @@ import 'sfx.dart';
 /// The Flame game for one stage. Level-agnostic: it plays whatever [Level]
 /// it is given and reports outcomes via callbacks; the surrounding Flutter
 /// screen owns stage progression, hearts UI and result sheets.
-class ZArrowsGame extends FlameGame with ScaleCallbacks {
+class ZArrowsGame extends FlameGame {
   ZArrowsGame({
     required this.initialLevel,
     required this.palette,
@@ -61,12 +61,16 @@ class ZArrowsGame extends FlameGame with ScaleCallbacks {
   int _combo = 0;
   DateTime _lastEscapeAt = DateTime.fromMillisecondsSinceEpoch(0);
 
+  /// Heart used by the "-1" float on a blocked tap; loaded once in [onLoad].
+  Sprite? _heartSprite;
+
   @override
   Color backgroundColor() => palette.bg;
 
   @override
   Future<void> onLoad() async {
     await Sfx.preload();
+    _heartSprite = await Sprite.load('icons/heart.png');
     loadLevel(initialLevel);
   }
 
@@ -149,79 +153,6 @@ class ZArrowsGame extends FlameGame with ScaleCallbacks {
     board.position = Vector2(canvas.x / 2, canvas.y / 2);
   }
 
-  /// Clamps the board so it can never be flung entirely off-screen: at least
-  /// this fraction of the viewport always holds board.
-  static const double _keepOnScreen = 0.35;
-
-  void _clampBoard() {
-    final board = _board;
-    if (board == null || size.x == 0) return;
-    final half = Vector2(
-      board.size.x * board.scale.x / 2,
-      board.size.y * board.scale.y / 2,
-    );
-    final slackX = math.max(0.0, half.x - size.x * _keepOnScreen);
-    final slackY = math.max(0.0, half.y - size.y * _keepOnScreen);
-    board.position = Vector2(
-      board.position.x.clamp(size.x / 2 - slackX, size.x / 2 + slackX),
-      board.position.y.clamp(size.y / 2 - slackY, size.y / 2 + slackY),
-    );
-  }
-
-  double _scaleStart = 1;
-
-  @override
-  void onScaleStart(ScaleStartEvent event) {
-    super.onScaleStart(event);
-    _scaleStart = _board?.scale.x ?? 1;
-  }
-
-  /// Two fingers pan and zoom the board. One finger is left alone: tapping is
-  /// the entire game, and a single-finger drag that shifted the board would
-  /// make every mistap feel like the board moved under you.
-  @override
-  void onScaleUpdate(ScaleUpdateEvent event) {
-    final board = _board;
-    if (board == null || event.pointerCount < 2) return;
-    // Never shrink past "all of it", and stop zooming once a cell fills a
-    // comfortable thumb.
-    final next = (_scaleStart * event.scale)
-        .clamp(_fitScale, math.max(_fitScale, 64 / BoardComponent.cell))
-        .toDouble();
-    board.scale = Vector2.all(next);
-    board.position += event.focalPointDelta;
-    _clampBoard();
-  }
-
-  /// Snaps back to the whole silhouette.
-  void resetView() {
-    if (size.x > 0 && _board != null) _layoutBoard(size);
-  }
-
-  double get _maxScale => math.max(_fitScale, 64 / BoardComponent.cell);
-
-  /// Steps the zoom about the centre of the view. Pinching is the natural
-  /// gesture, but a country like Chile is unplayable until you zoom in, so it
-  /// cannot be the only way to get there — some players never try it, and it
-  /// is awkward one-handed.
-  void zoomBy(double factor) {
-    final board = _board;
-    if (board == null || size.x == 0) return;
-    final before = board.scale.x;
-    final next = (before * factor).clamp(_fitScale, _maxScale).toDouble();
-    if (next == before) return;
-    // Keep whatever is under the middle of the screen in the middle.
-    final centre = Vector2(size.x / 2, size.y / 2);
-    board.position = centre + (board.position - centre) * (next / before);
-    board.scale = Vector2.all(next);
-    _clampBoard();
-  }
-
-  /// Whether zooming further in or out would change anything — lets the
-  /// controls grey themselves out at the ends.
-  bool get canZoomIn => (_board?.scale.x ?? 0) < _maxScale - 0.0001;
-  bool get canZoomOut => (_board?.scale.x ?? 0) > _fitScale + 0.0001;
-
   void handleTap(LineComponent lineComponent) {
     if (_inputLocked || lineComponent.animating) return;
     if (removeArmed.value) {
@@ -252,8 +183,6 @@ class ZArrowsGame extends FlameGame with ScaleCallbacks {
     _lastEscapeAt = now;
     _combo++;
     Sfx.pop(_combo - 1);
-    if (_combo >= 2) _showComboText(lineComponent);
-    if (_combo >= 3) _zoomPunch();
     logic.removeLine(lineComponent.line.id);
     lineComponent.escape(onGone: _checkCleared);
     onEscaped?.call();
@@ -272,12 +201,20 @@ class ZArrowsGame extends FlameGame with ScaleCallbacks {
 
   void _onBlocked(LineComponent lineComponent, int freeSteps, int blockerId) {
     _combo = 0;
+    // Where the arrowhead bumped into the blocker — the float starts here.
+    final (hr, hc) = lineComponent.line.head;
+    final dir = lineComponent.line.headDir;
+    final impact = Vector2(
+      (hc + 0.5 + dir.dx * (freeSteps + 0.3)) * BoardComponent.cell,
+      (hr + 0.5 + dir.dy * (freeSteps + 0.3)) * BoardComponent.cell,
+    );
     lineComponent.bump(freeSteps, onImpact: () {
       Sfx.block();
       _board?.lineById(blockerId)?.flashRed();
       _shake();
       hearts = math.max(0, hearts - 1);
       onHeartsChanged?.call(hearts);
+      _showHeartLoss(impact);
       if (hearts == 0) {
         _inputLocked = true;
         Sfx.fail();
@@ -290,13 +227,6 @@ class ZArrowsGame extends FlameGame with ScaleCallbacks {
     });
   }
 
-  void _zoomPunch() {
-    _board?.add(ScaleEffect.by(
-      Vector2.all(1.02),
-      EffectController(duration: 0.06, reverseDuration: 0.14, curve: Curves.easeOut),
-    ));
-  }
-
   void _shake() {
     _board?.add(SequenceEffect([
       MoveByEffect(Vector2(10, 0), EffectController(duration: 0.04)),
@@ -306,28 +236,37 @@ class ZArrowsGame extends FlameGame with ScaleCallbacks {
     ]));
   }
 
-  void _showComboText(LineComponent lineComponent) {
+  /// A "-1" and a heart lifting off the collision point and fading, so the lost
+  /// heart is felt where the mistake happened, not only in the top strip.
+  void _showHeartLoss(Vector2 at) {
     final board = _board;
-    if (board == null) return;
-    final (r, c) = lineComponent.line.head;
-    final text = TextComponent(
-      text: 'x$_combo',
-      position: Vector2(c * BoardComponent.cell + BoardComponent.cell / 2,
-          r * BoardComponent.cell - 8),
-      anchor: Anchor.bottomCenter,
-      priority: 200,
+    final sprite = _heartSprite;
+    if (board == null || sprite == null) return;
+    final group = PositionComponent(position: at, priority: 210);
+    final heart = SpriteComponent(
+      sprite: sprite,
+      size: Vector2.all(BoardComponent.cell * 0.52),
+      anchor: Anchor.center,
+      position: Vector2(BoardComponent.cell * 0.30, 0),
+    );
+    final minus = TextComponent(
+      text: '-1',
+      anchor: Anchor.center,
+      position: Vector2(-BoardComponent.cell * 0.18, 0),
       textRenderer: TextPaint(
         style: TextStyle(
-          color: palette.accent,
-          fontSize: 52,
+          color: palette.danger,
+          fontSize: 46,
           fontWeight: FontWeight.w900,
           fontFamily: 'Outfit',
         ),
       ),
     );
-    board.add(text);
-    text.add(MoveByEffect(Vector2(0, -70),
-        EffectController(duration: 0.75, curve: Curves.easeOutCubic)));
-    text.add(RemoveEffect(delay: 0.75));
+    group.addAll([minus, heart]);
+    board.add(group);
+    group.add(MoveByEffect(Vector2(0, -BoardComponent.cell * 0.8),
+        EffectController(duration: 0.7, curve: Curves.easeOutCubic)));
+    heart.add(OpacityEffect.fadeOut(EffectController(duration: 0.7)));
+    group.add(RemoveEffect(delay: 0.7));
   }
 }

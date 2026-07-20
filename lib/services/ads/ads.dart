@@ -10,7 +10,7 @@
 ///   Ads.init()
 ///   Ads.maybeShowInterstitial(totalClears: ..., levelIndex: ...)
 ///   Ads.showRewarded(onReward: ..., onUnavailable: ...)
-///   AdsBanner()  — 60px-tall banner widget for the bottom of every screen
+///   AdsBanner()  — bottom banner widget (slot sized for a Toss banner)
 ///   AdsMrec()    — 300x250 medium rectangle for the result sheet
 library;
 

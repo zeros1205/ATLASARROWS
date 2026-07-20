@@ -73,3 +73,6 @@ tools/gpt_atlas/
 # assets/images/stamps/ ships the WebP versions; these are only here so a
 # stamp can be re-encoded at another size without paying to generate it again.
 tools/atlas/stamps_raw/
+
+# Generated Play Games import bundles
+tools/game_services/out/

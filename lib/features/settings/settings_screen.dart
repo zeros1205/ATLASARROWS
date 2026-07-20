@@ -127,6 +127,7 @@ class SettingsScreen extends StatelessWidget {
       ),
     );
   }
+
 }
 
 /// Play Games / Game Center entry points. Only built on mobile. When the

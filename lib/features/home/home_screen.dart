@@ -7,6 +7,7 @@ import '../../app/shell.dart';
 import '../../models/campaign_repository.dart';
 import '../../services/progress.dart';
 import '../../shared/pressable.dart';
+import '../../shared/theme_toggle_button.dart';
 import '../game/game_screen.dart';
 
 /// Home: centred game logo, then the play CTAs. A brand-new player sees a
@@ -27,7 +28,9 @@ class HomeScreen extends StatelessWidget {
 
     return Scaffold(
       body: SafeArea(
-        child: ValueListenableBuilder<int>(
+        child: Stack(
+          children: [
+            ValueListenableBuilder<int>(
           valueListenable: Progress.instance.unlocked,
           builder: (context, unlocked, _) {
             final isNew = unlocked <= 0;
@@ -71,6 +74,13 @@ class HomeScreen extends StatelessWidget {
               ],
             );
           },
+            ),
+            const Positioned(
+              top: 4,
+              right: 12,
+              child: ThemeToggleButton(),
+            ),
+          ],
         ),
       ),
     );

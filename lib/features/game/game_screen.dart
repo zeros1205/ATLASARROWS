@@ -1,6 +1,9 @@
 import 'dart:async';
 
-import 'package:flame/game.dart';
+// Flame and Flutter both export a Matrix4 (vector_math vs vector_math_64); we
+// only need GameWidget from Flame here, so hide its Matrix4 and let Flutter's
+// (which Transform expects) win.
+import 'package:flame/game.dart' hide Matrix4;
 import 'package:flutter/material.dart';
 
 import '../../app/shell.dart';
@@ -36,18 +39,80 @@ class _GameScreenState extends State<GameScreen> {
   final _hearts = ValueNotifier<int>(ZArrowsGame.maxHearts);
   _Result _result = _Result.none;
   bool _freeRefillUsed = false;
+
+  // Feature flags — both surfaces are kept but held off for now; flip to true
+  // to bring them back. Runtime fields (not const) so the gated code stays
+  // live for the analyzer.
+  //
+  //  _introEnabled — the per-country round-intro screen on a country's first
+  //                  stage.
+  //  _coachEnabled — the first-play help toast (and its hint-pulse timer).
+  final bool _introEnabled = false;
+  final bool _coachEnabled = false;
+
   // Show the round-intro when we land on a country's first stage.
-  late bool _showIntro = _loc.local == 0;
+  late bool _showIntro = _introEnabled && _loc.local == 0;
 
   /// Pulses a free line every few seconds while the coach is up, so a stuck
   /// first-time player is shown a legal move instead of being told about one.
   Timer? _coachTimer;
 
+  // ── Board pan/zoom (Flutter-level) ──────────────────────────────────────
+  // Pan and pinch are handled here with a GestureDetector + Transform over the
+  // GameWidget, not inside Flame: a one-finger drag has to move the board, and
+  // Flame's scale callbacks don't deliver a single-finger pan on device. The
+  // Transform sits on top of the fit view Flame lays out (identity == fit), and
+  // Flutter maps taps back through it so a tapped line still hits.
+  final ValueNotifier<Matrix4> _boardMatrix = ValueNotifier(Matrix4.identity());
+  double _boardScale = 1;
+  Offset _boardOffset = Offset.zero;
+  double _gestureBaseScale = 1;
+  Offset _gestureBaseOffset = Offset.zero;
+  Offset _gestureStartFocal = Offset.zero;
+  Size _boardBox = Size.zero;
+
+  /// How far past the fit view the board can be pinched in.
+  static const double _maxBoardZoom = 8;
+
+  void _applyBoardTransform(double scale, Offset offset) {
+    _boardScale = scale;
+    _boardOffset = offset;
+    _boardMatrix.value = Matrix4.identity()
+      ..translate(offset.dx, offset.dy)
+      ..scale(scale);
+  }
+
+  /// Back to the whole silhouette (the 맞춤 보기 button, and every new board).
+  void _resetBoardView() => _applyBoardTransform(1, Offset.zero);
+
+  void _onBoardScaleStart(ScaleStartDetails d) {
+    _gestureBaseScale = _boardScale;
+    _gestureBaseOffset = _boardOffset;
+    _gestureStartFocal = d.localFocalPoint;
+  }
+
+  void _onBoardScaleUpdate(ScaleUpdateDetails d) {
+    final scale = (_gestureBaseScale * d.scale).clamp(1.0, _maxBoardZoom).toDouble();
+    // Keep the content point that was under the fingers at gesture start pinned
+    // under the current focal point.
+    final contentPt = (_gestureStartFocal - _gestureBaseOffset) / _gestureBaseScale;
+    var offset = d.localFocalPoint - contentPt * scale;
+    // The GameWidget fills the box, so at scale 1 there's nothing to pan to;
+    // when zoomed, clamp the translation so the board keeps covering the box.
+    final minX = _boardBox.width * (1 - scale);
+    final minY = _boardBox.height * (1 - scale);
+    offset = Offset(
+      offset.dx.clamp(minX, 0.0).toDouble(),
+      offset.dy.clamp(minY, 0.0).toDouble(),
+    );
+    _applyBoardTransform(scale, offset);
+  }
+
   @override
   void initState() {
     super.initState();
     _game = _buildGame(AppColors.light);
-    if (!Progress.instance.coachDone.value) {
+    if (_coachEnabled && !Progress.instance.coachDone.value) {
       _coachTimer = Timer.periodic(const Duration(seconds: 3), (t) {
         if (Progress.instance.coachDone.value) {
           t.cancel();
@@ -151,9 +216,10 @@ class _GameScreenState extends State<GameScreen> {
       _stage++;
       _freeRefillUsed = false;
       _result = _Result.none;
-      _showIntro = crossedIntoNewCountry;
+      _showIntro = _introEnabled && crossedIntoNewCountry;
     });
     _game.loadLevel(_repo.levelAt(_stage));
+    _resetBoardView();
   }
 
   void _restart() {
@@ -162,6 +228,7 @@ class _GameScreenState extends State<GameScreen> {
       _result = _Result.none;
     });
     _game.restartLevel();
+    _resetBoardView();
   }
 
   /// Restart throws away everything the player has freed so far and cannot be
@@ -197,6 +264,7 @@ class _GameScreenState extends State<GameScreen> {
   void dispose() {
     _coachTimer?.cancel();
     _hearts.dispose();
+    _boardMatrix.dispose();
     super.dispose();
   }
 
@@ -225,18 +293,26 @@ class _GameScreenState extends State<GameScreen> {
                       // board would otherwise spill over the header and the
                       // hearts above it.
                       Positioned.fill(
-                        child: ClipRect(child: GameWidget(game: _game)),
-                      ),
-                      // Only worth the screen space on boards that actually
-                      // need zooming; a 7x7 island fits fine as it is.
-                      Positioned(
-                        right: 8,
-                        bottom: 8,
-                        child: ValueListenableBuilder<bool>(
-                          valueListenable: _game.needsZoom,
-                          builder: (context, needed, _) => needed
-                              ? _ZoomControls(game: _game)
-                              : const SizedBox.shrink(),
+                        child: ClipRect(
+                          child: LayoutBuilder(
+                            builder: (context, constraints) {
+                              _boardBox = Size(
+                                  constraints.maxWidth, constraints.maxHeight);
+                              return GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onScaleStart: _onBoardScaleStart,
+                                onScaleUpdate: _onBoardScaleUpdate,
+                                child: ValueListenableBuilder<Matrix4>(
+                                  valueListenable: _boardMatrix,
+                                  builder: (context, matrix, child) => Transform(
+                                    transform: matrix,
+                                    child: child,
+                                  ),
+                                  child: GameWidget(game: _game),
+                                ),
+                              );
+                            },
+                          ),
                         ),
                       ),
                     ],
@@ -244,14 +320,14 @@ class _GameScreenState extends State<GameScreen> {
                 ),
                 _BoosterBar(
                   game: _game,
-                  onResetView: _game.resetView,
+                  onResetView: _resetBoardView,
                   onRestart: _confirmRestart,
                 ),
                 const AdsBanner(),
               ],
             ),
             // Coach cue, above the board but below every modal surface.
-            if (_result == _Result.none && !_showIntro)
+            if (_coachEnabled && _result == _Result.none && !_showIntro)
               ValueListenableBuilder<bool>(
                 valueListenable: Progress.instance.coachDone,
                 builder: (context, done, _) => !done
@@ -262,7 +338,7 @@ class _GameScreenState extends State<GameScreen> {
                     : ValueListenableBuilder<bool>(
                         valueListenable: _game.needsZoom,
                         builder: (context, needed, _) => needed
-                            ? const _CoachCue('두 손가락으로 확대하거나 + 버튼을 누르세요',
+                            ? const _CoachCue('두 손가락으로 확대해 보세요',
                                 icon: Icons.pinch_outlined)
                             : const SizedBox.shrink(),
                       ),
@@ -286,52 +362,6 @@ class _GameScreenState extends State<GameScreen> {
           ],
         ),
       ),
-    );
-  }
-}
-
-/// Zoom in / out for boards too large to tap at fit scale. Deliberately plain
-/// buttons rather than only a pinch: a country silhouette can carry 270
-/// arrows, and a player who never thinks to pinch would simply be stuck.
-class _ZoomControls extends StatefulWidget {
-  const _ZoomControls({required this.game});
-  final ZArrowsGame game;
-
-  @override
-  State<_ZoomControls> createState() => _ZoomControlsState();
-}
-
-class _ZoomControlsState extends State<_ZoomControls> {
-  void _zoom(double factor) {
-    widget.game.zoomBy(factor);
-    setState(() {}); // refresh the enabled/disabled look
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final c = AppColors.of(context);
-    Widget button(IconData icon, bool enabled, VoidCallback onTap) => Pressable(
-          onTap: enabled ? onTap : null,
-          child: Container(
-            width: 44,
-            height: 44,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: c.surface.withValues(alpha: 0.94),
-              borderRadius: BorderRadius.circular(AppRadius.md),
-              border: Border.all(color: c.line),
-            ),
-            child: Icon(icon,
-                size: 22, color: enabled ? c.ink : c.inkFaint),
-          ),
-        );
-
-    return Column(
-      children: [
-        button(Icons.add, widget.game.canZoomIn, () => _zoom(1.6)),
-        const SizedBox(height: 6),
-        button(Icons.remove, widget.game.canZoomOut, () => _zoom(1 / 1.6)),
-      ],
     );
   }
 }

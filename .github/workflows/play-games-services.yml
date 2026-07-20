@@ -1,0 +1,31 @@
+name: Play Games · Import Bundle
+
+# Builds the Play Games Services import ZIPs (achievements + leaderboards) and
+# uploads them as an artifact. Play Games has no create API, so this is the
+# reusable path: generate here, then upload the ZIP once in the console
+# (Play Console ▸ Play Games Services ▸ Achievements ▸ Import achievements).
+# Dispatch only — it produces an artifact, it does not touch the console.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Generate import ZIPs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Generate PGS import bundles
+        run: python3 tools/game_services/gen_pgs_import.py
+
+      - name: Upload import ZIPs
+        uses: actions/upload-artifact@v4
+        with:
+          name: play-games-import
+          path: tools/game_services/out/*.zip
+          if-no-files-found: error

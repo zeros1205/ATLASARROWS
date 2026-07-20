@@ -201,6 +201,11 @@ class _AdsMrecState extends State<AdsMrec> {
   }
 }
 
+/// Reserved height of the bottom banner slot. Set for a Toss banner (taller
+/// than AdMob's 50pt), so the row keeps its shape whether the creative is
+/// loaded or still the placeholder. Keep in sync with the stub.
+const double _bannerSlot = 100;
+
 /// Bottom banner, present on every screen. Falls back to the reserved
 /// slot styling until the ad is loaded (or when unsupported).
 class AdsBanner extends StatefulWidget {
@@ -244,7 +249,9 @@ class _AdsBannerState extends State<AdsBanner> {
       builder: (context, removed, _) => removed
           ? const SizedBox.shrink()
           : Container(
-              height: 60,
+              // Sized for a Toss banner, which is taller than AdMob's 50pt
+              // unit — reserve the slot so the taller creative isn't clipped.
+              height: _bannerSlot,
               width: double.infinity,
               color: c.dot,
               alignment: Alignment.center,

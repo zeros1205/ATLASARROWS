@@ -22,7 +22,12 @@ abstract final class GameServices {
   /// **crashes natively** on a missing/placeholder value — Dart cannot catch
   /// it, so the only safe guard is to not call in at all. Flip this to true in
   /// the same commit that fills in the id.
-  static const bool androidConfigured = false;
+  ///
+  /// Enabled 2026-07-20 with the real numeric app id (182438652200) in
+  /// games_ids.xml. Sign-in is live; the leaderboard/achievement ids below are
+  /// still placeholders, so those specific calls fail quietly until their real
+  /// ids are pasted in — sign-in and the app are unaffected.
+  static const bool androidConfigured = true;
 
   /// Game Center needs no app-level id: enabling the capability in Xcode and
   /// declaring leaderboards in App Store Connect is enough, and an unknown id

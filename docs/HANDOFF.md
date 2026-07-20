@@ -208,7 +208,12 @@ flutter build web --release  # 웹 미리보기
 python -m http.server 8791   # build/web 에서 → localhost:8791
 python tools/atlas/build_worldmap.py   # 월드맵 데이터 재생성
 python tools/atlas/build_bank.py       # ★ 캠페인 자산 재생성 (보드 은행 변경 시 필수)
+python tools/atlas/relayout_difficulty.py  # ★★ 난이도 레시피(화살 재배치) — build_bank 뒤 필수
 ```
+
+> ⚠️ **`build_bank.py`만 돌리면 난이도가 원복된다.** 난이도 커브(함정·의존심도)는
+> `relayout_difficulty.py`가 화살을 재배치해 만든다(grid/판 크기는 그대로). 뱅크를 다시
+> 구우면 **반드시 relayout까지** 돌릴 것. 정의·측정·커브는 `docs/DIFFICULTY_PLAN.md`.
 
 ### 실기기 테스트
 
