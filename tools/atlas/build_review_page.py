@@ -19,12 +19,20 @@ import unicodedata
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 RAW = os.path.join(HERE, "cities_raw.json")
-NE = os.path.join(HERE, "ne_50m_countries.geojson")
+CRAW = os.path.join(HERE, "countries_raw.json")
+NE = os.path.join(HERE, "ne_10m_countries.geojson")
+NE_FALLBACK = os.path.join(HERE, "ne_50m_countries.geojson")
 BANK = os.path.join(HERE, "..", "..", "assets", "campaign", "bank.json")
 
 VIEW = 1000.0        # territory viewBox long side
-MAX_PTS = 420        # per shape, after simplification — keeps the page small
-MIN_PART = 0.002     # drop parts smaller than this fraction of the largest
+HI_PTS = 900         # "photo-real" outline — full coast, every island
+LO_PTS = 110         # the simplified silhouette the game reads as a shape
+# Offshore islands are most of what makes a coastline read as real (Korea has
+# 53 parts, and dropping them leaves a featureless blob), and they cost very
+# few points, so keep every part with any area at all in the detailed pass.
+MIN_PART = 0.0
+# The silhouette drops specks so it stays legible at thumbnail size.
+LO_MIN_PART = 0.004
 
 # Municipalities administering far-flung islands/sea: clip to the built-up area
 # so the silhouette is the city, not a mostly-empty ocean box.
@@ -98,10 +106,11 @@ def shape_path(rings, unwrap=False, clip=None):
             if clip[0] <= cx <= clip[2] and clip[1] <= cy <= clip[3]:
                 kept.append(r)
         rings = kept or rings
-    big = max(ring_area(r) for r in rings)
-    rings = [r for r in rings if ring_area(r) >= big * MIN_PART]
+    areas = [ring_area(r) for r in rings]
+    big = max(areas)
+    detailed = [r for r, a in zip(rings, areas) if a >= big * MIN_PART]
 
-    pts = [p for r in rings for p in r]
+    pts = [p for r in detailed for p in r]
     lat = sum(p[1] for p in pts) / len(pts)
     k = math.cos(math.radians(lat))
     xs = [p[0] * k for p in pts]
@@ -112,20 +121,28 @@ def shape_path(rings, unwrap=False, clip=None):
         return None
     s = VIEW / max(w, h)
 
-    proj = [[((p[0] * k - minx) * s, (-p[1] - miny) * s) for p in r] for r in rings]
-    total = sum(len(r) for r in proj)
-    eps = 0.0
-    while total > MAX_PTS and eps < 40:
-        eps = eps * 1.7 if eps else 0.4
-        proj = [rdp(r, eps) for r in proj]
-        total = sum(len(r) for r in proj)
+    def project(rs):
+        return [[((p[0] * k - minx) * s, (-p[1] - miny) * s) for p in r] for r in rs]
 
-    out = []
-    for r in proj:
-        if len(r) < 3:
-            continue
-        out.append("M" + " ".join(f"{x:.1f},{y:.1f}" for x, y in r) + "Z")
-    return {"d": "".join(out), "w": round(w * s, 1), "h": round(h * s, 1)} if out else None
+    def to_path(proj, budget):
+        eps = 0.0
+        total = sum(len(r) for r in proj)
+        while total > budget and eps < 60:
+            eps = eps * 1.7 if eps else 0.4
+            proj = [rdp(r, eps) for r in proj]
+            total = sum(len(r) for r in proj)
+        return "".join("M" + " ".join(f"{x:.1f},{y:.1f}" for x, y in r) + "Z"
+                       for r in proj if len(r) >= 3)
+
+    # Both passes share one projection, so the two images register exactly.
+    hi = to_path(project(detailed), HI_PTS)
+    coarse = [r for r, a in zip(rings, areas) if a >= big * LO_MIN_PART]
+    lo = to_path(project(coarse or detailed), LO_PTS)
+    if not hi:
+        return None
+    return {"hi": hi, "lo": lo or hi,
+            "w": round(w * s, 1), "h": round(h * s, 1),
+            "parts": len(detailed)}
 
 
 def main():
@@ -134,8 +151,10 @@ def main():
     args = ap.parse_args()
 
     raw = json.load(open(RAW, encoding="utf-8"))
+    craw = json.load(open(CRAW, encoding="utf-8")) if os.path.exists(CRAW) else {}
     bank = json.load(open(BANK, encoding="utf-8"))["countries"]
-    ne = json.load(open(NE, encoding="utf-8"))["features"]
+    ne_path = NE if os.path.exists(NE) else NE_FALLBACK
+    ne = json.load(open(ne_path, encoding="utf-8"))["features"]
 
     by_iso, by_name = {}, {}
     for f in ne:
@@ -157,6 +176,10 @@ def main():
                 if city:
                     rings = [p[0] for p in polygons(city["geojson"])]
                     shape = shape_path(rings, clip=CLIPS.get(st["name"]))
+            elif entry["name"] in craw:
+                # OSM beats Natural Earth for micro-states NE draws as blobs
+                rings = [p[0] for p in polygons(craw[entry["name"]]["geojson"])]
+                shape = shape_path(rings)
             else:
                 # name first: dependencies share their parent's ISO (Ashmore -> AU)
                 feat = by_name.get(norm(entry["name"])) or by_iso.get(entry["iso"])
@@ -206,16 +229,16 @@ h1{font-size:16px;margin:0;font-weight:700;letter-spacing:-.01em}
 input,select{font:inherit;padding:7px 11px;border:1px solid var(--line);border-radius:9px;
  background:var(--card);color:var(--ink);min-width:150px}
 input:focus,select:focus{outline:2px solid var(--accent);outline-offset:1px}
-#grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px;padding:18px 20px 60px}
+#grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(430px,1fr));gap:14px;padding:18px 20px 60px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;
- min-height:210px;content-visibility:auto;contain-intrinsic-size:210px}
+ min-height:200px;content-visibility:auto;contain-intrinsic-size:200px}
 .hd{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:8px}
 .nm{font-weight:700;font-size:15px}
 .sub{color:var(--soft);font-size:12px}
 .tag{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
  padding:2px 7px;border-radius:99px;background:var(--cell);color:var(--soft)}
 .tag.city{color:var(--accent)}
-.panes{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.panes{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
 .pane{background:var(--bg);border-radius:10px;padding:6px;aspect-ratio:1;
  display:flex;align-items:center;justify-content:center}
 .pane svg{max-width:100%;max-height:100%;display:block}
@@ -240,10 +263,10 @@ D.forEach((s,i)=>s._i=i);
 [...new Set(D.map(s=>s.cont).filter(Boolean))].sort().forEach(c=>{
   const o=document.createElement('option');o.value=o.textContent=c;contSel.appendChild(o);});
 
-function terrSVG(t){
+function terrSVG(t,key,stroke){
   if(!t) return '<span class="none">형상 없음</span>';
   return `<svg viewBox="0 0 ${t.w} ${t.h}" preserveAspectRatio="xMidYMid meet">
-    <path d="${t.d}" fill="var(--terr)" stroke="var(--edge)" stroke-width="2.5"
+    <path d="${t[key]}" fill="var(--terr)" stroke="var(--edge)" stroke-width="${stroke}"
       stroke-linejoin="round" fill-rule="evenodd"/></svg>`;
 }
 const DIR={U:[-1,0],D:[1,0],L:[0,-1],R:[0,1]};
@@ -275,8 +298,9 @@ function card(s){
       <div class="sub">${s.n} · ${s.r}×${s.co} · 화살표 ${s.l.length}</div></div>
       <span class="tag ${s.kind}">${s.kind==='city'?'도시':'국가'}</span></div>
     <div class="panes">
-      <div><div class="pane">${terrSVG(s.t)}</div><div class="cap">실제 영토</div></div>
-      <div><div class="pane">${puzzleSVG(s)}</div><div class="cap">퍼즐 보드</div></div>
+      <div><div class="pane">${terrSVG(s.t,'hi',1.2)}</div><div class="cap">① 실사 영토${s.t?` · ${s.t.parts}조각`:''}</div></div>
+      <div><div class="pane">${terrSVG(s.t,'lo',2.5)}</div><div class="cap">② 단순화 실루엣</div></div>
+      <div><div class="pane">${puzzleSVG(s)}</div><div class="cap">③ 화살표 퍼즐</div></div>
     </div>`;
   return el;
 }
