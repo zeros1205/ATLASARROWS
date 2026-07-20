@@ -1,6 +1,9 @@
 import 'dart:async';
 
-import 'package:flame/game.dart';
+// Flame and Flutter both export a Matrix4 (vector_math vs vector_math_64); we
+// only need GameWidget from Flame here, so hide its Matrix4 and let Flutter's
+// (which Transform expects) win.
+import 'package:flame/game.dart' hide Matrix4;
 import 'package:flutter/material.dart';
 
 import '../../app/shell.dart';
