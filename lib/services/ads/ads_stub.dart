@@ -54,6 +54,10 @@ class AdsMrec extends StatelessWidget {
   }
 }
 
+/// Reserved height of the bottom banner slot. Sized for a Toss banner (taller
+/// than AdMob's 50pt). Keep in sync with the io implementation.
+const double _bannerSlot = 100;
+
 class AdsBanner extends StatelessWidget {
   const AdsBanner({super.key});
 
@@ -66,7 +70,7 @@ class AdsBanner extends StatelessWidget {
       builder: (context, removed, _) => removed
           ? const SizedBox.shrink()
           : Container(
-              height: 60,
+              height: _bannerSlot,
               width: double.infinity,
               color: c.dot,
               alignment: Alignment.center,
