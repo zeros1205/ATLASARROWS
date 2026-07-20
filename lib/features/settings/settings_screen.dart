@@ -48,14 +48,6 @@ class SettingsScreen extends StatelessWidget {
                   source: progress.hapticsOn,
                   onChanged: progress.setHaptics,
                 ),
-                ValueListenableBuilder<int>(
-                  valueListenable: progress.escapeSpeed,
-                  builder: (context, level, _) => _NavRow(
-                    label: '화살 속도',
-                    trailing: _speedLabels[level.clamp(0, _speedLabels.length - 1)],
-                    onTap: () => _pickSpeed(context),
-                  ),
-                ),
                 _NavRow(
                   label: '언어',
                   trailing: AppSettings
@@ -136,38 +128,7 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  void _pickSpeed(BuildContext context) {
-    final progress = Progress.instance;
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => SafeArea(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.7),
-          child: ListView(
-            shrinkWrap: true,
-            children: [
-              for (var i = 0; i < _speedLabels.length; i++)
-                ListTile(
-                  title: Text(_speedLabels[i]),
-                  selected: progress.escapeSpeed.value == i,
-                  onTap: () {
-                    progress.setEscapeSpeed(i);
-                    Navigator.pop(context);
-                  },
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
-
-/// Labels for the four 화살 속도 presets; indexes match [Progress.escapeSpeed]
-/// and [Progress.escapeSpeedMultipliers].
-const List<String> _speedLabels = ['기본', '약간 빠름', '빠름', '매우 빠름'];
 
 /// Play Games / Game Center entry points. Only built on mobile. When the
 /// player isn't signed in the first row offers sign-in; the platform sheets

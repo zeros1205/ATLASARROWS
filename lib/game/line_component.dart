@@ -6,7 +6,6 @@ import 'package:flutter/animation.dart';
 import 'package:flutter/painting.dart';
 
 import '../models/arrow_line.dart';
-import '../services/progress.dart';
 import 'board_component.dart';
 import 'z_arrows_game.dart';
 
@@ -136,10 +135,10 @@ class LineComponent extends PositionComponent
       case _Anim.idle:
         break;
       case _Anim.escaping:
-        // The escape speed is scaled by the player's 화살 속도 setting, applied
-        // to the visual slide so the acceleration curve is unchanged.
+        // Escape speed is fixed at the fastest preset (2.2x); the setting was
+        // removed. Applied to the visual slide so the acceleration curve holds.
         _speed += cell * 26 * dt;
-        _slide += _speed * dt * Progress.instance.escapeSpeedMul;
+        _slide += _speed * dt * 2.2;
         if (_slide >= _metric.length) {
           removeFromParent();
           _onGone?.call();

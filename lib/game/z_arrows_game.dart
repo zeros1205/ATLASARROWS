@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flame/components.dart';
 import 'package:flame/effects.dart';
 import 'package:flame/game.dart';
+import 'package:flame/sprite.dart';
 import 'package:flame/text.dart';
 import 'package:flutter/animation.dart';
 import 'package:flutter/foundation.dart';
@@ -60,12 +61,16 @@ class ZArrowsGame extends FlameGame {
   int _combo = 0;
   DateTime _lastEscapeAt = DateTime.fromMillisecondsSinceEpoch(0);
 
+  /// Heart used by the "-1" float on a blocked tap; loaded once in [onLoad].
+  Sprite? _heartSprite;
+
   @override
   Color backgroundColor() => palette.bg;
 
   @override
   Future<void> onLoad() async {
     await Sfx.preload();
+    _heartSprite = await Sprite.load('icons/heart.png');
     loadLevel(initialLevel);
   }
 
@@ -178,8 +183,6 @@ class ZArrowsGame extends FlameGame {
     _lastEscapeAt = now;
     _combo++;
     Sfx.pop(_combo - 1);
-    if (_combo >= 2) _showComboText(lineComponent);
-    if (_combo >= 3) _zoomPunch();
     logic.removeLine(lineComponent.line.id);
     lineComponent.escape(onGone: _checkCleared);
     onEscaped?.call();
@@ -198,12 +201,20 @@ class ZArrowsGame extends FlameGame {
 
   void _onBlocked(LineComponent lineComponent, int freeSteps, int blockerId) {
     _combo = 0;
+    // Where the arrowhead bumped into the blocker — the float starts here.
+    final (hr, hc) = lineComponent.line.head;
+    final dir = lineComponent.line.headDir;
+    final impact = Vector2(
+      (hc + 0.5 + dir.dx * (freeSteps + 0.3)) * BoardComponent.cell,
+      (hr + 0.5 + dir.dy * (freeSteps + 0.3)) * BoardComponent.cell,
+    );
     lineComponent.bump(freeSteps, onImpact: () {
       Sfx.block();
       _board?.lineById(blockerId)?.flashRed();
       _shake();
       hearts = math.max(0, hearts - 1);
       onHeartsChanged?.call(hearts);
+      _showHeartLoss(impact);
       if (hearts == 0) {
         _inputLocked = true;
         Sfx.fail();
@@ -216,13 +227,6 @@ class ZArrowsGame extends FlameGame {
     });
   }
 
-  void _zoomPunch() {
-    _board?.add(ScaleEffect.by(
-      Vector2.all(1.02),
-      EffectController(duration: 0.06, reverseDuration: 0.14, curve: Curves.easeOut),
-    ));
-  }
-
   void _shake() {
     _board?.add(SequenceEffect([
       MoveByEffect(Vector2(10, 0), EffectController(duration: 0.04)),
@@ -232,28 +236,37 @@ class ZArrowsGame extends FlameGame {
     ]));
   }
 
-  void _showComboText(LineComponent lineComponent) {
+  /// A "-1" and a heart lifting off the collision point and fading, so the lost
+  /// heart is felt where the mistake happened, not only in the top strip.
+  void _showHeartLoss(Vector2 at) {
     final board = _board;
-    if (board == null) return;
-    final (r, c) = lineComponent.line.head;
-    final text = TextComponent(
-      text: 'x$_combo',
-      position: Vector2(c * BoardComponent.cell + BoardComponent.cell / 2,
-          r * BoardComponent.cell - 8),
-      anchor: Anchor.bottomCenter,
-      priority: 200,
+    final sprite = _heartSprite;
+    if (board == null || sprite == null) return;
+    final group = PositionComponent(position: at, priority: 210);
+    final heart = SpriteComponent(
+      sprite: sprite,
+      size: Vector2.all(BoardComponent.cell * 0.52),
+      anchor: Anchor.center,
+      position: Vector2(BoardComponent.cell * 0.30, 0),
+    );
+    final minus = TextComponent(
+      text: '-1',
+      anchor: Anchor.center,
+      position: Vector2(-BoardComponent.cell * 0.18, 0),
       textRenderer: TextPaint(
         style: TextStyle(
-          color: palette.accent,
-          fontSize: 52,
+          color: palette.danger,
+          fontSize: 46,
           fontWeight: FontWeight.w900,
           fontFamily: 'Outfit',
         ),
       ),
     );
-    board.add(text);
-    text.add(MoveByEffect(Vector2(0, -70),
-        EffectController(duration: 0.75, curve: Curves.easeOutCubic)));
-    text.add(RemoveEffect(delay: 0.75));
+    group.addAll([minus, heart]);
+    board.add(group);
+    group.add(MoveByEffect(Vector2(0, -BoardComponent.cell * 0.8),
+        EffectController(duration: 0.7, curve: Curves.easeOutCubic)));
+    heart.add(OpacityEffect.fadeOut(EffectController(duration: 0.7)));
+    group.add(RemoveEffect(delay: 0.7));
   }
 }
