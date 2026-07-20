@@ -48,11 +48,13 @@ class SettingsScreen extends StatelessWidget {
                   source: progress.hapticsOn,
                   onChanged: progress.setHaptics,
                 ),
-                _SegmentRow(
-                  label: '화살 속도',
-                  source: progress.escapeSpeed,
-                  labels: const ['기본', '약간 빠름', '빠름', '매우 빠름'],
-                  onChanged: progress.setEscapeSpeed,
+                ValueListenableBuilder<int>(
+                  valueListenable: progress.escapeSpeed,
+                  builder: (context, level, _) => _NavRow(
+                    label: '화살 속도',
+                    trailing: _speedLabels[level.clamp(0, _speedLabels.length - 1)],
+                    onTap: () => _pickSpeed(context),
+                  ),
                 ),
                 _NavRow(
                   label: '언어',
@@ -133,7 +135,39 @@ class SettingsScreen extends StatelessWidget {
       ),
     );
   }
+
+  void _pickSpeed(BuildContext context) {
+    final progress = Progress.instance;
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => SafeArea(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.7),
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              for (var i = 0; i < _speedLabels.length; i++)
+                ListTile(
+                  title: Text(_speedLabels[i]),
+                  selected: progress.escapeSpeed.value == i,
+                  onTap: () {
+                    progress.setEscapeSpeed(i);
+                    Navigator.pop(context);
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
+
+/// Labels for the four 화살 속도 presets; indexes match [Progress.escapeSpeed]
+/// and [Progress.escapeSpeedMultipliers].
+const List<String> _speedLabels = ['기본', '약간 빠름', '빠름', '매우 빠름'];
 
 /// Play Games / Game Center entry points. Only built on mobile. When the
 /// player isn't signed in the first row offers sign-in; the platform sheets
@@ -211,77 +245,6 @@ class _BoundToggleRow extends StatelessWidget {
         builder: (context, value, _) =>
             _ToggleRow(label: label, value: value, onChanged: onChanged),
       );
-}
-
-/// A row bound to a persistent [ValueNotifier<int>] in [Progress], shown as a
-/// full-width segmented control under its label (used for 화살 속도). The label
-/// sits on its own line because four Korean segments won't fit beside it.
-class _SegmentRow extends StatelessWidget {
-  const _SegmentRow(
-      {required this.label,
-      required this.source,
-      required this.labels,
-      required this.onChanged});
-  final String label;
-  final ValueNotifier<int> source;
-  final List<String> labels;
-  final ValueChanged<int> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = AppColors.of(context);
-    return ValueListenableBuilder<int>(
-      valueListenable: source,
-      builder: (context, value, _) => Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-        decoration: BoxDecoration(
-          color: c.surface,
-          border: Border.all(color: c.line),
-          borderRadius: BorderRadius.circular(AppRadius.md),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: AppText.label.copyWith(color: c.ink)),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                for (var i = 0; i < labels.length; i++)
-                  Expanded(
-                    child: Padding(
-                      padding: EdgeInsets.only(left: i == 0 ? 0 : 6),
-                      child: Pressable(
-                        scale: 0.96,
-                        onTap: () => onChanged(i),
-                        child: Container(
-                          height: 34,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: i == value ? c.accent : c.surfaceMuted,
-                            borderRadius: BorderRadius.circular(AppRadius.sm),
-                          ),
-                          child: Text(
-                            labels[i],
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppText.caption.copyWith(
-                              color: i == value ? c.onAccent : c.inkSoft,
-                              fontWeight:
-                                  i == value ? FontWeight.w700 : FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 class _ToggleRow extends StatelessWidget {
