@@ -267,6 +267,12 @@ class _GameScreenState extends State<GameScreen> {
                             transformationController: _boardTc,
                             minScale: 1,
                             maxScale: _maxBoardZoom,
+                            // Let the board be dragged with one finger even at
+                            // fit scale — with the default zero margin the
+                            // board fills the box and panning clamps to nothing
+                            // until zoomed, which read as "drag doesn't work".
+                            boundaryMargin: const EdgeInsets.all(double.infinity),
+                            clipBehavior: Clip.none,
                             child: GameWidget(game: _game),
                           ),
                         ),
