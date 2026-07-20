@@ -231,7 +231,7 @@ class LineComponent extends PositionComponent
       visible,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = cell * 0.14
+        ..strokeWidth = cell * 0.3
         ..strokeCap = StrokeCap.round
         ..strokeJoin = StrokeJoin.round
         ..color = color,
