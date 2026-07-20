@@ -248,10 +248,13 @@ class LineComponent extends PositionComponent
         canvas.save();
         canvas.translate(pos.dx, pos.dy);
         canvas.rotate(ang);
+        // Head sized off the shaft (strokeWidth cell*0.3): base ~2.7x the
+        // shaft and a matching length, so a thick line still reads as an
+        // arrow instead of a blunt bar with a nub.
         final head = Path()
-          ..moveTo(cell * 0.30, 0)
-          ..lineTo(-cell * 0.08, -cell * 0.24)
-          ..lineTo(-cell * 0.08, cell * 0.24)
+          ..moveTo(cell * 0.42, 0)
+          ..lineTo(-cell * 0.12, -cell * 0.40)
+          ..lineTo(-cell * 0.12, cell * 0.40)
           ..close();
         canvas.drawPath(head, Paint()..color = color);
         canvas.restore();
