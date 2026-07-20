@@ -90,9 +90,19 @@ static const bool androidConfigured = false;   // ← 설정 끝나면 true
    ```powershell
    keytool -list -v -keystore atlasarrows-release.jks -alias atlasarrows
    ```
-5. 리더보드 2개 · 업적 5개 생성 → 발급된 ID를
-   `game_services.dart`의 `_leaderboard*` / `_achievements`에 반영
-6. **`androidConfigured = true`로 바꾼다 — 3·5번과 같은 커밋에서.**
+5. **업적 5개 · 리더보드 2개** — Play Games는 생성 API가 없어 **콘솔 Import**로 올린다:
+   - `python3 tools/game_services/gen_pgs_import.py` (또는 GitHub Actions의
+     **Play Games · Import Bundle** 워크플로 실행 → 아티팩트 다운로드)로
+     `AtlasArrowsAchievementsImport.zip` / `...LeaderboardsImport.zip` 생성
+   - Play Console ▸ Play Games Services ▸ 업적 ▸ **가져오기**로 업적 ZIP 업로드
+     (리더보드 import 메뉴가 없으면 `LeaderboardsMetadata.csv` 값으로 2개 수동 생성)
+   - 임포트 후 **콘솔이 발급한 `CgkI…` ID**를 `game_services.dart`의
+     `_leaderboard*` / `_achievements`(android:)에 붙여넣는다
+   - ⚠️ 업적/리더보드 아이콘은 **임시 플레이스홀더**(`tools/game_services/icons/`)다.
+     실제 아트로 교체 후 재임포트하면 콘솔이 아이콘을 갱신한다.
+6. ~~`androidConfigured = true`~~ — **완료(2026-07-20)**: 실 app id(182438652200)를
+   `games_ids.xml`에 넣고 스위치를 켰다. 사인인은 이미 라이브고, 위 5번 ID만 채우면
+   리더보드/업적 호출도 동작한다.
 
 ---
 
