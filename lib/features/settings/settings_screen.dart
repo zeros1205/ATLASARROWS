@@ -51,7 +51,7 @@ class SettingsScreen extends StatelessWidget {
                 _SegmentRow(
                   label: '화살 속도',
                   source: progress.escapeSpeed,
-                  labels: const ['느림', '보통', '빠름'],
+                  labels: const ['기본', '약간 빠름', '빠름', '매우 빠름'],
                   onChanged: progress.setEscapeSpeed,
                 ),
                 _NavRow(
@@ -213,8 +213,9 @@ class _BoundToggleRow extends StatelessWidget {
       );
 }
 
-/// A row whose right side is a small segmented control, bound to a persistent
-/// [ValueNotifier<int>] in [Progress] (used for 화살 속도: 느림/보통/빠름).
+/// A row bound to a persistent [ValueNotifier<int>] in [Progress], shown as a
+/// full-width segmented control under its label (used for 화살 속도). The label
+/// sits on its own line because four Korean segments won't fit beside it.
 class _SegmentRow extends StatelessWidget {
   const _SegmentRow(
       {required this.label,
@@ -231,32 +232,51 @@ class _SegmentRow extends StatelessWidget {
     final c = AppColors.of(context);
     return ValueListenableBuilder<int>(
       valueListenable: source,
-      builder: (context, value, _) => _rowShell(
-        c,
-        child: Row(
+      builder: (context, value, _) => Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        decoration: BoxDecoration(
+          color: c.surface,
+          border: Border.all(color: c.line),
+          borderRadius: BorderRadius.circular(AppRadius.md),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-                child: Text(label, style: AppText.label.copyWith(color: c.ink))),
-            for (var i = 0; i < labels.length; i++)
-              Pressable(
-                scale: 0.96,
-                onTap: () => onChanged(i),
-                child: Container(
-                  margin: EdgeInsets.only(left: i == 0 ? 0 : 6),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: i == value ? c.accent : c.surfaceMuted,
-                    borderRadius: BorderRadius.circular(AppRadius.sm),
-                  ),
-                  child: Text(
-                    labels[i],
-                    style: AppText.caption.copyWith(
-                      color: i == value ? c.onAccent : c.inkSoft,
-                      fontWeight: i == value ? FontWeight.w700 : FontWeight.w500,
+            Text(label, style: AppText.label.copyWith(color: c.ink)),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                for (var i = 0; i < labels.length; i++)
+                  Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.only(left: i == 0 ? 0 : 6),
+                      child: Pressable(
+                        scale: 0.96,
+                        onTap: () => onChanged(i),
+                        child: Container(
+                          height: 34,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: i == value ? c.accent : c.surfaceMuted,
+                            borderRadius: BorderRadius.circular(AppRadius.sm),
+                          ),
+                          child: Text(
+                            labels[i],
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppText.caption.copyWith(
+                              color: i == value ? c.onAccent : c.inkSoft,
+                              fontWeight:
+                                  i == value ? FontWeight.w700 : FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
+              ],
+            ),
           ],
         ),
       ),

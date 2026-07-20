@@ -21,17 +21,17 @@ class Progress {
   final ValueNotifier<bool> soundOn = ValueNotifier(true);
   final ValueNotifier<bool> hapticsOn = ValueNotifier(true);
 
-  /// How fast a tapped line slides out of the maze: 0 = 느림, 1 = 보통,
-  /// 2 = 빠름. Defaults to 보통 so nothing changes for existing players.
-  final ValueNotifier<int> escapeSpeed = ValueNotifier(1);
+  /// How fast a tapped line slides out of the maze: 0 = 기본, 1 = 약간 빠름,
+  /// 2 = 빠름, 3 = 매우 빠름. Defaults to 기본 (current speed).
+  final ValueNotifier<int> escapeSpeed = ValueNotifier(0);
 
   /// Visual speed multiplier for each [escapeSpeed] level, applied to the
   /// line-escape animation only (not the remove-item vaporize).
-  static const List<double> escapeSpeedMultipliers = [0.6, 1.0, 1.6];
+  static const List<double> escapeSpeedMultipliers = [1.0, 1.35, 1.7, 2.2];
 
   /// The multiplier for the current [escapeSpeed] setting.
   double get escapeSpeedMul =>
-      escapeSpeedMultipliers[escapeSpeed.value.clamp(0, 2)];
+      escapeSpeedMultipliers[escapeSpeed.value.clamp(0, 3)];
 
   /// False until the player has finished the intro carousel — boot routes
   /// first-run players to onboarding instead of the shell.
@@ -52,7 +52,7 @@ class Progress {
     totalClears.value = _prefs.getInt('totalClears') ?? 0;
     soundOn.value = _prefs.getBool('soundOn') ?? true;
     hapticsOn.value = _prefs.getBool('hapticsOn') ?? true;
-    escapeSpeed.value = (_prefs.getInt('escapeSpeed') ?? 1).clamp(0, 2);
+    escapeSpeed.value = (_prefs.getInt('escapeSpeed') ?? 0).clamp(0, 3);
     onboarded.value = _prefs.getBool('onboarded') ?? false;
     adsRemoved.value = _prefs.getBool('adsRemoved') ?? false;
     coachDone.value = _prefs.getBool('coachDone') ?? false;
@@ -106,7 +106,7 @@ class Progress {
   }
 
   void setEscapeSpeed(int level) {
-    escapeSpeed.value = level.clamp(0, 2);
+    escapeSpeed.value = level.clamp(0, 3);
     _prefs.setInt('escapeSpeed', escapeSpeed.value);
   }
 
