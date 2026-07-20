@@ -66,6 +66,21 @@ abstract final class GameServices {
     ios: 'atlsars.leaderboard.countries',
   );
 
+  /// Continent-completion achievements (all countries of a continent cleared),
+  /// keyed by the `continent` string in bank.json. Android ids are placeholders
+  /// until the Play Console import mints the real CgkI… values (see
+  /// docs/FIREBASE.md); an unknown id just makes the call no-op.
+  static const _continentAchievements = <String, ({String android, String ios})>{
+    'Europe': (android: 'CgkI_atlsars_europe', ios: 'atlsars.achievement.europe'),
+    'Asia': (android: 'CgkI_atlsars_asia', ios: 'atlsars.achievement.asia'),
+    'Africa': (android: 'CgkI_atlsars_africa', ios: 'atlsars.achievement.africa'),
+    'North America':
+        (android: 'CgkI_atlsars_north_america', ios: 'atlsars.achievement.north_america'),
+    'South America':
+        (android: 'CgkI_atlsars_south_america', ios: 'atlsars.achievement.south_america'),
+    'Oceania': (android: 'CgkI_atlsars_oceania', ios: 'atlsars.achievement.oceania'),
+  };
+
   static const _achievements = <String, ({String android, String ios})>{
     'first_clear': (
       android: 'CgkI_atlsars_first_clear',
@@ -164,6 +179,24 @@ abstract final class GameServices {
     if (totalClears >= 250) await unlock('stages_250');
     if (countryCompleted) await unlock('first_country');
     if (flawless) await unlock('flawless');
+  }
+
+  /// Unlocks the continent-completion achievement for each fully-cleared
+  /// continent. Idempotent — an already-unlocked achievement is a no-op — so
+  /// the caller can pass every completed continent on each country finish.
+  static Future<void> unlockContinents(List<String> continents) async {
+    if (!supported || !signedIn.value) return;
+    for (final c in continents) {
+      final ids = _continentAchievements[c];
+      if (ids == null) continue;
+      await _quietly(() => Achievements.unlock(
+            achievement: Achievement(
+              androidID: ids.android,
+              iOSID: ids.ios,
+              percentComplete: 100,
+            ),
+          ));
+    }
   }
 
   static Future<void> showLeaderboards() async {

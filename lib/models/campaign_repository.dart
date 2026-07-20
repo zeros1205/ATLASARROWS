@@ -84,6 +84,7 @@ class CampaignCountry {
     required this.ko,
     required this.areaKm2,
     required this.continent,
+    required this.iso,
     required this.stages,
     this.intro = const {},
   });
@@ -93,6 +94,23 @@ class CampaignCountry {
   final String ko;
   final int areaKm2;
   final String continent;
+
+  /// ISO 3166-1 alpha-2 (uppercase), or '' for disputed territories without a
+  /// standard code. Drives the flag emoji shown on clear.
+  final String iso;
+
+  /// The national flag as a Unicode emoji (two regional-indicator symbols),
+  /// or '' when there is no ISO code. Renders where the platform font has flag
+  /// glyphs; degrades to the country letters otherwise.
+  String get flagEmoji {
+    if (iso.length != 2) return '';
+    const base = 0x1F1E6; // regional indicator 'A'
+    final a = iso.codeUnitAt(0), b = iso.codeUnitAt(1);
+    if (a < 65 || a > 90 || b < 65 || b > 90) return '';
+    return String.fromCharCode(base + (a - 65)) +
+        String.fromCharCode(base + (b - 65));
+  }
+
   final List<CampaignStage> stages;
 
   /// Short blurbs for the round intro, keyed by language code.
@@ -144,6 +162,7 @@ class CampaignRepository {
 
   final List<CampaignCountry> countries = [];
   final List<int> _firstStage = []; // global index of each country's stage 0
+  final Map<String, List<int>> _byContinent = {}; // continent -> country indices
   int _total = 0;
 
   /// Parsed levels, kept small: boards are big and a player only revisits a
@@ -179,12 +198,31 @@ class CampaignRepository {
         ko: (e['ko'] as String?) ?? '',
         areaKm2: (e['area_km2'] as num?)?.toInt() ?? 0,
         continent: (e['continent'] as String?) ?? '',
+        iso: ((e['iso'] as String?) ?? '').toUpperCase(),
         stages: stages,
         intro: _parseIntro(e['intro']),
       ));
+      final continent = countries.last.continent;
+      if (continent.isNotEmpty) {
+        (_byContinent[continent] ??= []).add(countries.length - 1);
+      }
       global += stages.length;
     }
     _total = global;
+  }
+
+  /// Continents whose every country is at or below [completedCountryIndex] —
+  /// i.e. fully cleared. The campaign is linear by area, so completing country
+  /// N means countries 0..N are done; a continent is complete once its
+  /// highest-index country is. Drives the continent-completion achievements.
+  List<String> completedContinents(int completedCountryIndex) {
+    final done = <String>[];
+    for (final entry in _byContinent.entries) {
+      if (entry.value.every((i) => i <= completedCountryIndex)) {
+        done.add(entry.key);
+      }
+    }
+    return done;
   }
 
   static CampaignStage _parseStage(Map<String, dynamic> s) => CampaignStage(

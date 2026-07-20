@@ -51,6 +51,16 @@ class ZArrowsGame extends FlameGame {
 
   int hearts = maxHearts;
 
+  /// Flips true the moment the board is cleared, so the terrain layer recolors
+  /// from "playing" (sky sea + white territory) to "revealed" (white around a
+  /// grey territory) — the geography payoff.
+  bool boardRevealed = false;
+
+  /// Whether to draw the terrain reveal layer (sea/territory) instead of the
+  /// plain dot silhouette. Gated to a few demo stages for now; the screen sets
+  /// it per level.
+  bool terrainEnabled = false;
+
   /// True while the remove item is armed — the next tapped line is vaporized.
   final ValueNotifier<bool> removeArmed = ValueNotifier(false);
 
@@ -79,6 +89,7 @@ class ZArrowsGame extends FlameGame {
     hearts = maxHearts;
     _inputLocked = false;
     _combo = 0;
+    boardRevealed = false;
     removeArmed.value = false;
     logic = BoardLogic.fromLevel(level);
     _board?.removeFromParent();
@@ -191,6 +202,7 @@ class ZArrowsGame extends FlameGame {
   void _checkCleared() {
     if (!logic.isCleared) return;
     Sfx.clear();
+    boardRevealed = true;
     _inputLocked = true;
     add(TimerComponent(
       period: 0.3,

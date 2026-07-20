@@ -21,6 +21,7 @@ No third-party deps:
 import argparse
 import csv
 import os
+import shutil
 import zipfile
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -233,15 +234,37 @@ def _write_csv(path, rows):
         csv.writer(f, lineterminator="\n").writerows(rows)
 
 
-def _zip(zip_path, csvs, icons):
+def _zip_dir(zip_path, src_dir):
+    """Zip a folder's files FLAT (top-level entries only, no sub-directories)."""
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as z:
-        for name in csvs:
-            z.write(os.path.join(_OUT, name), arcname=name)
-        for icon in icons:
-            src = os.path.join(_ICONS, icon)
-            if os.path.getsize(src) >= 1_000_000:
-                raise ValueError(f"icon >=1MB (zip limit): {icon}")
-            z.write(src, arcname=icon)
+        for name in sorted(os.listdir(src_dir)):
+            z.write(os.path.join(src_dir, name), arcname=name)
+
+
+def _bundle(dir_name, csv_files, icons):
+    """Write a self-contained import folder — the CSVs plus the icon PNGs copied
+    in beside them — and a same-named .zip of it.
+
+    The Play Console importer only accepts a ZIP whose entries are CSV/PNG. A
+    GitHub Actions artifact is itself a zip, so uploading the .zip as an artifact
+    would nest a zip inside a zip and the console rejects it. The workflow
+    therefore uploads this FOLDER (its artifact download is a flat zip of
+    CSV+PNG, ready to upload); the .zip is for a local one-shot run.
+    """
+    d = os.path.join(_OUT, dir_name)
+    if os.path.isdir(d):
+        shutil.rmtree(d)
+    os.makedirs(d)
+    for name, rows in csv_files.items():
+        _write_csv(os.path.join(d, name), rows)
+    for icon in icons:
+        src = os.path.join(_ICONS, icon)
+        if os.path.getsize(src) >= 1_000_000:
+            raise ValueError(f"icon >=1MB (import limit): {icon}")
+        shutil.copy(src, os.path.join(d, icon))
+    zp = d + ".zip"
+    _zip_dir(zp, d)
+    return d, zp
 
 
 def generate(out_dir):
@@ -252,9 +275,7 @@ def generate(out_dir):
 
     # ── Achievements ─────────────────────────────────────────────────────────
     # Metadata (default locale): Name,Description,Incremental,Steps,State,Points,ListOrder
-    meta = []
-    icon_map = []
-    loc_rows = []
+    meta, icon_map, loc_rows = [], [], []
     for i, (_key, pts, icon, loc) in enumerate(ACHIEVEMENTS, start=1):
         name, desc = loc[DEFAULT_LOCALE]
         meta.append([name, desc, "False", "", "Revealed", pts, i])
@@ -264,14 +285,11 @@ def generate(out_dir):
                 continue
             lname, ldesc = loc[lc]
             loc_rows.append([name, lname, ldesc, lc])
-    _write_csv(os.path.join(_OUT, "AchievementsMetadata.csv"), meta)
-    _write_csv(os.path.join(_OUT, "AchievementsLocalizations.csv"), loc_rows)
-    _write_csv(os.path.join(_OUT, "AchievementsIconsMappings.csv"), icon_map)
-    ach_zip = os.path.join(_OUT, "AtlasArrowsAchievementsImport.zip")
-    _zip(ach_zip,
-         ["AchievementsMetadata.csv", "AchievementsLocalizations.csv",
-          "AchievementsIconsMappings.csv"],
-         [a[2] for a in ACHIEVEMENTS])
+    ach_dir, ach_zip = _bundle("achievements", {
+        "AchievementsMetadata.csv": meta,
+        "AchievementsLocalizations.csv": loc_rows,
+        "AchievementsIconsMappings.csv": icon_map,
+    }, [a[2] for a in ACHIEVEMENTS])
 
     # ── Leaderboards (attempt) ───────────────────────────────────────────────
     # Metadata: Name,ScoreOrder,ScoreFormat,ListOrder ; Localizations: Name,LocName,locale
@@ -284,24 +302,23 @@ def generate(out_dir):
             if lc == DEFAULT_LOCALE:
                 continue
             lb_loc.append([name, loc[lc], lc])
-    _write_csv(os.path.join(_OUT, "LeaderboardsMetadata.csv"), lb_meta)
-    _write_csv(os.path.join(_OUT, "LeaderboardsLocalizations.csv"), lb_loc)
-    _write_csv(os.path.join(_OUT, "LeaderboardsIconsMappings.csv"), lb_icon)
-    lb_zip = os.path.join(_OUT, "AtlasArrowsLeaderboardsImport.zip")
-    _zip(lb_zip,
-         ["LeaderboardsMetadata.csv", "LeaderboardsLocalizations.csv",
-          "LeaderboardsIconsMappings.csv"],
-         [b[3] for b in LEADERBOARDS])
+    lb_dir, lb_zip = _bundle("leaderboards", {
+        "LeaderboardsMetadata.csv": lb_meta,
+        "LeaderboardsLocalizations.csv": lb_loc,
+        "LeaderboardsIconsMappings.csv": lb_icon,
+    }, [b[3] for b in LEADERBOARDS])
 
     print(f"achievements: {len(ACHIEVEMENTS)}  ·  points {total}/2000  ·  "
           f"locales {len(LOCALES)} (default {DEFAULT_LOCALE})")
-    print(f"  ZIP → {ach_zip}")
+    print(f"  folder → {ach_dir}/   zip → {ach_zip}")
     print(f"leaderboards: {len(LEADERBOARDS)}")
-    print(f"  ZIP → {lb_zip}")
+    print(f"  folder → {lb_dir}/   zip → {lb_zip}")
     print()
     print("Upload in Play Console ▸ Play Games Services:")
-    print("  • Achievements ▸ Import achievements → AtlasArrowsAchievementsImport.zip")
-    print("  • Leaderboards: use the ZIP if the console offers import; else create")
+    print("  • Local run: upload AtlasArrows*Import.zip (achievements.zip) as-is.")
+    print("  • From the workflow: download the play-games-achievements artifact —")
+    print("    its zip already holds the CSV+PNG at the top level; upload that.")
+    print("  • Leaderboards: use the zip if the console offers import; else create")
     print("    the 2 boards manually from LeaderboardsMetadata.csv (+ localizations).")
     print("Then paste the console-issued CgkI… ids into game_services.dart.")
 

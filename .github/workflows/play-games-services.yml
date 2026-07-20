@@ -1,17 +1,23 @@
 name: Play Games · Import Bundle
 
-# Builds the Play Games Services import ZIPs (achievements + leaderboards) and
-# uploads them as an artifact. Play Games has no create API, so this is the
-# reusable path: generate here, then upload the ZIP once in the console
-# (Play Console ▸ Play Games Services ▸ Achievements ▸ Import achievements).
-# Dispatch only — it produces an artifact, it does not touch the console.
+# Builds the Play Games Services import bundles (achievements + leaderboards).
+# Play Games has no create API, so this is the reusable path: generate here,
+# download the artifact, upload it once in the console (Play Console ▸ Play
+# Games Services ▸ Achievements ▸ Import achievements). Dispatch only — it
+# produces artifacts, it does not touch the console.
+#
+# The console importer only accepts a ZIP of CSV+PNG. A GitHub artifact is
+# itself a zip, so we upload the CSV+PNG FILES (not our .zip) — the artifact's
+# download is then a flat zip of CSV+PNG, uploadable to the console as-is.
+# (Uploading our .zip would nest a zip in a zip and the console would reject
+# it: "CSV 및 이미지 파일만 업로드하세요".)
 
 on:
   workflow_dispatch:
 
 jobs:
   build:
-    name: Generate import ZIPs
+    name: Generate import bundles
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,9 +29,19 @@ jobs:
       - name: Generate PGS import bundles
         run: python3 tools/game_services/gen_pgs_import.py
 
-      - name: Upload import ZIPs
+      # Upload the CSV+PNG FILES (not our .zip). The artifact download is then a
+      # flat zip of CSV+PNG — exactly what the console importer wants. Uploading
+      # our .zip would nest a zip in a zip and the console rejects it.
+      - name: Upload achievements bundle
         uses: actions/upload-artifact@v4
         with:
-          name: play-games-import
-          path: tools/game_services/out/*.zip
+          name: play-games-achievements
+          path: tools/game_services/out/achievements/*
+          if-no-files-found: error
+
+      - name: Upload leaderboards bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: play-games-leaderboards
+          path: tools/game_services/out/leaderboards/*
           if-no-files-found: error

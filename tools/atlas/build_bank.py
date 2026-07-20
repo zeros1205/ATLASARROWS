@@ -106,6 +106,26 @@ boards = load("all_boards.json")["boards"]
 admin1 = load("admin1_cities.json")["cities"]
 order = load("world_campaign_order.json")["countries"]
 
+# Continent per country. all_boards.json (from export_boards.dart) drops it, so
+# join it back from campaign.json here — the campaign needs it for the
+# continent-completion achievements. "Seven seas (open ocean)" is not a real
+# continent; its four open-ocean territories are absorbed into a real one
+# (docs/WORLDMAP_PLAN.md §2.2).
+_ABSORB = {
+    "British Indian Ocean Territory": "Africa",
+    "Seychelles": "Africa",
+    "Mauritius": "Africa",
+    "Heard Island and McDonald Islands": "Oceania",
+}
+_campaign = load("campaign.json")["countries"]
+continent_by_name = {
+    c["name"]: _ABSORB.get(c["name"], c.get("continent", ""))
+    for c in _campaign
+}
+# ISO 3166-1 alpha-2 per country (for the flag shown on clear). Empty for
+# disputed territories without a standard code.
+iso_by_name = {c["name"]: c.get("iso", "") for c in _campaign}
+
 country_boards = {b["name"]: b for b in boards if b["kind"] == "country"}
 
 city_boards = {}
@@ -150,7 +170,8 @@ for cb in sorted(country_boards.values(), key=lambda b: b["rank"]):
         "rank": cb["rank"],
         "name": name,
         "ko": cb.get("ko", ""),
-        "continent": cb.get("continent", ""),
+        "continent": continent_by_name.get(name, cb.get("continent", "")),
+        "iso": iso_by_name.get(name, ""),
         "area_km2": cb.get("area_km2", 0),
         "stages": stages,
     })
