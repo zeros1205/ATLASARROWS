@@ -54,6 +54,57 @@ class _GameScreenState extends State<GameScreen> {
   /// first-time player is shown a legal move instead of being told about one.
   Timer? _coachTimer;
 
+  // ── Board pan/zoom (Flutter-level) ──────────────────────────────────────
+  // Pan and pinch are handled here with a GestureDetector + Transform over the
+  // GameWidget, not inside Flame: a one-finger drag has to move the board, and
+  // Flame's scale callbacks don't deliver a single-finger pan on device. The
+  // Transform sits on top of the fit view Flame lays out (identity == fit), and
+  // Flutter maps taps back through it so a tapped line still hits.
+  final ValueNotifier<Matrix4> _boardMatrix = ValueNotifier(Matrix4.identity());
+  double _boardScale = 1;
+  Offset _boardOffset = Offset.zero;
+  double _gestureBaseScale = 1;
+  Offset _gestureBaseOffset = Offset.zero;
+  Offset _gestureStartFocal = Offset.zero;
+  Size _boardBox = Size.zero;
+
+  /// How far past the fit view the board can be pinched in.
+  static const double _maxBoardZoom = 8;
+
+  void _applyBoardTransform(double scale, Offset offset) {
+    _boardScale = scale;
+    _boardOffset = offset;
+    _boardMatrix.value = Matrix4.identity()
+      ..translate(offset.dx, offset.dy)
+      ..scale(scale);
+  }
+
+  /// Back to the whole silhouette (the 맞춤 보기 button, and every new board).
+  void _resetBoardView() => _applyBoardTransform(1, Offset.zero);
+
+  void _onBoardScaleStart(ScaleStartDetails d) {
+    _gestureBaseScale = _boardScale;
+    _gestureBaseOffset = _boardOffset;
+    _gestureStartFocal = d.localFocalPoint;
+  }
+
+  void _onBoardScaleUpdate(ScaleUpdateDetails d) {
+    final scale = (_gestureBaseScale * d.scale).clamp(1.0, _maxBoardZoom).toDouble();
+    // Keep the content point that was under the fingers at gesture start pinned
+    // under the current focal point.
+    final contentPt = (_gestureStartFocal - _gestureBaseOffset) / _gestureBaseScale;
+    var offset = d.localFocalPoint - contentPt * scale;
+    // The GameWidget fills the box, so at scale 1 there's nothing to pan to;
+    // when zoomed, clamp the translation so the board keeps covering the box.
+    final minX = _boardBox.width * (1 - scale);
+    final minY = _boardBox.height * (1 - scale);
+    offset = Offset(
+      offset.dx.clamp(minX, 0.0).toDouble(),
+      offset.dy.clamp(minY, 0.0).toDouble(),
+    );
+    _applyBoardTransform(scale, offset);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -165,6 +216,7 @@ class _GameScreenState extends State<GameScreen> {
       _showIntro = _introEnabled && crossedIntoNewCountry;
     });
     _game.loadLevel(_repo.levelAt(_stage));
+    _resetBoardView();
   }
 
   void _restart() {
@@ -173,6 +225,7 @@ class _GameScreenState extends State<GameScreen> {
       _result = _Result.none;
     });
     _game.restartLevel();
+    _resetBoardView();
   }
 
   /// Restart throws away everything the player has freed so far and cannot be
@@ -208,6 +261,7 @@ class _GameScreenState extends State<GameScreen> {
   void dispose() {
     _coachTimer?.cancel();
     _hearts.dispose();
+    _boardMatrix.dispose();
     super.dispose();
   }
 
@@ -236,14 +290,34 @@ class _GameScreenState extends State<GameScreen> {
                       // board would otherwise spill over the header and the
                       // hearts above it.
                       Positioned.fill(
-                        child: ClipRect(child: GameWidget(game: _game)),
+                        child: ClipRect(
+                          child: LayoutBuilder(
+                            builder: (context, constraints) {
+                              _boardBox = Size(
+                                  constraints.maxWidth, constraints.maxHeight);
+                              return GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onScaleStart: _onBoardScaleStart,
+                                onScaleUpdate: _onBoardScaleUpdate,
+                                child: ValueListenableBuilder<Matrix4>(
+                                  valueListenable: _boardMatrix,
+                                  builder: (context, matrix, child) => Transform(
+                                    transform: matrix,
+                                    child: child,
+                                  ),
+                                  child: GameWidget(game: _game),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
                       ),
                     ],
                   ),
                 ),
                 _BoosterBar(
                   game: _game,
-                  onResetView: _game.resetView,
+                  onResetView: _resetBoardView,
                   onRestart: _confirmRestart,
                 ),
                 const AdsBanner(),

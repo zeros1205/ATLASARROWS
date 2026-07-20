@@ -2,7 +2,6 @@ import 'dart:math' as math;
 
 import 'package:flame/components.dart';
 import 'package:flame/effects.dart';
-import 'package:flame/events.dart';
 import 'package:flame/game.dart';
 import 'package:flame/text.dart';
 import 'package:flutter/animation.dart';
@@ -19,7 +18,7 @@ import 'sfx.dart';
 /// The Flame game for one stage. Level-agnostic: it plays whatever [Level]
 /// it is given and reports outcomes via callbacks; the surrounding Flutter
 /// screen owns stage progression, hearts UI and result sheets.
-class ZArrowsGame extends FlameGame with ScaleCallbacks {
+class ZArrowsGame extends FlameGame {
   ZArrowsGame({
     required this.initialLevel,
     required this.palette,
@@ -148,83 +147,6 @@ class ZArrowsGame extends FlameGame with ScaleCallbacks {
     board.scale = Vector2.all(_fitScale);
     board.position = Vector2(canvas.x / 2, canvas.y / 2);
   }
-
-  /// Clamps the board so it can never be flung entirely off-screen: at least
-  /// this fraction of the viewport always holds board.
-  static const double _keepOnScreen = 0.35;
-
-  void _clampBoard() {
-    final board = _board;
-    if (board == null || size.x == 0) return;
-    final half = Vector2(
-      board.size.x * board.scale.x / 2,
-      board.size.y * board.scale.y / 2,
-    );
-    final slackX = math.max(0.0, half.x - size.x * _keepOnScreen);
-    final slackY = math.max(0.0, half.y - size.y * _keepOnScreen);
-    board.position = Vector2(
-      board.position.x.clamp(size.x / 2 - slackX, size.x / 2 + slackX),
-      board.position.y.clamp(size.y / 2 - slackY, size.y / 2 + slackY),
-    );
-  }
-
-  double _scaleStart = 1;
-
-  @override
-  void onScaleStart(ScaleStartEvent event) {
-    super.onScaleStart(event);
-    _scaleStart = _board?.scale.x ?? 1;
-  }
-
-  /// One finger drags the board, two fingers drag and zoom. Single-finger pan
-  /// is safe now that a line only fires on a clean tap (see
-  /// [LineComponent.onTapUp]): the gesture recogniser claims a drag past the
-  /// touch slop, which cancels the tap, so moving the board never launches an
-  /// arrow.
-  @override
-  void onScaleUpdate(ScaleUpdateEvent event) {
-    final board = _board;
-    if (board == null || event.pointerCount < 1) return;
-    // Two fingers also zoom; never shrink past "all of it", and stop zooming
-    // once a cell fills a comfortable thumb.
-    if (event.pointerCount >= 2) {
-      final next = (_scaleStart * event.scale)
-          .clamp(_fitScale, math.max(_fitScale, 64 / BoardComponent.cell))
-          .toDouble();
-      board.scale = Vector2.all(next);
-    }
-    board.position += event.focalPointDelta;
-    _clampBoard();
-  }
-
-  /// Snaps back to the whole silhouette.
-  void resetView() {
-    if (size.x > 0 && _board != null) _layoutBoard(size);
-  }
-
-  double get _maxScale => math.max(_fitScale, 64 / BoardComponent.cell);
-
-  /// Steps the zoom about the centre of the view. Pinching is the natural
-  /// gesture, but a country like Chile is unplayable until you zoom in, so it
-  /// cannot be the only way to get there — some players never try it, and it
-  /// is awkward one-handed.
-  void zoomBy(double factor) {
-    final board = _board;
-    if (board == null || size.x == 0) return;
-    final before = board.scale.x;
-    final next = (before * factor).clamp(_fitScale, _maxScale).toDouble();
-    if (next == before) return;
-    // Keep whatever is under the middle of the screen in the middle.
-    final centre = Vector2(size.x / 2, size.y / 2);
-    board.position = centre + (board.position - centre) * (next / before);
-    board.scale = Vector2.all(next);
-    _clampBoard();
-  }
-
-  /// Whether zooming further in or out would change anything — lets the
-  /// controls grey themselves out at the ends.
-  bool get canZoomIn => (_board?.scale.x ?? 0) < _maxScale - 0.0001;
-  bool get canZoomOut => (_board?.scale.x ?? 0) > _fitScale + 0.0001;
 
   void handleTap(LineComponent lineComponent) {
     if (_inputLocked || lineComponent.animating) return;
