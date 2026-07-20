@@ -144,6 +144,7 @@ class CampaignRepository {
 
   final List<CampaignCountry> countries = [];
   final List<int> _firstStage = []; // global index of each country's stage 0
+  final Map<String, List<int>> _byContinent = {}; // continent -> country indices
   int _total = 0;
 
   /// Parsed levels, kept small: boards are big and a player only revisits a
@@ -182,9 +183,27 @@ class CampaignRepository {
         stages: stages,
         intro: _parseIntro(e['intro']),
       ));
+      final continent = countries.last.continent;
+      if (continent.isNotEmpty) {
+        (_byContinent[continent] ??= []).add(countries.length - 1);
+      }
       global += stages.length;
     }
     _total = global;
+  }
+
+  /// Continents whose every country is at or below [completedCountryIndex] —
+  /// i.e. fully cleared. The campaign is linear by area, so completing country
+  /// N means countries 0..N are done; a continent is complete once its
+  /// highest-index country is. Drives the continent-completion achievements.
+  List<String> completedContinents(int completedCountryIndex) {
+    final done = <String>[];
+    for (final entry in _byContinent.entries) {
+      if (entry.value.every((i) => i <= completedCountryIndex)) {
+        done.add(entry.key);
+      }
+    }
+    return done;
   }
 
   static CampaignStage _parseStage(Map<String, dynamic> s) => CampaignStage(

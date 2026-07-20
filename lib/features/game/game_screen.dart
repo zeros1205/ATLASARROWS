@@ -156,6 +156,12 @@ class _GameScreenState extends State<GameScreen> {
       // No heart lost on this stage — the strict-play achievement.
       flawless: _hearts.value == ZArrowsGame.maxHearts,
     ));
+    // Finishing a country can complete its continent (the last country of that
+    // continent in area order). Idempotent, so pass every completed continent.
+    if (countryCompleted && _repo.isLoaded) {
+      unawaited(GameServices.unlockContinents(
+          _repo.completedContinents(_loc.countryIndex)));
+    }
   }
 
   ({int countryIndex, int local}) get _loc {
