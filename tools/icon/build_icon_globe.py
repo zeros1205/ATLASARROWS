@@ -158,12 +158,12 @@ def render_globe(size, background, *, center_lat=12.0, center_lon=-30.0,
             dot_dr.ellipse([px - radius, py - radius, px + radius, py + radius], fill=DOT)
 
     if with_arrows:
-        # Identical size and position to the last build_icon.py version: shaft
-        # 0.0748 of the canvas, head 2.35x long / 3.05x wide. The positions
-        # there were expressed against the Africa board grid; here they are the
-        # same coordinates resolved to canvas fractions.
-        bar = S * 0.0748
-        head_l, head_h = bar * 2.35, bar * 3.05
+        # Size measured off the "ORIGINAL Arrows" reference (plate ~173px):
+        # shaft 0.081 of the canvas, arrowhead 3.0x the shaft in both length and
+        # width. Positions keep the last build_icon.py layout, resolved from the
+        # Africa board grid to canvas fractions.
+        bar = S * 0.081
+        head_l, head_h = bar * 3.0, bar * 3.0
         _arrow_vertical(arrow_dr, S * 0.86, S, S * 0.2195, bar, head_l, head_h, BLUE)
         _arrow(arrow_dr, 0, S * 0.6701, S * 0.5323, bar, head_l, head_h, INK)
         _arrow(arrow_dr, S * 0.6213, S * 0.15, S * 0.7347, bar, head_l, head_h, RED)
