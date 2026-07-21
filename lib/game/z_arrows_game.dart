@@ -129,6 +129,13 @@ class ZArrowsGame extends FlameGame {
   /// Scale at which the whole board is visible.
   double _fitScale = 1;
 
+  /// Share of the play area the board fills on its constraining axis — the
+  /// rest is breathing room. Half the 6% it used to be: the arrows are thin
+  /// enough that a wide margin just reads as wasted screen. What is left over
+  /// on the *other* axis is the letterbox, which this cannot touch — a square
+  /// board in a tall play area is short by aspect ratio, not by padding.
+  static const double _fitFill = 0.97;
+
   /// Smallest on-screen cell we consider tappable, in logical pixels. Well
   /// under the 44pt guideline — a full-screen country silhouette simply cannot
   /// reach that — but far enough above the ~3px a 138-column board would get
@@ -176,8 +183,8 @@ class ZArrowsGame extends FlameGame {
     final playHeight =
         math.max(canvas.y - _insetTop - _insetBottom, canvas.y * 0.2);
     _fitScale = math.min(
-      canvas.x * 0.94 / board.size.x,
-      playHeight * 0.94 / board.size.y,
+      canvas.x * _fitFill / board.size.x,
+      playHeight * _fitFill / board.size.y,
     );
     final fitCell = _fitScale * BoardComponent.cell;
     needsZoom.value = fitCell < _minTappableCell;
