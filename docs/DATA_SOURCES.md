@@ -134,3 +134,14 @@ relayout_difficulty.py ─▶ bank.json의 화살표 레이아웃만 재작성 (
 **현재 상태:** 앱 `StageKind` enum은 city/country만 있음(path 미정의). `bank.json`에 path 없음.
 `tools/atlas/path_boards.json`은 도시 없는 국가용 준비 자료(WIP)일 뿐 연결 안 됨.
 → **PATH 스테이지의 보드 표현 방식이 아직 미확정**이라 생성 보류 상태.
+
+**교통수단 실루엣 마스크 (확정 진행 중):** Material Icons(Apache-2.0) 글리프에서
+디테일 유지(창문·바퀴 = 흰 공란, 검정 몸통만 화살로 채움) 파이프라인으로 추출. 큐레이션 후
+16종: directions_boat, directions_bus, directions_car, flight, local_airport,
+local_shipping, local_taxi, moped, pedal_bike, sailing, snowmobile, subway,
+train, tram, two_wheeler, airport_shuttle.
+
+**차량 선택(vehicle picker) 규칙 — 위도 게이팅:**
+- `snowmobile`은 **도착지 위도만** 기준으로 한대일 때만 후보 풀에 포함(출발지 무관).
+  임계값 기본 **|위도| ≥ 55°**(도시 폴리곤 중심 위도, 국가는 NE 폴리곤 중심 위도).
+- 위도 원본: 도시 = `cities_raw.json` 폴리곤 중심, 국가 = NE 50m 폴리곤 중심.
