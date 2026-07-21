@@ -34,6 +34,10 @@ dependencies:
   archive: ^4.0.9
   crypto: ^3.0.7
   package_info_plus: ^8.1.0
+  # Offline SVG national flags rendered from ISO codes for the round-intro
+  # splash. Android ships no flag-emoji glyphs, so the emoji would show as
+  # letters ("FR") — this draws the real flag instead.
+  country_flags: ^4.1.2
 
 dev_dependencies:
   flutter_test:
