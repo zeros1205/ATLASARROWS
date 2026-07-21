@@ -1,7 +1,7 @@
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flame/components.dart';
-import 'package:flame/events.dart';
 import 'package:flutter/animation.dart';
 import 'package:flutter/painting.dart';
 
@@ -16,16 +16,11 @@ enum _Anim { idle, escaping, bumpOut, bumpBack, vaporizing }
 /// All lines share the ink color — reading the maze is the puzzle — and
 /// only speak in color when tapped: blue while escaping, red when blocked.
 class LineComponent extends PositionComponent
-    with TapCallbacks, HasGameReference<ZArrowsGame> {
+    with HasGameReference<ZArrowsGame> {
   LineComponent({required this.line, required Vector2 boardSize})
       : super(position: Vector2.zero(), size: boardSize);
 
   static const double cell = BoardComponent.cell;
-
-  /// How far a touch may travel and still count as a tap rather than the
-  /// start of a drag/pan. Matches Flutter's touch slop; anything past this is
-  /// the player moving the board, not launching a line.
-  static const double _tapSlop = 18;
 
   final ArrowLine line;
 
@@ -40,10 +35,6 @@ class LineComponent extends PositionComponent
   VoidCallback? _onGone;
   VoidCallback? _onImpact;
   bool _impactFired = false;
-
-  /// Canvas point where the current touch began, or null between touches.
-  /// Used to tell a tap from the first frame of a board-pan.
-  Vector2? _touchDown;
 
   bool get animating => _anim != _Anim.idle;
 
@@ -103,7 +94,7 @@ class LineComponent extends PositionComponent
 
   void escape({required VoidCallback onGone}) {
     _anim = _Anim.escaping;
-    _speed = cell * 5;
+    _speed = cell * 15;
     _onGone = onGone;
     priority = 100;
   }
@@ -135,10 +126,11 @@ class LineComponent extends PositionComponent
       case _Anim.idle:
         break;
       case _Anim.escaping:
-        // Escape speed is fixed at the fastest preset (2.2x); the setting was
-        // removed. Applied to the visual slide so the acceleration curve holds.
-        _speed += cell * 26 * dt;
-        _slide += _speed * dt * 2.2;
+        // A gentle ramp to a capped glide speed. Uncapped acceleration made a
+        // full-board exit at zoom-out flash past in a couple of frames (janky);
+        // the cap holds it near ~1 cell/frame — a smooth slide at any zoom.
+        _speed = math.min(cell * 70, _speed + cell * 20 * dt);
+        _slide += _speed * dt;
         if (_slide >= _metric.length) {
           removeFromParent();
           _onGone?.call();
@@ -173,17 +165,21 @@ class LineComponent extends PositionComponent
     }
   }
 
-  @override
-  bool containsLocalPoint(Vector2 point) {
-    if (animating) return false;
+  /// Nearest distance from [point] (board coordinates) to this line's body, or
+  /// infinity while it is animating. The game uses it to pick the tapped line.
+  /// Tap detection itself now lives in the Flutter layer (game_screen), which
+  /// routes a stationary press here and a drag to the board's pan/zoom — so a
+  /// near-tap is never swallowed by the InteractiveViewer's pan recogniser.
+  double distanceToPoint(Vector2 point) {
+    if (animating) return double.infinity;
     final p = Offset(point.x, point.y);
     final centers = _centers;
+    var best = double.infinity;
     for (var i = 0; i < centers.length - 1; i++) {
-      if (_distToSegment(p, centers[i], centers[i + 1]) < cell * 0.42) {
-        return true;
-      }
+      final d = _distToSegment(p, centers[i], centers[i + 1]);
+      if (d < best) best = d;
     }
-    return false;
+    return best;
   }
 
   static double _distToSegment(Offset p, Offset a, Offset b) {
@@ -192,30 +188,6 @@ class LineComponent extends PositionComponent
     var t = len2 == 0 ? 0.0 : ((p - a).dx * ab.dx + (p - a).dy * ab.dy) / len2;
     t = t.clamp(0.0, 1.0);
     return (p - (a + ab * t)).distance;
-  }
-
-  // Fire on tap-*up*, not tap-down: launching a line the instant a finger
-  // landed meant the first touch of a drag/pan fired whatever arrow sat under
-  // it. Now the touch has to lift roughly where it landed to count as a tap;
-  // a drag past the slop pans the board and never launches a line.
-  @override
-  void onTapDown(TapDownEvent event) {
-    event.handled = true;
-    _touchDown = event.canvasPosition.clone();
-  }
-
-  @override
-  void onTapUp(TapUpEvent event) {
-    final down = _touchDown;
-    _touchDown = null;
-    if (down == null) return;
-    if ((event.canvasPosition - down).length > _tapSlop) return;
-    game.handleTap(this);
-  }
-
-  @override
-  void onTapCancel(TapCancelEvent event) {
-    _touchDown = null;
   }
 
   @override
@@ -231,7 +203,7 @@ class LineComponent extends PositionComponent
       visible,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = cell * 0.3
+        ..strokeWidth = cell * 0.2
         ..strokeCap = StrokeCap.round
         ..strokeJoin = StrokeJoin.round
         ..color = color,
@@ -248,13 +220,12 @@ class LineComponent extends PositionComponent
         canvas.save();
         canvas.translate(pos.dx, pos.dy);
         canvas.rotate(ang);
-        // Head sized off the shaft (strokeWidth cell*0.3): base ~3.2x the
-        // shaft with a matching length, so a thick line reads as a bold arrow,
-        // not a blunt bar with a nub.
+        // Head base ~2.5x the shaft (strokeWidth cell*0.2), matching the airy
+        // reference proportions — legible without crowding its neighbours.
         final head = Path()
-          ..moveTo(cell * 0.50, 0)
-          ..lineTo(-cell * 0.14, -cell * 0.48)
-          ..lineTo(-cell * 0.14, cell * 0.48)
+          ..moveTo(cell * 0.28, 0)
+          ..lineTo(-cell * 0.14, -cell * 0.25)
+          ..lineTo(-cell * 0.14, cell * 0.25)
           ..close();
         canvas.drawPath(head, Paint()..color = color);
         canvas.restore();
