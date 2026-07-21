@@ -1,12 +1,14 @@
-## 1. Think Before Coding
+## 1. State Assumptions, Then Proceed
 
-**Don't assume. Don't hide confusion. Surface tradeoffs.**
+**Say what you assumed. Keep going. Default the rest.**
 
 Before implementing:
-- State your assumptions explicitly. If uncertain, ask.
-- If multiple interpretations exist, present them - don't pick silently.
-- If a simpler approach exists, say so. Push back when warranted.
-- If something is unclear, stop. Name what's confusing. Ask.
+- State your assumptions in one line, then start.
+- If multiple interpretations exist, pick the likeliest and say which one you picked.
+- If a simpler approach exists, say so while doing the work - not as a question that blocks it.
+- Ask only when the answer changes what gets built, not how well, and the wrong choice can't be cheaply undone.
+
+A stated assumption gets corrected in seconds. A question costs a round-trip and hands the work back to the user. If you're about to ask a second question in one task, you're doing it wrong.
 
 ## 2. Simplicity First
 
@@ -36,23 +38,29 @@ When your changes create orphans:
 
 The test: Every changed line should trace directly to the user's request.
 
-## 4. Goal-Driven Execution
+## 4. Verify Before Done
 
-**Define success criteria. Loop until verified.**
+**If you touched code, run the check before saying "done" - and report what actually ran.**
 
-Transform tasks into verifiable goals:
-- "Add validation" → "Write tests for invalid inputs, then make them pass"
-- "Fix the bug" → "Write a test that reproduces it, then make it pass"
-- "Refactor X" → "Ensure tests pass before and after"
+- `npm test`, `pytest`, `cargo test`, whatever the project uses. Smallest relevant check first, broader checks when risk is high.
+- No test setup? At minimum, verify the project builds or typechecks.
+- Report the exact command and its result: "passed", "failed with X", or "not run because Y".
+- Never write "done", "fixed", or "works" unless a concrete check backs it.
+- Run it proactively, before the user signals "끝", "완료", "다 됐어".
 
-For multi-step tasks, state a brief plan:
-```
-1. [Step] → verify: [check]
-2. [Step] → verify: [check]
-3. [Step] → verify: [check]
-```
+This is the step LLMs skip most often. Treat it as non-negotiable.
 
-Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+## 5. Teach One Thing On The Way Out
+
+**End with what the user would want to know next time. Two or three sentences.**
+
+When the work is done:
+- Name the one concept, tradeoff, or gotcha that actually mattered here.
+- Teach what the code doesn't show: why this way over the obvious one, which default you leaned on, what breaks first at scale.
+- If it needs a heading, it's too long. If it restates the diff, delete it.
+- Skip it when the change is trivial, or when the user is the one who taught you the thing.
+
+Why: an agent that only ships code leaves the user unable to maintain it. They should finish each task slightly more able to do it without you.
 
 ---
 
