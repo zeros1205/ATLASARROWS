@@ -129,6 +129,19 @@ class AtlasArrowsGame extends FlameGame {
   /// Scale at which the whole board is visible.
   double _fitScale = 1;
 
+  /// Breathing room around the board, in logical pixels — a fixed margin
+  /// rather than a share of the screen, so the board doesn't lose more room
+  /// the bigger the phone gets. Only the tighter of the two binds: whichever
+  /// axis runs out first sets the scale, and the other one keeps its leftover
+  /// as letterbox.
+  ///
+  /// Note the arrows stop short of the board rectangle by roughly a stroke
+  /// width, so the margin the player *sees* runs ~8 device px wider than this
+  /// on a 3.75x phone. Sized so the board opens at ~0.9 of the width it would
+  /// fill edge to edge — a board pressed against the screen sides reads as
+  /// cramped, and the zoom is there for anyone who wants it bigger.
+  static const double _marginX = 22, _marginY = 27;
+
   /// Smallest on-screen cell we consider tappable, in logical pixels. Well
   /// under the 44pt guideline — a full-screen country silhouette simply cannot
   /// reach that — but far enough above the ~3px a 138-column board would get
@@ -141,17 +154,89 @@ class AtlasArrowsGame extends FlameGame {
   /// surrounding widget first builds — reading it directly always said false.
   final ValueNotifier<bool> needsZoom = ValueNotifier(false);
 
+  /// On-screen cell size the deepest zoom aims for, in logical pixels. Just
+  /// over the 44pt tap guideline, which puts ~8 columns on a phone — past that
+  /// you are reading one arrow at a time and lose the shape entirely.
+  static const double _zoomedCell = 48;
+
+  /// Never less than this, so a board that already fits comfortably can still
+  /// be zoomed a little, and never more, so the 138-column boards don't turn
+  /// into a 30-pinch expedition.
+  static const double _minMaxZoom = 2;
+  static const double _maxMaxZoom = 16;
+
+  /// How far past fit this board may be zoomed. Derived from the board rather
+  /// than fixed: fit puts a cell anywhere from ~2.6dp (138 columns) to ~9.8dp
+  /// (27 columns) on screen, so one constant is either too tight to reach a
+  /// tappable cell on the big boards or absurdly deep on the small ones.
+  final ValueNotifier<double> maxZoom = ValueNotifier(_maxMaxZoom);
+
+  /// Height of the chrome painted over the top and bottom of the canvas. The
+  /// canvas is the whole screen so an escaping arrow can fly right off it and
+  /// slide under the header, but the board must still be fitted and centred in
+  /// the gap the player can actually see.
+  double _insetTop = 0, _insetBottom = 0;
+
+  void setPlayInsets(double top, double bottom) {
+    if (top == _insetTop && bottom == _insetBottom) return;
+    _insetTop = top;
+    _insetBottom = bottom;
+    if (_board != null) _layoutBoard(size);
+  }
+
   void _layoutBoard(Vector2 canvas) {
     final board = _board!;
+    final playHeight =
+        math.max(canvas.y - _insetTop - _insetBottom, canvas.y * 0.2);
     _fitScale = math.min(
-      canvas.x * 0.94 / board.size.x,
-      canvas.y * 0.94 / board.size.y,
+      math.max(canvas.x - _marginX * 2, canvas.x * 0.5) / board.size.x,
+      math.max(playHeight - _marginY * 2, playHeight * 0.5) / board.size.y,
     );
-    needsZoom.value = _fitScale * BoardComponent.cell < _minTappableCell;
+    final fitCell = _fitScale * BoardComponent.cell;
+    needsZoom.value = fitCell < _minTappableCell;
+    maxZoom.value =
+        (_zoomedCell / fitCell).clamp(_minMaxZoom, _maxMaxZoom).toDouble();
     // Open on the whole silhouette: recognising the country is the point of
     // the board, and zoom is one pinch away.
     board.scale = Vector2.all(_fitScale);
-    board.position = Vector2(canvas.x / 2, canvas.y / 2);
+    board.position =
+        Vector2(canvas.x / 2, _insetTop + playHeight / 2);
+  }
+
+  /// The pan/zoom the Flutter layer applies on top of this canvas. Needed
+  /// because an escaping line has to leave the *screen*, and once the board is
+  /// panned the canvas edge is no longer the screen edge — it can sit right in
+  /// the middle of the view, which is where arrows appeared to vanish.
+  double _viewScale = 1, _viewTx = 0, _viewTy = 0;
+
+  void setView(double scale, double tx, double ty) {
+    _viewScale = scale;
+    _viewTx = tx;
+    _viewTy = ty;
+  }
+
+  /// The part of the canvas the player can actually see, in canvas coordinates.
+  Rect get visibleRect => Rect.fromLTRB(
+        -_viewTx / _viewScale,
+        -_viewTy / _viewScale,
+        (size.x - _viewTx) / _viewScale,
+        (size.y - _viewTy) / _viewScale,
+      );
+
+  /// The grid's footprint in canvas coordinates (GameWidget-local), i.e. the
+  /// board's intrinsic size under the fit scale, centred. Null until the board
+  /// has been laid out. The pan clamp needs this rather than the canvas: the
+  /// 0.94 margin and the letterbox on the shorter axis inset the grid well
+  /// inside the canvas, so clamping on canvas edges lets the grid slide far
+  /// past the centre line.
+  Rect? get boardRect {
+    final board = _board;
+    if (board == null) return null;
+    return Rect.fromCenter(
+      center: Offset(board.position.x, board.position.y),
+      width: board.size.x * _fitScale,
+      height: board.size.y * _fitScale,
+    );
   }
 
   /// Fire the line under a point given in this game's canvas coordinates

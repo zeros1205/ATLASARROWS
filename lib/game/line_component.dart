@@ -24,7 +24,7 @@ class LineComponent extends PositionComponent
 
   final ArrowLine line;
 
-  late final ui.PathMetric _metric;
+  late ui.PathMetric _metric;
   late final double _lineLen;
 
   _Anim _anim = _Anim.idle;
@@ -93,10 +93,49 @@ class LineComponent extends PositionComponent
   }
 
   void escape({required VoidCallback onGone}) {
+    // Lengthen the exit ray so the whole line slides off the visible play area
+    // (the Flame canvas) before it is removed — otherwise a letterboxed or
+    // small board removes it a few cells past the board edge, mid-view.
+    _extendExitOffScreen();
     _anim = _Anim.escaping;
     _speed = cell * 15;
     _onGone = onGone;
     priority = 100;
+  }
+
+  /// Rebuilds the path's straight exit ray so the line leaves the screen,
+  /// using the board's fit transform and the current pan/zoom. Falls back to
+  /// the onLoad path if the board hasn't been laid out yet.
+  void _extendExitOffScreen() {
+    final board = parent;
+    if (board is! PositionComponent || board.scale.x <= 0) return;
+    final s = board.scale.x; // fit scale
+    final view = game.visibleRect;
+    final bx = board.size.x, by = board.size.y;
+    final px = board.position.x, py = board.position.y; // board centre on canvas
+    final centers = _centers;
+    final head = centers.last;
+    final dir = line.headDir;
+    // Board-coord travel for the head to pass the edge of the visible area
+    // along its heading.
+    final t = switch ((dir.dx, dir.dy)) {
+      (1, _) => bx / 2 + (view.right - px) / s - head.dx,
+      (-1, _) => head.dx - bx / 2 - (view.left - px) / s,
+      (_, 1) => by / 2 + (view.bottom - py) / s - head.dy,
+      _ => head.dy - by / 2 - (view.top - py) / s,
+    };
+    // The ray has to carry the *tail* past the edge, not just the head: the
+    // head stops dead at the end of the path (render clamps to it) and the
+    // line then collapses in place instead of flying off. So add the body's
+    // own length, plus 2 cells of slack.
+    final rayLen = math.max(t + _lineLen + cell * 2, cell * 3);
+    final exit = head + Offset(dir.dx.toDouble(), dir.dy.toDouble()) * rayLen;
+    final path = Path()..moveTo(centers.first.dx, centers.first.dy);
+    for (final p in centers.skip(1)) {
+      path.lineTo(p.dx, p.dy);
+    }
+    path.lineTo(exit.dx, exit.dy);
+    _metric = path.computeMetrics().first;
   }
 
   void bump(int freeSteps, {required VoidCallback onImpact}) {
@@ -131,7 +170,11 @@ class LineComponent extends PositionComponent
         // the cap holds it near ~1 cell/frame — a smooth slide at any zoom.
         _speed = math.min(cell * 70, _speed + cell * 20 * dt);
         _slide += _speed * dt;
-        if (_slide >= _metric.length) {
+        // Gone once the *head* reaches the end of the extended path — by then
+        // the tail is off screen too. Waiting for the tail to travel the whole
+        // path instead would park the head at the end and eat the body in
+        // place, which reads as vanishing mid-air.
+        if (_slide + _lineLen >= _metric.length) {
           removeFromParent();
           _onGone?.call();
         }
@@ -220,12 +263,14 @@ class LineComponent extends PositionComponent
         canvas.save();
         canvas.translate(pos.dx, pos.dy);
         canvas.rotate(ang);
-        // Head base ~2.5x the shaft (strokeWidth cell*0.2), matching the airy
-        // reference proportions — legible without crowding its neighbours.
+        // Head base 3x the shaft (strokeWidth cell*0.2). The heading is what
+        // the player reads to plan a move, so it carries a little more weight
+        // than the airy reference — still far short of the 0.96 cell base that
+        // made a dense board look solid.
         final head = Path()
-          ..moveTo(cell * 0.28, 0)
-          ..lineTo(-cell * 0.14, -cell * 0.25)
-          ..lineTo(-cell * 0.14, cell * 0.25)
+          ..moveTo(cell * 0.34, 0)
+          ..lineTo(-cell * 0.17, -cell * 0.30)
+          ..lineTo(-cell * 0.17, cell * 0.30)
           ..close();
         canvas.drawPath(head, Paint()..color = color);
         canvas.restore();

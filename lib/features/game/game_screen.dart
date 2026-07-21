@@ -72,6 +72,27 @@ class _GameScreenState extends State<GameScreen> {
   // with real travel falls through to the InteractiveViewer as a pan/zoom.
   final TransformationController _boardTc = TransformationController();
 
+  /// The visible play area — the gap between the chrome — in body coordinates.
+  /// The game surface itself is the whole body (so an escaping arrow can leave
+  /// the screen), but the board is fitted to this and the pan clamp measures
+  /// its centre line against it. Measured after layout rather than assumed,
+  /// because the bottom chrome swaps between the booster bar and the clear bar
+  /// and the ad slot disappears for remove-ads owners.
+  Rect _playRect = Rect.zero;
+  final GlobalKey _bodyKey = GlobalKey();
+  final GlobalKey _playAreaKey = GlobalKey();
+
+  void _syncPlayRect() {
+    final area = _playAreaKey.currentContext?.findRenderObject() as RenderBox?;
+    final body = _bodyKey.currentContext?.findRenderObject() as RenderBox?;
+    if (area == null || body == null || !area.hasSize || !body.hasSize) return;
+    final rect = area.localToGlobal(Offset.zero, ancestor: body) & area.size;
+    if (rect == _playRect) return;
+    _playRect = rect;
+    _game.setPlayInsets(rect.top, body.size.height - rect.bottom);
+    _clampBoard();
+  }
+
   Offset? _pointerDownAt;
   int _activePointers = 0;
   bool _tapCandidate = false;
@@ -109,16 +130,45 @@ class _GameScreenState extends State<GameScreen> {
     _tapCandidate = false;
   }
 
-  /// How far past the fit view the board can be zoomed in.
-  static const double _maxBoardZoom = 8;
-
   /// Back to the whole silhouette (the 화면맞춤 button, and every new board).
   void _resetBoardView() => _boardTc.value = Matrix4.identity();
+
+  /// Keep the board on screen: no edge of the *grid* may be dragged past the
+  /// viewport's centre line, so at least half the puzzle always shows (and it
+  /// can never hide behind the header). Clamping on the child's edges instead
+  /// would be too loose — the grid is inset inside the GameWidget by the fit
+  /// margin and the letterbox, so on the shorter axis it could travel 20-30%
+  /// past centre. Runs on every controller change; the clamp is idempotent, so
+  /// re-setting the value here doesn't loop.
+  void _clampBoard() {
+    final v = _playRect;
+    if (v.isEmpty) return;
+    // Before the first board layout, fall back to the whole play area.
+    final r = _game.boardRect ?? v;
+    final m = _boardTc.value;
+    final s = m.getMaxScaleOnAxis();
+    final tx = m.storage[12], ty = m.storage[13];
+    // Grid edges in body coords: left = tx + s*r.left, right = tx + s*r.right.
+    // Keeping left ≤ centre and right ≥ centre bounds the translation to
+    // [centre - s*right, centre - s*left].
+    final cx = tx.clamp(v.center.dx - s * r.right, v.center.dx - s * r.left);
+    final cy = ty.clamp(v.center.dy - s * r.bottom, v.center.dy - s * r.top);
+    if (cx != tx || cy != ty) {
+      _boardTc.value = m.clone()
+        ..storage[12] = cx
+        ..storage[13] = cy;
+      return; // the re-set fires this listener again with the clamped values
+    }
+    // An escaping line has to fly past the edge of the *view*, which the pan
+    // and zoom move around over the canvas.
+    _game.setView(s, cx, cy);
+  }
 
   @override
   void initState() {
     super.initState();
     _game = _buildGame(AppColors.light);
+    _boardTc.addListener(_clampBoard);
     if (_coachEnabled && !Progress.instance.coachDone.value) {
       _coachTimer = Timer.periodic(const Duration(seconds: 3), (t) {
         if (Progress.instance.coachDone.value) {
@@ -301,6 +351,7 @@ class _GameScreenState extends State<GameScreen> {
   void dispose() {
     _coachTimer?.cancel();
     _hearts.dispose();
+    _boardTc.removeListener(_clampBoard);
     _boardTc.dispose();
     super.dispose();
   }
@@ -309,6 +360,9 @@ class _GameScreenState extends State<GameScreen> {
   Widget build(BuildContext context) {
     final c = AppColors.of(context);
     _game.palette = c;
+    // The play area can only be measured once this frame is laid out; the
+    // chrome around it changes with the result state and the ad slot.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _syncPlayRect());
     return PopScope(
       // Guard the system back gesture the same way as the header button —
       // confirm before discarding an in-progress board.
@@ -321,44 +375,70 @@ class _GameScreenState extends State<GameScreen> {
       body: SafeArea(
         bottom: false,
         child: Stack(
+          key: _bodyKey,
           children: [
+            // The board surface is the whole body, not the gap between the
+            // chrome: an escaping arrow has to be able to fly off the screen
+            // and slide under the header, the way the reference games do.
+            // The chrome is painted over it below, opaque, so it does.
+            Positioned.fill(
+              // Clipped to the body, not to the play area: by the time a line
+              // reaches this edge it is already behind the header or the
+              // booster bar, so the clip is invisible — it only stops a panned
+              // board from painting up into the status bar.
+              child: ClipRect(
+                child: Listener(
+                onPointerDown: _onBoardPointerDown,
+                onPointerUp: _onBoardPointerUp,
+                onPointerCancel: _onBoardPointerCancel,
+                // Zoom-out stops at fit (minScale 1); zoom-in stops where a
+                // cell reaches a comfortable tap size, which depends on the
+                // board — see AtlasArrowsGame.maxZoom.
+                child: ValueListenableBuilder<double>(
+                  valueListenable: _game.maxZoom,
+                  child: GameWidget(game: _game),
+                  builder: (context, maxZoom, child) => InteractiveViewer(
+                    transformationController: _boardTc,
+                    minScale: 1,
+                    maxScale: maxZoom,
+                    // One-finger pan stays enabled everywhere; the reach is
+                    // bounded by _clampBoard (no edge past the play area's
+                    // centre) rather than by boundaryMargin, so this stays
+                    // infinite.
+                    boundaryMargin: const EdgeInsets.all(double.infinity),
+                    clipBehavior: Clip.none,
+                    child: child!,
+                  ),
+                ),
+                ),
+              ),
+            ),
             Column(
               children: [
-                _Header(
-                  stageLabel: 'STAGE ${_stage + 1}',
-                  onBack: _maybeLeave,
+                ColoredBox(
+                  color: c.bg,
+                  child: Column(
+                    children: [
+                      _Header(
+                        stageLabel: 'STAGE ${_stage + 1}',
+                        onBack: _maybeLeave,
+                      ),
+                      Container(height: 1, color: c.line),
+                      // Clearing hands the board over to the reveal, so the
+                      // hearts and the booster bar step aside; the fail path
+                      // keeps them.
+                      if (_result != _Result.cleared)
+                        _HeartsStrip(hearts: _hearts),
+                    ],
+                  ),
                 ),
-                Container(height: 1, color: c.line),
-                // Clearing hands the board over to the reveal, so the hearts and
-                // the booster bar step aside; the fail path keeps them.
-                if (_result != _Result.cleared) _HeartsStrip(hearts: _hearts),
                 Expanded(
                   child: Stack(
                     children: [
-                      // Flame paints the board wherever it sits, so a zoomed
-                      // board would otherwise spill over the header and the
-                      // hearts above it — clip it to this area.
-                      Positioned.fill(
-                        child: Listener(
-                          onPointerDown: _onBoardPointerDown,
-                          onPointerUp: _onBoardPointerUp,
-                          onPointerCancel: _onBoardPointerCancel,
-                          child: ClipRect(
-                          child: InteractiveViewer(
-                            transformationController: _boardTc,
-                            minScale: 1,
-                            maxScale: _maxBoardZoom,
-                            // Let the board be dragged with one finger even at
-                            // fit scale — with the default zero margin the
-                            // board fills the box and panning clamps to nothing
-                            // until zoomed, which read as "drag doesn't work".
-                            boundaryMargin: const EdgeInsets.all(double.infinity),
-                            clipBehavior: Clip.none,
-                            child: GameWidget(game: _game),
-                          ),
-                          ),
-                        ),
-                      ),
+                      // Empty probe: it measures the visible play area, which
+                      // is what the board is fitted to and what the pan clamp
+                      // measures against. Hit-tests through to the board.
+                      SizedBox.expand(key: _playAreaKey),
                       // On clear, the solved board gives way in place to the
                       // territory silhouette: grey dots rise, then accent
                       // sweeps out from the centre.
@@ -370,16 +450,21 @@ class _GameScreenState extends State<GameScreen> {
                     ],
                   ),
                 ),
-                if (_result == _Result.cleared)
-                  _ClearNextBar(onNext: _next)
-                else ...[
-                  _BoosterBar(
-                    game: _game,
-                    onResetView: _resetBoardView,
-                    onRestart: _confirmRestart,
-                  ),
-                  const AdsBanner(),
-                ],
+                ColoredBox(
+                  color: c.bg,
+                  child: _result == _Result.cleared
+                      ? _ClearNextBar(onNext: _next)
+                      : Column(
+                          children: [
+                            _BoosterBar(
+                              game: _game,
+                              onResetView: _resetBoardView,
+                              onRestart: _confirmRestart,
+                            ),
+                            const AdsBanner(),
+                          ],
+                        ),
+                ),
               ],
             ),
             // Coach cue, above the board but below every modal surface.
