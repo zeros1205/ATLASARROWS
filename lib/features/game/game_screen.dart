@@ -852,7 +852,11 @@ class _BoosterButton extends StatelessWidget {
   }
 }
 
-class _ResultSheet extends StatelessWidget {
+/// The clear / fail sheet. It is the most-repeated modal in the game, so it
+/// arrives instead of snapping: the scrim fades in and the sheet rises from
+/// the bottom on an ease-out curve. Collapses to a static frame under
+/// OS reduce-motion.
+class _ResultSheet extends StatefulWidget {
   const _ResultSheet({
     required this.result,
     required this.stage,
@@ -872,28 +876,67 @@ class _ResultSheet extends StatelessWidget {
   final void Function({required bool viaAd}) onRefill;
 
   @override
+  State<_ResultSheet> createState() => _ResultSheetState();
+}
+
+class _ResultSheetState extends State<_ResultSheet>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c =
+      AnimationController(vsync: this, duration: AppDur.slow);
+  late final Animation<double> _t =
+      CurvedAnimation(parent: _c, curve: AppCurve.gentle);
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Enter once. Under reduce-motion the sheet is already fully in place, so
+    // there is nothing to play.
+    if (_c.status == AnimationStatus.dismissed) {
+      if (reduceMotion(context)) {
+        _c.value = 1;
+      } else {
+        _c.forward();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final c = AppColors.of(context);
-    final cleared = result == _Result.cleared;
+    final cleared = widget.result == _Result.cleared;
+    final sheet = Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: c.card,
+        borderRadius:
+            const BorderRadius.vertical(top: Radius.circular(AppRadius.xxl)),
+      ),
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 28),
+      child: cleared ? _clear(c) : _fail(c),
+    );
     return Positioned.fill(
-      child: Container(
-        color: Colors.black.withValues(alpha: 0.35),
-        child: Column(
-          children: [
-            // MREC pinned to the very top of the screen
-            const SafeArea(bottom: false, child: AdsMrec()),
-            const Spacer(),
-            Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: c.card,
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(AppRadius.xxl)),
+      child: AnimatedBuilder(
+        animation: _t,
+        builder: (context, _) => Container(
+          color: Colors.black.withValues(alpha: 0.35 * _t.value),
+          child: Column(
+            children: [
+              // MREC pinned to the very top of the screen
+              const SafeArea(bottom: false, child: AdsMrec()),
+              const Spacer(),
+              // Slide up by the sheet's own height — no measured value needed.
+              FractionalTranslation(
+                translation: Offset(0, 1 - _t.value),
+                child: sheet,
               ),
-              padding: const EdgeInsets.fromLTRB(24, 24, 24, 28),
-              child: cleared ? _clear(c) : _fail(c),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -902,13 +945,13 @@ class _ResultSheet extends StatelessWidget {
   Widget _clear(AppColors c) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(stage,
+          Text(widget.stage,
               style: AppText.caption.copyWith(color: c.inkFaint, letterSpacing: 3)),
           const SizedBox(height: 10),
           // The place name + flag — held back from the header, revealed here so
           // clearing a board is where you learn where you were.
-          if (place.isNotEmpty)
-            Text(flag.isEmpty ? place : '$flag  $place',
+          if (widget.place.isNotEmpty)
+            Text(widget.flag.isEmpty ? widget.place : '${widget.flag}  ${widget.place}',
                 textAlign: TextAlign.center,
                 style: AppText.title.copyWith(
                     color: c.ink, fontWeight: FontWeight.w800, fontSize: 22)),
@@ -917,12 +960,12 @@ class _ResultSheet extends StatelessWidget {
               style: AppText.headline.copyWith(
                   color: c.accent, fontWeight: FontWeight.w900)),
           const SizedBox(height: 18),
-          _bigButton(c, '다음 스테이지', c.accent, c.onAccent, onNext),
+          _bigButton(c, '다음 스테이지', c.accent, c.onAccent, widget.onNext),
         ],
       );
 
   Widget _fail(AppColors c) {
-    final free = !freeRefillUsed;
+    final free = !widget.freeRefillUsed;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -951,10 +994,10 @@ class _ResultSheet extends StatelessWidget {
           free ? '무료 충전' : '광고 보고 충전',
           free ? c.success : c.accentSoft,
           free ? Colors.white : c.accent,
-          () => onRefill(viaAd: !free),
+          () => widget.onRefill(viaAd: !free),
         ),
         const SizedBox(height: 10),
-        _bigButton(c, '다시 시작', Colors.transparent, c.inkFaint, onRestart,
+        _bigButton(c, '다시 시작', Colors.transparent, c.inkFaint, widget.onRestart,
             outline: true),
       ],
     );

@@ -6,6 +6,7 @@ import '../../app/tokens/typography.dart';
 import '../../app/shell.dart';
 import '../../models/campaign_repository.dart';
 import '../../services/progress.dart';
+import '../../shared/motion.dart';
 import '../../shared/pressable.dart';
 import '../../shared/theme_toggle_button.dart';
 import '../game/game_screen.dart';
@@ -37,38 +38,54 @@ class HomeScreen extends StatelessWidget {
             return Column(
               children: [
                 const Spacer(flex: 3),
-                // Centred game logo (wordmark stands in until the logo art lands).
-                Text.rich(
-                  TextSpan(children: [
-                    const TextSpan(text: 'ATLAS'),
-                    TextSpan(text: '·', style: TextStyle(color: c.accent)),
-                    const TextSpan(text: 'ARROWS'),
-                  ]),
-                  style: AppText.display.copyWith(
-                      color: c.ink, fontSize: 38, letterSpacing: -1),
+                // Landing after the animated boot sequence, so the logo and
+                // CTAs arrive on the same ease-out signature rather than
+                // snapping in. A light cascade: mark first, then the actions.
+                EnterFade(
+                  rise: 12,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Centred game logo (wordmark stands in until the logo
+                      // art lands).
+                      Text.rich(
+                        TextSpan(children: [
+                          const TextSpan(text: 'ATLAS'),
+                          TextSpan(text: '·', style: TextStyle(color: c.accent)),
+                          const TextSpan(text: 'ARROWS'),
+                        ]),
+                        style: AppText.display.copyWith(
+                            color: c.ink, fontSize: 38, letterSpacing: -1),
+                      ),
+                      const SizedBox(height: 6),
+                      Text('SHIFT THE ARROWS',
+                          style: AppText.caption
+                              .copyWith(color: c.inkFaint, letterSpacing: 2.5)),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 6),
-                Text('SHIFT THE ARROWS',
-                    style: AppText.caption
-                        .copyWith(color: c.inkFaint, letterSpacing: 2.5)),
                 const Spacer(flex: 2),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 34),
-                  child: isNew
-                      ? _PrimaryButton(label: '시작하기', onTap: play)
-                      : Column(
-                          children: [
-                            _PrimaryButton(
-                                label: '이어서 플레이',
-                                sub: _resumeLabel(),
-                                onTap: play),
-                            const SizedBox(height: AppGap.md),
-                            _SecondaryButton(
-                                label: '맵에서 플레이',
-                                icon: Icons.public_outlined,
-                                onTap: () => appTab.value = 1),
-                          ],
-                        ),
+                EnterFade(
+                  delay: const Duration(milliseconds: 140),
+                  rise: 14,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 34),
+                    child: isNew
+                        ? _PrimaryButton(label: '시작하기', onTap: play)
+                        : Column(
+                            children: [
+                              _PrimaryButton(
+                                  label: '이어서 플레이',
+                                  sub: _resumeLabel(),
+                                  onTap: play),
+                              const SizedBox(height: AppGap.md),
+                              _SecondaryButton(
+                                  label: '맵에서 플레이',
+                                  icon: Icons.public_outlined,
+                                  onTap: () => appTab.value = 1),
+                            ],
+                          ),
+                  ),
                 ),
                 const Spacer(flex: 3),
               ],
