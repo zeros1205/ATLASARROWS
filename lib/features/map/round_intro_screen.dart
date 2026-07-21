@@ -1,173 +1,177 @@
+import 'package:country_flags/country_flags.dart';
 import 'package:flutter/material.dart';
 
 import '../../app/tokens/colors.dart';
-import '../../app/tokens/dimens.dart';
 import '../../app/tokens/typography.dart';
 import '../../models/campaign_repository.dart';
 import '../../services/progress.dart';
-import '../../shared/pressable.dart';
+import '../../shared/motion.dart';
 import '../game/game_screen.dart';
 
-/// Reached by selecting a country on the world map. Shows the round summary
-/// (ROUND / country / blurb / N Stages·Cities·Paths). If the country is
-/// unlocked it offers PLAY; if still locked it shows a lock button.
-class RoundIntroScreen extends StatelessWidget {
+/// Reached by selecting a country on the world map. A brief splash: the
+/// country's flag stamps in over its name (in the app language), holds for a
+/// beat, then clears itself. An unlocked round hands off to play; a locked one
+/// returns to the map. Full-screen, so the shell header and tab bar stay hidden.
+class RoundIntroScreen extends StatefulWidget {
   const RoundIntroScreen({super.key, required this.countryIndex});
   final int countryIndex;
 
   @override
+  State<RoundIntroScreen> createState() => _RoundIntroScreenState();
+}
+
+class _RoundIntroScreenState extends State<RoundIntroScreen>
+    with TickerProviderStateMixin {
+  static const _hold = Duration(milliseconds: 1200);
+
+  // Enter (flag stamps in, name follows) and exit (whole thing fades out).
+  late final AnimationController _in = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 520));
+  late final AnimationController _out = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 300));
+
+  // Flag overshoots in like a passport stamp.
+  late final Animation<double> _flagScale =
+      Tween(begin: 0.4, end: 1.0).animate(
+          CurvedAnimation(parent: _in, curve: Curves.easeOutBack));
+  late final Animation<double> _flagOpacity = CurvedAnimation(
+      parent: _in, curve: const Interval(0.0, 0.4, curve: Curves.easeOut));
+  // Name arrives a beat later, rising into place.
+  late final Animation<double> _nameOpacity = CurvedAnimation(
+      parent: _in, curve: const Interval(0.32, 1.0, curve: Curves.easeOut));
+  late final Animation<double> _nameRise = Tween(begin: 14.0, end: 0.0).animate(
+      CurvedAnimation(
+          parent: _in,
+          curve: const Interval(0.32, 1.0, curve: Curves.easeOutCubic)));
+
+  bool _started = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_started) return; // run the sequence once, after context is ready
+    _started = true;
+    _run();
+  }
+
+  Future<void> _run() async {
+    final reduce = reduceMotion(context);
+    if (reduce) {
+      _in.value = 1;
+    } else {
+      await _in.forward();
+    }
+    await Future<void>.delayed(_hold);
+    if (!mounted) return;
+    if (!reduce) {
+      await _out.forward();
+      if (!mounted) return;
+    }
+    _finish();
+  }
+
+  void _finish() {
+    final repo = CampaignRepository.instance;
+    final country = repo.countries[widget.countryIndex];
+    final first = repo.firstStageOf(widget.countryIndex);
+    final unlocked = Progress.instance.unlocked.value;
+    if (first > unlocked) {
+      Navigator.of(context).pop(); // still locked — nothing to play yet
+      return;
+    }
+    final start = unlocked.clamp(first, first + country.stageCount - 1);
+    Navigator.of(context).pushReplacement(
+        MaterialPageRoute<void>(builder: (_) => GameScreen(stage: start)));
+  }
+
+  @override
+  void dispose() {
+    _in.dispose();
+    _out.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final c = AppColors.of(context);
-    final repo = CampaignRepository.instance;
-    final country = repo.countries[countryIndex];
-    final unlocked = Progress.instance.unlocked.value;
-    final first = repo.firstStageOf(countryIndex);
-    final locked = first > unlocked;
+    final country = CampaignRepository.instance.countries[widget.countryIndex];
+    // One line, in the selected language — Korean where we have it, otherwise
+    // the country's standard (English) name.
     final lang = Localizations.localeOf(context).languageCode;
-    final blurb = country.introFor(lang);
-    // How much of this round is behind the player — the same number the map
-    // colours in, so the two surfaces agree.
-    final cleared = (unlocked - first).clamp(0, country.stageCount);
-    final progress = country.stageCount == 0
-        ? 0
-        : (cleared * 100 / country.stageCount).round();
-
-    void play() {
-      final start = unlocked.clamp(first, first + country.stageCount - 1);
-      Navigator.of(context).pushReplacement(
-          MaterialPageRoute<void>(builder: (_) => GameScreen(stage: start)));
-    }
-
-    final headColor = locked ? c.inkFaint : c.accent;
-    final nameColor = locked ? c.inkSoft : c.ink;
+    final name = lang == 'ko' && country.ko.isNotEmpty ? country.ko : country.name;
+    final iso = country.iso;
+    final hasFlag = iso.length == 2;
 
     return Scaffold(
-      backgroundColor: c.bg,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(28, 12, 28, 28),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Pressable(
-                onTap: () => Navigator.of(context).maybePop(),
-                child: SizedBox(
-                    width: 44,
-                    height: 44,
-                    child: Icon(Icons.arrow_back, color: c.inkFaint, size: 24)),
-              ),
-              const SizedBox(height: 6),
-              Text('ROUND ${(countryIndex + 1).toString().padLeft(2, '0')}',
-                  style: AppText.label
-                      .copyWith(color: headColor, letterSpacing: 4, fontSize: 13)),
-              const SizedBox(height: 10),
-              Text(country.displayName,
-                  style: AppText.display.copyWith(
-                      color: nameColor, fontWeight: FontWeight.w900, height: 1.05)),
-              if (country.ko.isNotEmpty && country.name != country.ko)
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Text(country.name,
-                      style: AppText.body.copyWith(color: c.inkFaint)),
-                ),
-              const SizedBox(height: 20),
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Text(
-                    locked
-                        ? '이전 국가를 클리어하면 이 라운드가 열립니다.'
-                        : blurb.isNotEmpty
-                            ? blurb
-                            : country.teaches.isNotEmpty
-                                ? '이번 라운드에서 배울 것 — ${country.teaches}'
-                                : country.cityCount > 0
-                                    ? '${country.displayName}의 도시 ${country.cityCount}곳을 '
-                                        '지나 마지막에 나라 전체를 풀어냅니다.'
-                                    : '${country.displayName}의 영토를 한 판으로 풀어냅니다.',
-                    style: AppText.body.copyWith(
-                        color: c.inkSoft, height: 1.55, fontSize: 15),
+      backgroundColor: c.bg, // home-screen ground, light/dark
+      body: Center(
+        child: AnimatedBuilder(
+          animation: Listenable.merge([_in, _out]),
+          builder: (context, _) => Opacity(
+            opacity: 1 - _out.value,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (hasFlag) ...[
+                  Opacity(
+                    opacity: _flagOpacity.value,
+                    child: Transform.scale(
+                      scale: _flagScale.value * (1 - 0.14 * _out.value),
+                      child: _Flag(iso: iso),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                ],
+                Opacity(
+                  opacity: _nameOpacity.value,
+                  child: Transform.translate(
+                    offset: Offset(0, _nameRise.value),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          name,
+                          textAlign: TextAlign.center,
+                          style: AppText.display.copyWith(
+                              color: c.ink,
+                              fontWeight: FontWeight.w900,
+                              height: 1.05),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              Opacity(
-                opacity: locked ? 0.5 : 1,
-                child: Row(
-                  children: [
-                    _stat(c, '${country.stageCount}', '스테이지'),
-                    _stat(c, '${country.cityCount}', '도시'),
-                    _stat(c, '$progress%', '진행'),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 22),
-              if (locked)
-                _LockButton(c)
-              else
-                Pressable(
-                  onTap: play,
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 15),
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                        color: c.accent,
-                        borderRadius: BorderRadius.circular(AppRadius.pill)),
-                    child: Text('플레이',
-                        style: AppText.headline.copyWith(
-                            color: c.onAccent, fontWeight: FontWeight.w900)),
-                  ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
     );
   }
-
-  Widget _stat(AppColors c, String value, String label) => Expanded(
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 4),
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          decoration: BoxDecoration(
-            color: c.surface,
-            borderRadius: BorderRadius.circular(AppRadius.lg),
-            border: Border.all(color: c.line, width: 1.5),
-          ),
-          child: Column(
-            children: [
-              Text(value,
-                  style: AppText.title.copyWith(
-                      color: c.ink, fontWeight: FontWeight.w900, fontSize: 26)),
-              const SizedBox(height: 2),
-              Text(label,
-                  style: AppText.caption.copyWith(
-                      color: c.inkFaint, letterSpacing: 1.5, fontSize: 11)),
-            ],
-          ),
-        ),
-      );
 }
 
-class _LockButton extends StatelessWidget {
-  const _LockButton(this.c);
-  final AppColors c;
+class _Flag extends StatelessWidget {
+  const _Flag({required this.iso});
+  final String iso;
+
   @override
   Widget build(BuildContext context) => Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 15),
-        alignment: Alignment.center,
         decoration: BoxDecoration(
-            color: c.dot, borderRadius: BorderRadius.circular(AppRadius.pill)),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.lock_outline, size: 18, color: c.inkFaint),
-            const SizedBox(width: 8),
-            Text('잠김',
-                style: AppText.headline.copyWith(
-                    color: c.inkFaint, fontWeight: FontWeight.w900)),
+          borderRadius: BorderRadius.circular(10),
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withValues(alpha: 0.28),
+                blurRadius: 22,
+                offset: const Offset(0, 10)),
           ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: CountryFlag.fromCountryCode(
+            iso,
+            theme: const ImageTheme(width: 116, height: 77),
+          ),
         ),
       );
 }
