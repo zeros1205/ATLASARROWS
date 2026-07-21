@@ -263,12 +263,14 @@ class LineComponent extends PositionComponent
         canvas.save();
         canvas.translate(pos.dx, pos.dy);
         canvas.rotate(ang);
-        // Head base ~2.5x the shaft (strokeWidth cell*0.2), matching the airy
-        // reference proportions — legible without crowding its neighbours.
+        // Head base 3x the shaft (strokeWidth cell*0.2). The heading is what
+        // the player reads to plan a move, so it carries a little more weight
+        // than the airy reference — still far short of the 0.96 cell base that
+        // made a dense board look solid.
         final head = Path()
-          ..moveTo(cell * 0.28, 0)
-          ..lineTo(-cell * 0.14, -cell * 0.25)
-          ..lineTo(-cell * 0.14, cell * 0.25)
+          ..moveTo(cell * 0.34, 0)
+          ..lineTo(-cell * 0.17, -cell * 0.30)
+          ..lineTo(-cell * 0.17, cell * 0.30)
           ..close();
         canvas.drawPath(head, Paint()..color = color);
         canvas.restore();
