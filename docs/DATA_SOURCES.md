@@ -113,3 +113,56 @@ relayout_difficulty.py ─▶ bank.json의 화살표 레이아웃만 재작성 (
 `fetch_microstate_shapes.py`에 `place=island` 조회를 반쯤 넣어둔 상태다. 소도서는 ① 대상에서
 빠졌으므로 **되살릴 필요 없다.** Aruba·Barbados·Niue·Montserrat은 `countries_raw.json`에서
 빠져 NE로 폴백 중.
+
+---
+
+## 7. PATH 스테이지 — 의도·히스토리 (사용자 확정, 2026-07-21)
+
+**목적:** 도시/국가 스테이지만으로는 **목표 2,000 스테이지**를 못 채운다. 그래서 스테이지
+**전환 사이에 PATH 스테이지를 끼워 넣어** 수를 채운다. 삽입 지점:
+- 도시 → 도시
+- 도시 → 국가
+- 국가 → (다른 국가의) 도시
+
+**컨셉:** 한 장소에서 다음 장소로 **이동/여행**하는 것 — 차·버스·택시·기차·비행기·헬리콥터
+등을 타고 가는 느낌의 스테이지.
+
+**폐기·보류된 시도 (같은 길로 다시 가지 말 것):**
+- **산/바다/평지 컨셉 + 화살표 컬러링** — 원하는 퀄리티가 안 나와 **폐기**.
+- (해결됨) 교통수단 실루엣 마스크 제작 난이도 → Material Icons 글리프 + 디테일 유지
+  파이프라인으로 확정(아래).
+
+**파이프라인 (확정·구현됨):**
+```
+tools/atlas/vehicle_png/*.png  (큐레이션한 16종, 창문·바퀴 = 흰 공란)
+  ─ build_vehicle_masks.py ─▶ vehicle_masks.json (커버리지 격자 ~1200셀)
+assets/campaign/bank.json (내용 스테이지) ─ build_paths.py ─▶ bank.json (path 삽입)
+  └ 위도 게이팅 근거: cold_countries.json (NE 50m 면적중심 |위도|>=55, 13개국)
+```
+- `build_paths.py`는 **idempotent** — 기존 path 스테이지를 먼저 제거하고 재삽입.
+- 각 country 라운드: **내용 스테이지마다 앞에 path 1개** 삽입
+  → `[path, city_0, path, city_1, ..., path, finale]`. **캠페인 첫 국가만** 진입 path 없음.
+- 시드 = (rank, index) → 재현 가능, 같은 실루엣이라도 위치마다 다른 퍼즐.
+- 앱: `StageKind.path` + `CampaignStage.vehicle` 필드로 파싱. 게임플레이는 다른 보드와 동일,
+  클리어 화면만 여행 문구("○○(으)로 이동 / 도착!")로 분기.
+
+**현재 상태 (구현 완료):** 앱 `StageKind`에 `path` 추가, `bank.json`에 path 스테이지 삽입 완료.
+보드 표현 = 교통수단 실루엣 마스크(위 파이프라인). (구 `path_boards.json`은 미사용 잔재.)
+
+**교통수단 실루엣 마스크 (확정 진행 중):** Material Icons(Apache-2.0) 글리프에서
+디테일 유지(창문·바퀴 = 흰 공란, 검정 몸통만 화살로 채움) 파이프라인으로 추출. 큐레이션 후
+16종: directions_boat, directions_bus, directions_car, flight, local_airport,
+local_shipping, local_taxi, moped, pedal_bike, sailing, snowmobile, subway,
+train, tram, two_wheeler, airport_shuttle.
+
+**차량 선택(vehicle picker) 규칙 — snowmobile 강제:**
+한대 국가 = **국가 중심 위도 |위도| ≥ 55°**(NE 50m 폴리곤 중심). 한대 국가 라운드에서
+스노모빌 PATH는 **정확히 2개**만 강제 등장한다:
+1. **진입** — 직전 국가 스테이지 → 한대 국가의 **첫 스테이지(첫 도시)** 로 넘어가는 PATH.
+2. **완주** — 한대 국가의 **마지막 도시 → 그 국가 스테이지**로 넘어가는 PATH.
+
+그 외(한대 국가 내부 도시↔도시 이동 PATH 포함)는 **일반 랜덤 교통수단**.
+- 도착지가 "한대 국가의 첫 도시"면 도시 도착이라도 스노모빌(진입).
+- 출발지 위도는 보지 않는다. 도시가 없는 한대 국가는 진입=완주가 겹쳐 스노모빌 1개.
+- 예: 벨기에 완주 → (스노모빌) → 핀란드 도시1 → (랜덤) → 도시2 → (랜덤) → 도시3 →
+  (스노모빌) → 핀란드 국가 스테이지.

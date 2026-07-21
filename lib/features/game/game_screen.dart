@@ -141,22 +141,32 @@ class _GameScreenState extends State<GameScreen> {
     return _repo.countries[_loc.countryIndex].displayName;
   }
 
-  /// What this particular board depicts — a city, or the country itself on the
-  /// round's last stage. This is the label worth showing while playing; the
-  /// country is already established by the round intro.
-  String get _placeName => _repo.stageAt(_stage)?.displayName ?? _countryName;
+  /// True when the current board is a travel interlude, not a place.
+  bool get _isPath => _repo.stageAt(_stage)?.kind == StageKind.path;
 
-  /// The city this board depicts, or '' on the country finale (where the place
-  /// chip shows the country alone rather than repeating its name twice).
+  /// What this particular board depicts — a city, the country itself on the
+  /// round's last stage, or (on a travel leg) the country the round is heading
+  /// to. This is the label revealed on clear.
+  String get _placeName {
+    // A travel leg announces the round's destination country ("Next Atlas").
+    if (_isPath) return _countryName;
+    return _repo.stageAt(_stage)?.displayName ?? _countryName;
+  }
+
+  /// The city this board depicts, or '' on the country finale and on a travel
+  /// leg — in both cases the place chip carries the country name alone (a path
+  /// heads toward the round's country; the finale is the country).
   String get _cityLabel {
     final st = _repo.stageAt(_stage);
-    if (st == null || st.kind == StageKind.country) return '';
+    if (st == null || st.kind != StageKind.city) return '';
     return st.displayName;
   }
 
-  /// The flag emoji of the country this stage belongs to.
-  String get _flag =>
-      _repo.isLoaded ? _repo.countries[_loc.countryIndex].flagEmoji : '';
+  /// The flag emoji of the country this stage belongs to (shown on clear).
+  /// A travel leg is not a country, so it carries no flag.
+  String get _flag => _isPath || !_repo.isLoaded
+      ? ''
+      : _repo.countries[_loc.countryIndex].flagEmoji;
 
   /// "3 / 12" — position inside the round. A global stage number would read as
   /// "stage 641 of 775", which says nothing a player cares about.
@@ -362,6 +372,7 @@ class _GameScreenState extends State<GameScreen> {
                 stage: _localStageLabel,
                 place: _placeName,
                 flag: _flag,
+                isPath: _isPath,
                 freeRefillUsed: _freeRefillUsed,
                 onNext: _next,
                 onRestart: _restart,
@@ -928,6 +939,7 @@ class _ResultSheet extends StatefulWidget {
     required this.stage,
     required this.place,
     required this.flag,
+    required this.isPath,
     required this.freeRefillUsed,
     required this.onNext,
     required this.onRestart,
@@ -937,6 +949,7 @@ class _ResultSheet extends StatefulWidget {
   final String stage;
   final String place;
   final String flag;
+  final bool isPath;
   final bool freeRefillUsed;
   final VoidCallback onNext, onRestart;
   final void Function({required bool viaAd}) onRefill;
@@ -1014,17 +1027,35 @@ class _ResultSheetState extends State<_ResultSheet>
           Text(widget.stage,
               style: AppText.caption.copyWith(color: c.inkFaint, letterSpacing: 3)),
           const SizedBox(height: 10),
-          // The place name + flag — held back from the header, revealed here so
-          // clearing a board is where you learn where you were.
-          if (widget.place.isNotEmpty)
-            Text(widget.flag.isEmpty ? widget.place : '${widget.flag}  ${widget.place}',
-                textAlign: TextAlign.center,
-                style: AppText.title.copyWith(
-                    color: c.ink, fontWeight: FontWeight.w800, fontSize: 22)),
-          const SizedBox(height: 4),
-          Text('클리어!',
-              style: AppText.headline.copyWith(
-                  color: c.accent, fontWeight: FontWeight.w900)),
+          // A travel leg points ahead to the round's destination country
+          // ("Next Atlas" over the country name, no flag); a place board
+          // reveals the place name + flag it held back from the header.
+          if (widget.isPath) ...[
+            Text('NEXT ATLAS',
+                style: AppText.caption.copyWith(
+                    color: c.accent,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 3)),
+            const SizedBox(height: 6),
+            if (widget.place.isNotEmpty)
+              Text(widget.place,
+                  textAlign: TextAlign.center,
+                  style: AppText.title.copyWith(
+                      color: c.ink, fontWeight: FontWeight.w800, fontSize: 22)),
+          ] else ...[
+            if (widget.place.isNotEmpty)
+              Text(
+                  widget.flag.isEmpty
+                      ? widget.place
+                      : '${widget.flag}  ${widget.place}',
+                  textAlign: TextAlign.center,
+                  style: AppText.title.copyWith(
+                      color: c.ink, fontWeight: FontWeight.w800, fontSize: 22)),
+            const SizedBox(height: 4),
+            Text('클리어!',
+                style: AppText.headline.copyWith(
+                    color: c.accent, fontWeight: FontWeight.w900)),
+          ],
           const SizedBox(height: 18),
           _bigButton(c, '다음 스테이지', c.accent, c.onAccent, widget.onNext),
         ],
