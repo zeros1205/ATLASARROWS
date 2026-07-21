@@ -59,6 +59,10 @@ class _AppShellState extends State<AppShell> {
     return ValueListenableBuilder<int>(
       valueListenable: appTab,
       builder: (context, index, _) => Scaffold(
+        // The map is a full-screen surface with the tab bar floating over it,
+        // so on that tab the body extends behind the bar. Other tabs keep the
+        // bar reserving its own space.
+        extendBody: index == 1,
         body: IndexedStack(
           index: index,
           children: const [
