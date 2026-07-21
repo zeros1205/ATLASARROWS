@@ -20,7 +20,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 from PIL import Image, ImageDraw  # noqa: E402
 
 # --- identity (same palette as build_icon.py) -----------------------------
-CREAM = (247, 246, 242, 255)
+CREAM = (255, 255, 255, 255)   # white icon ground (#FFFFFF)
 DOT   = (90, 90, 96, 255)      # dense dark halftone (the approved "best" background)
 MINT  = (0x1D, 0x8B, 0xFF, 255)  # AppColors.light.accent #1D8BFF — the in-game fired line
 INK   = (35, 37, 46, 255)
