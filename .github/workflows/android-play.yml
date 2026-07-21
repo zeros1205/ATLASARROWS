@@ -88,7 +88,7 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         # The run number is the build number so Play always sees an increasing
         # versionCode; the version name still comes from pubspec.yaml.
-        run: flutter build appbundle --release --build-number=${{ github.run_number }}
+        run: flutter build appbundle --release --build-number=${{ github.run_number }} --dart-define=SENTRY_DSN=${{ secrets.SENTRY_DSN }}
 
       - name: Upload AAB artifact
         uses: actions/upload-artifact@v4
