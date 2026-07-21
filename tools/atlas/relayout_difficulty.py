@@ -34,15 +34,55 @@ Usage:
     python tools/atlas/relayout_difficulty.py out.json   # to a copy
 """
 import json
+import math
 import os
 import random
 import sys
 import time
 from collections import deque
 
+try:
+    from PIL import Image
+    _HAS_PIL = True
+except ImportError:
+    _HAS_PIL = False
+
+# Enlarge each silhouette mask to ~this many cells so even a small territory
+# holds 100+ arrows including long ones. Grid resolution is decoupled from
+# territory size (per product decision). Idempotent — a mask already at/over
+# the target is left as-is, so re-running never re-upscales.
+UPSCALE_TARGET = 1500
+
+
+def upscale_mask(grid, target=UPSCALE_TARGET):
+    """Smoothly enlarge a mask to ~target filled cells (float scale, bilinear +
+    re-threshold, so edges round rather than staircase). No-op without PIL or
+    when already large enough."""
+    rows = len(grid)
+    cols = len(grid[0])
+    cells = sum(row.count('#') for row in grid)
+    if cells >= target or not _HAS_PIL:
+        return grid, rows, cols
+    s = math.sqrt(target / cells)
+    nc = max(cols + 1, round(cols * s))
+    nr = max(rows + 1, round(rows * s))
+    img = Image.new('L', (cols, rows), 0)
+    px = img.load()
+    for r in range(rows):
+        for c in range(cols):
+            if grid[r][c] == '#':
+                px[c, r] = 255
+    big = img.resize((nc, nr), Image.BILINEAR)
+    bp = big.load()
+    ng = [''.join('#' if bp[c, r] > 100 else '.' for c in range(nc))
+          for r in range(nr)]
+    return ng, nr, nc
+
 DIRS = [(-1, 0), (1, 0), (0, -1), (0, 1)]  # U D L R
 GROW = True  # repair fallback that lengthens an arrow to fill a lone hole;
              # off => keep arrows short (more of them) at the cost of a few holes
+REPAIR = True  # bent 3-cell hole-fill pass; off => arrows keep their sampled
+               # mid/long length (fewer short fillers) at the cost of some holes
 
 # Relative weights for the short (2-3 cells) / mid (4-6) / long (7-maxLen)
 # bands an arrow's length is drawn from. Mirrors lib/models/level_generator
@@ -51,8 +91,14 @@ BALANCED = dict(short=0.38, mid=0.42, long=0.20)
 LONGER = dict(short=0.22, mid=0.40, long=0.38)
 # Short-biased so a board carries >=100 bent arrows; late ranks get a few more
 # long arrows for far-block traps.
-SHORTBENT = dict(short=0.82, mid=0.14, long=0.04)
-SHORTMID = dict(short=0.72, mid=0.20, long=0.08)
+# Grids are enlarged (mask upscaled) so every board has room for MANY arrows
+# AND a high share of long spanning ones — challenge does not scale with
+# territory size. Long share is deliberately high; the seeds add more on top.
+# Sampling weights (short<=7 / mid 8-15 / long 16+). Long-heavy on purpose:
+# arrows get cut short at walls and the hole-fill adds shorts, so heavy long/mid
+# sampling lands the FINAL mix near short~40 / mid~40 / long~15-20.
+SHORTBENT = dict(short=0.0, mid=0.55, long=0.45)
+SHORTMID = dict(short=0.0, mid=0.55, long=0.45)
 
 
 def tier(rank, total):
@@ -117,11 +163,19 @@ def gen_level(rows, cols, mask, seed, fill, max_len, lenmix):
 
     def sample_len():
         x = rng.random() * wt
-        if x < ws:
-            return 3 + rng.randint(0, 1)   # short: 3-4 (min 3 so it can bend)
-        if x < wm:
-            return 4 + rng.randint(0, 2)
-        return 7 + rng.randint(0, max(0, max_len - 7))
+        if x < ws:                          # short: 3-7
+            return 3 + rng.randint(0, 4)
+        if x < wm:                          # mid: 8-15
+            return 8 + rng.randint(0, 7)
+        return 16 + rng.randint(0, max(0, max_len - 16))  # long: 16+
+
+    # Long-arrow seeding: place a couple of ~20-cell "spanning" arrows first (on
+    # a near-empty board a path can snake far), so every stage has one or two
+    # long arrows cutting across the territory plus the short/mid mix.
+    LONGMIN = 16          # a seed only counts once it is genuinely long
+    long_seeds = 3
+    placed_long = 0
+    long_tries = 0
 
     failures = 0
     while len(occupied) < target and failures < 2000:
@@ -142,7 +196,16 @@ def gen_level(rows, cols, mask, seed, fill, max_len, lenmix):
         used = {cur}
         last_dir = None
         turned = False
-        tlen = sample_len()
+        # First few placements are forced long with long straight runs (a
+        # sweeping cut); the rest use the mix with tight turns for dense fill.
+        force_long = placed_long < long_seeds and long_tries < 120
+        if force_long:
+            long_tries += 1
+            tlen = 26           # aim well past 20; the builder stops at the wall
+            sp = 0.72           # long straight runs => a sweeping cut
+        else:
+            tlen = sample_len()
+            sp = 0.22
         while len(path) < tlen:
             options = []
             for dr, dc in DIRS:
@@ -160,7 +223,7 @@ def gen_level(rows, cols, mask, seed, fill, max_len, lenmix):
             if last and not turned and last_dir is not None and turn_opts:
                 pick = max(turn_opts, key=lambda o: depth[o[1]])
             # Otherwise mostly turn (kills long straight runs), rarely continue.
-            if pick is None and last_dir is not None and straight and rng.random() < 0.22:
+            if pick is None and last_dir is not None and straight and rng.random() < sp:
                 pick = straight[0]
             if pick is None and turn_opts:
                 pick = max(turn_opts, key=lambda o: depth[o[1]])
@@ -190,6 +253,8 @@ def gen_level(rows, cols, mask, seed, fill, max_len, lenmix):
             continue
         occupied.update(path)
         oriented.append(chosen)
+        if len(chosen) >= LONGMIN:
+            placed_long += 1
         failures = 0
 
     # Repair passes fill remaining holes while preserving the reverse-removal
@@ -207,7 +272,7 @@ def gen_level(rows, cols, mask, seed, fill, max_len, lenmix):
         return out
 
     MAX_GROWN = 16
-    progressed = True
+    progressed = REPAIR
     while progressed:
         progressed = False
         if len(occupied) >= target:  # WS1 density cap
@@ -242,7 +307,32 @@ def gen_level(rows, cols, mask, seed, fill, max_len, lenmix):
             # arrows): cell as the corner, or cell as an end that turns at n.
             empt = [((dr, dc), (r + dr, c + dc)) for dr, dc in DIRS
                     if (r + dr, c + dc) in mask and (r + dr, c + dc) not in occupied]
+
+            # Prefer filling a hole with a MID (4-7 cell) bent snake so empty
+            # pockets become mid arrows, not a swarm of 3-cell shorts.
+            def snake_from(start, maxlen=7):
+                path = [start]; used = {start}; cur = start
+                last = None; turned = False
+                while len(path) < maxlen:
+                    opts = [((dr, dc), (cur[0] + dr, cur[1] + dc)) for dr, dc in DIRS
+                            if (cur[0] + dr, cur[1] + dc) in mask
+                            and (cur[0] + dr, cur[1] + dc) not in occupied
+                            and (cur[0] + dr, cur[1] + dc) not in used]
+                    if not opts:
+                        break
+                    turn = [o for o in opts if o[0] != last]
+                    pick = (turn[0] if turn and (last is None or rng.random() < 0.7)
+                            else opts[0])
+                    if last is not None and pick[0] != last:
+                        turned = True
+                    path.append(pick[1]); used.add(pick[1])
+                    cur = pick[1]; last = pick[0]
+                return path if len(path) >= 3 and turned else None
+
             cands = []
+            snake = snake_from((r, c))
+            if snake:
+                cands.append(snake)
             for i in range(len(empt)):
                 for j in range(len(empt)):
                     if i == j:
@@ -432,6 +522,8 @@ def relayout(path_in, path_out):
     counts = []
     spam_ratios = []
     under100 = []  # (count, mask cells, name, stage)
+    catdist = [0, 0, 0]  # short<=7 / mid 8-15 / long>=16
+    fills = []
 
     def segname(rank):
         t = (rank - 1) / (total - 1) if total > 1 else 1.0
@@ -441,16 +533,16 @@ def relayout(path_in, path_out):
         """Try a few seeds; keep the most-arrows solvable layout, stopping once
         a layout carries >=100 arrows."""
         best = None
-        for a in range(4):
+        for a in range(5):
             sd = seed + a * 131
-            ori = gen_level(rows, cols, mask, sd, cfg['fill'], 20, cfg['lenmix'])
+            ori = gen_level(rows, cols, mask, sd, cfg['fill'], 26, cfg['lenmix'])
             ori = chain_reorient(rows, cols, ori, cfg['frac'],
                                  random.Random(sd + 7))
             if not ori or not solvable(rows, cols, ori):
                 continue
             if best is None or len(ori) > len(best):
                 best = ori
-            if len(best) >= 100:
+            if len(best) >= 130:
                 break
         return best
 
@@ -484,8 +576,10 @@ def relayout(path_in, path_out):
         cfg = tier(rank, total)
         for si, s in enumerate(c["stages"]):
             nstage += 1
-            grid = s["grid"]
-            rows, cols = s["rows"], s["cols"]
+            # Enlarge the mask (grid) for small territories so every board has
+            # room for many arrows; writes the bigger grid back into the bank.
+            grid, rows, cols = upscale_mask(s["grid"])
+            s["grid"], s["rows"], s["cols"] = grid, rows, cols
             mask = {(r, cc) for r, row in enumerate(grid)
                     for cc, ch in enumerate(row) if ch == '#'}
             seed = rank * 100000 + si * 997 + len(grid)
@@ -496,6 +590,10 @@ def relayout(path_in, path_out):
             s["lines"] = [encode(l) for l in ori]
             n_straight += straight_count(ori)
             counts.append(len(ori))
+            fills.append(len(set().union(*ori)) / len(mask))
+            for l in ori:
+                L = len(l)
+                catdist[0 if L <= 7 else 1 if L <= 15 else 2] += 1
             spam_ratios.append(initial_free(rows, cols, ori) / len(ori))
             if len(ori) < 100:
                 n_under100 += 1
@@ -523,8 +621,14 @@ def relayout(path_in, path_out):
             sum(m['solvable'] for m in ms), len(ms)))
 
     cs = sorted(counts)
+    tot = sum(catdist) or 1
     print("\n=== RULE CHECK ===")
     print("straight arrows (must be 0): %d" % n_straight)
+    print("length mix short<=7/mid8-15/long>=16: %d/%d/%d %%"
+          % (100 * catdist[0] // tot, 100 * catdist[1] // tot,
+             100 * catdist[2] // tot))
+    print("fill: mean %.0f%%  min %.0f%%"
+          % (100 * statistics.mean(fills), 100 * min(fills)))
     print("arrow count: min %d  median %d  max %d"
           % (cs[0], cs[len(cs) // 2], cs[-1]))
     print("stages with <100 arrows: %d/%d (%.0f%%)"
