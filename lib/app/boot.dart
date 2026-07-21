@@ -26,8 +26,8 @@ import 'app_settings.dart';
 class AppBrand {
   const AppBrand._();
 
-  /// Lockup line 1. Also the loading bar fill.
-  static const Color wordmarkAccent = Color(0xFF00A19B);
+  /// Lockup line 1. Also the loading bar fill. 여기어때 YDS Cyan 800.
+  static const Color wordmarkAccent = Color(0xFF1D8BFF);
 
   /// Lockup line 2. Becomes the CTA background wherever the brand run needs one.
   static const Color wordmarkSlate = Color(0xFF3A4A55);
@@ -46,6 +46,9 @@ final kBootConfig = LoganLandBootConfig(
   // way and using the lockup's own second colour reaches 2.87:1 and leaves
   // the bar made of nothing but the two colours in the logo above it.
   barTrack: AppBrand.wordmarkSlate,
+  // Bar fill = lockup line 1 (the accent). Passed explicitly so it tracks
+  // AppBrand.wordmarkAccent instead of the kit's default mint.
+  barFill: AppBrand.wordmarkAccent,
   // The kit draws this before any localisation exists, so it reads the
   // platform locale directly instead of the app's l10n.
   captionBuilder: (percent) {
