@@ -113,13 +113,19 @@ def _arrow_vertical(dr, x, y_tail, y_tip, bar, head_l, head_h, color) -> None:
     dr.polygon([(x, y_tip), (x - head_h / 2, y_neck), (x + head_h / 2, y_neck)], fill=color)
 
 
-def render_globe(size, background, *, center_lat=20.0, center_lon=12.0,
-                 n_across=44, disk=1.02, cy=0.50, supersample=4,
-                 with_arrows=True) -> Image.Image:
-    """`disk` = globe diameter as a fraction of the canvas (may exceed 1 so the
-    dome bleeds off the sides like the reference). `cy` = disk-centre height as
-    a fraction of the canvas (0 top, 1 bottom); pushing it past the middle drops
-    the empty southern ocean below the frame and lifts the land into a dome."""
+def render_globe(size, background, *, center_lat=12.0, center_lon=-30.0,
+                 n_across=50, disk_w=1.6, squash=0.68, cx=0.5, cy=0.70,
+                 supersample=4, with_arrows=True) -> Image.Image:
+    """The globe is drawn as a wide, vertically-squashed dome sitting low in the
+    canvas, matching the reference: a curved-top world cap at the icon's bottom.
+
+    `disk_w` = horizontal diameter as a fraction of the canvas (may exceed 1 so
+    the dome bleeds off the sides). `squash` = vertical scale (<1 flattens the
+    circle into the wide dome). `cx`/`cy` = dome-centre position (0..1); a high
+    `cy` drops the sphere centre near/below the bottom so only the top cap shows.
+    `center_lon=-30` puts the mid-Atlantic dead centre, Americas left, Africa/
+    Europe right.
+    """
     S = size * supersample
     img = Image.new("RGBA", (S, S), background or (0, 0, 0, 0))
     dot_layer = Image.new("RGBA", (S, S), (0, 0, 0, 0))
@@ -128,25 +134,25 @@ def render_globe(size, background, *, center_lat=20.0, center_lon=12.0,
     arrow_dr = ImageDraw.Draw(arrow_layer)
 
     pts, step = globe_dots(center_lat, center_lon, n_across)
-    R = S * disk / 2
-    ox, oy = S / 2, S * cy
-    radius = R * step * 0.40
+    Rx = S * disk_w / 2
+    Ry = Rx * squash
+    ox, oy = S * cx, S * cy
+    radius = 0.46 * Ry * step
     for x, y in pts:
-        px = ox + x * R
-        py = oy - y * R
+        px = ox + x * Rx
+        py = oy - y * Ry
         dot_dr.ellipse([px - radius, py - radius, px + radius, py + radius], fill=DOT)
 
     if with_arrows:
-        # Measured off the "ORIGINAL Arrows" reference (plate ~173px): shaft
-        # 14px = 0.081 of the plate, arrowhead 42x42px = 3.0x the shaft in both
-        # length and width. The reference draws its side arrows with smaller
-        # heads, but the design is one-bar-one-head, so the primary (vertical)
-        # arrow's proportions apply to all three.
-        bar = S * 0.081
-        head_l, head_h = bar * 3.0, bar * 3.0
-        _arrow_vertical(arrow_dr, S * 0.86, S, S * 0.30, bar, head_l, head_h, BLUE)
-        _arrow(arrow_dr, 0, S * 0.62, S * 0.55, bar, head_l, head_h, INK)
-        _arrow(arrow_dr, S * 0.52, S * 0.15, S * 0.72, bar, head_l, head_h, RED)
+        # Identical size and position to the last build_icon.py version: shaft
+        # 0.0748 of the canvas, head 2.35x long / 3.05x wide. The positions
+        # there were expressed against the Africa board grid; here they are the
+        # same coordinates resolved to canvas fractions.
+        bar = S * 0.0748
+        head_l, head_h = bar * 2.35, bar * 3.05
+        _arrow_vertical(arrow_dr, S * 0.86, S, S * 0.2195, bar, head_l, head_h, BLUE)
+        _arrow(arrow_dr, 0, S * 0.6701, S * 0.5323, bar, head_l, head_h, INK)
+        _arrow(arrow_dr, S * 0.6213, S * 0.15, S * 0.7347, bar, head_l, head_h, RED)
 
     img.alpha_composite(dot_layer)
     img.alpha_composite(arrow_layer)
