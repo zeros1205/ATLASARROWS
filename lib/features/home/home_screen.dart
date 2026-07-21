@@ -14,14 +14,57 @@ import '../../shared/pressable.dart';
 import '../../shared/theme_toggle_button.dart';
 import '../game/game_screen.dart';
 
+/// One button's height — the CTA is lifted by exactly that off the bottom.
+/// (18px padding above and below an 18px headline line.)
+const double _ctaLift = 58;
+
 /// Home: centred game logo, then the play CTAs. A brand-new player sees a
 /// single '시작하기'; a returning player sees '이어서 플레이' + '맵에서 플레이'.
 /// No hearts/gem in the header (hearts live in-play; gem is unused).
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final _mapKey = GlobalKey();
+  final _wordmarkKey = GlobalKey();
+
+  /// How far the wordmark is nudged off its slot in the Column so its centre
+  /// lands halfway between the top of the screen and the top of the map.
+  ///
+  /// Measured and applied as a translation rather than built into the layout:
+  /// the map is the Column's flexible child, so *any* change to the boxes above
+  /// or below it moves the map too. Only the wordmark is supposed to move.
+  double _wordmarkShift = 0;
+
+  void _syncWordmark() {
+    final map = _mapKey.currentContext?.findRenderObject() as RenderBox?;
+    final mark = _wordmarkKey.currentContext?.findRenderObject() as RenderBox?;
+    final wm = WorldMap.instance;
+    if (map == null || mark == null || !map.hasSize || !mark.hasSize) return;
+    if (!wm.isLoaded || !map.attached || !mark.attached) return;
+    // The map contain-fits its grid into its box and centres it, so the top of
+    // the map is inset from the top of the box by half the letterbox.
+    final box = map.size;
+    final scale = math.min(box.width / wm.cols, box.height / wm.rows);
+    final mapTop =
+        map.localToGlobal(Offset.zero).dy + (box.height - wm.rows * scale) / 2;
+    final centre = mark.localToGlobal(Offset.zero).dy +
+        mark.size.height / 2 -
+        _wordmarkShift;
+    final shift = mapTop / 2 - centre;
+    if ((shift - _wordmarkShift).abs() > 0.5) {
+      setState(() => _wordmarkShift = shift);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) => _syncWordmark());
+
     void play() {
       final stage = Progress.instance.unlocked.value
           .clamp(0, (CampaignRepository.instance.totalStages - 1).clamp(0, 1 << 30));
@@ -46,17 +89,21 @@ class HomeScreen extends StatelessWidget {
             return Column(
               children: [
                 const SizedBox(height: 24),
-                EnterFade(
-                  rise: 12,
-                  // The wordmark holds to ~40% of the width so the map below is
-                  // the hero, not the type. Fixed height gives the FittedBox a
-                  // bounded box to scale into inside the Column.
-                  child: SizedBox(
-                    height: 86,
-                    child: FractionallySizedBox(
-                      widthFactor: 0.40,
-                      child: FittedBox(
-                          fit: BoxFit.contain, child: const _Wordmark()),
+                Transform.translate(
+                  offset: Offset(0, _wordmarkShift),
+                  child: EnterFade(
+                    rise: 12,
+                    // The wordmark holds to ~40% of the width so the map below
+                    // is the hero, not the type. Fixed height gives the
+                    // FittedBox a bounded box to scale into inside the Column.
+                    child: SizedBox(
+                      key: _wordmarkKey,
+                      height: 86,
+                      child: FractionallySizedBox(
+                        widthFactor: 0.40,
+                        child: FittedBox(
+                            fit: BoxFit.contain, child: const _Wordmark()),
+                      ),
                     ),
                   ),
                 ),
@@ -64,11 +111,16 @@ class HomeScreen extends StatelessWidget {
                 Expanded(
                   child: EnterFade(
                     delay: const Duration(milliseconds: 120),
-                    child: _RadarWorldMap(target: target),
+                    child: _RadarWorldMap(key: _mapKey, target: target),
                   ),
                 ),
                 const SizedBox(height: AppGap.xl),
-                EnterFade(
+                // Lifted a button's height off the bottom. A translation, not
+                // layout: giving the Column the space would take it from the
+                // map, which is not what was asked for.
+                Transform.translate(
+                  offset: const Offset(0, -_ctaLift),
+                  child: EnterFade(
                   delay: const Duration(milliseconds: 200),
                   rise: 14,
                   child: Padding(
@@ -89,6 +141,7 @@ class HomeScreen extends StatelessWidget {
                             ],
                           ),
                   ),
+                ),
                 ),
                 const SizedBox(height: AppGap.lg),
               ],
@@ -129,9 +182,18 @@ int _targetCountry(int unlocked) {
   return repo.locate(stage).$1;
 }
 
-/// The two-line lockup from the Figma feature graphic: mint "ATLAS" spread
-/// wide over teal-gray "ARROWS" set tight. ATLAS is nudged right by half its
-/// letter-spacing so the trailing gap doesn't push the glyphs off-centre.
+/// The two-line lockup, straight off the Figma file: mint "ATLAS" centred over
+/// teal-gray "ARROWS", both Outfit Bold at 112, ATLAS tracked +6% and ARROWS
+/// −5%. Reproduces logo_wordmark.png to within 0.2% on every measurement.
+///
+/// ⛔ Do NOT even the two lines up. ATLAS is the shorter word tracked slightly
+/// out, which leaves the lockup a symmetric trapezoid — that silhouette IS the
+/// mark. Tracking it further until the two S's line up squares it off, and has
+/// been reverted once already.
+///
+/// The sizes look large because the FittedBox scales the whole lockup to the
+/// width it is given; keeping the Figma numbers verbatim is what makes the
+/// percentage tracking come out right.
 ///
 /// Each line carries the slight white outside stroke from the Figma lockup —
 /// a wider stroked pass painted behind the fill, so only its outer half shows.
@@ -140,10 +202,17 @@ int _targetCountry(int unlocked) {
 class _Wordmark extends StatelessWidget {
   const _Wordmark();
 
-  static const double _atlasSpacing = 10;
+  static const double _size = 112;
+  static const double _trackTop = 0.06 * _size;
+  static const double _trackBottom = -0.05 * _size;
 
-  /// At the 44px drawing size; the FittedBox scales it down with everything.
-  static const double _strokeWidth = 3;
+  /// Cap-top to cap-top measures 96 on the 83-tall caps in the reference. Both
+  /// lines carry the same value so the glyph sits identically inside each line
+  /// box and the gap comes out exact.
+  static const double _lineHeight = 96 / _size;
+
+  /// At the 112px drawing size; the FittedBox scales it down with everything.
+  static const double _strokeWidth = 7.6;
 
   @override
   Widget build(BuildContext context) {
@@ -151,32 +220,35 @@ class _Wordmark extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Transform.translate(
-          offset: const Offset(_atlasSpacing / 2, 0),
-          child: _line('ATLAS', c.accent, _atlasSpacing, 1.0),
-        ),
-        _line('ARROWS', c.ink, -1, 1.05),
+        _line('ATLAS', c.accent, _trackTop),
+        _line('ARROWS', c.ink, _trackBottom),
       ],
     );
   }
 
-  Widget _line(String text, Color fill, double spacing, double height) {
+  Widget _line(String text, Color fill, double tracking) {
     final base = AppText.display.copyWith(
-        fontSize: 44,
-        fontWeight: FontWeight.w800,
-        letterSpacing: spacing,
-        height: height);
-    return Stack(
-      children: [
-        Text(text,
-            style: base.copyWith(
-                foreground: Paint()
-                  ..style = PaintingStyle.stroke
-                  ..strokeWidth = _strokeWidth
-                  ..strokeJoin = StrokeJoin.round
-                  ..color = Colors.white)),
-        Text(text, style: base.copyWith(color: fill)),
-      ],
+        fontSize: _size,
+        fontWeight: FontWeight.w700,
+        letterSpacing: tracking,
+        height: _lineHeight);
+    // Flutter puts the tracking after the last glyph too, so the ink sits half
+    // a step off the box centre. Undo it per line, or the two lines' centres
+    // drift apart and the trapezoid leans.
+    return Transform.translate(
+      offset: Offset(tracking / 2, 0),
+      child: Stack(
+        children: [
+          Text(text,
+              style: base.copyWith(
+                  foreground: Paint()
+                    ..style = PaintingStyle.stroke
+                    ..strokeWidth = _strokeWidth
+                    ..strokeJoin = StrokeJoin.round
+                    ..color = Colors.white)),
+          Text(text, style: base.copyWith(color: fill)),
+        ],
+      ),
     );
   }
 }
@@ -189,7 +261,7 @@ class _Wordmark extends StatelessWidget {
 /// only repaints when the target or theme changes, so the per-frame cost is
 /// just the two rings and the beacon. Under OS reduce-motion the ring freezes.
 class _RadarWorldMap extends StatefulWidget {
-  const _RadarWorldMap({required this.target});
+  const _RadarWorldMap({super.key, required this.target});
 
   /// Campaign country index to spotlight, or -1 for none.
   final int target;
@@ -322,7 +394,9 @@ class _DotsPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final f = _mapFit(wm, size);
     final rBase = f.scale * 0.30, rHot = f.scale * 0.44;
-    final faint = Paint()..color = c.inkFaint.withValues(alpha: 0.45);
+    // The land reads as texture, not decoration — the old inkFaint at 0.45
+    // washed out to near-paper and the map barely registered.
+    final faint = Paint()..color = c.inkSoft.withValues(alpha: 0.7);
     for (var i = 0; i < wm.cells.length; i++) {
       if (wm.cells[i] < 0 || _hotSet.contains(i)) continue;
       final row = i ~/ wm.cols, col = i % wm.cols;
@@ -413,7 +487,7 @@ class _PrimaryButton extends StatelessWidget {
       onTap: onTap,
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 18),
+        padding: const EdgeInsets.symmetric(vertical: kButtonPadV),
         decoration: BoxDecoration(
           color: c.accent,
           borderRadius: BorderRadius.circular(AppRadius.xl),
@@ -421,9 +495,7 @@ class _PrimaryButton extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(label,
-                style: AppText.headline
-                    .copyWith(color: c.onAccent, fontWeight: FontWeight.w900)),
+            Text(label, style: kButtonText.copyWith(color: c.onAccent)),
             if (sub != null && sub!.isNotEmpty) ...[
               const SizedBox(height: 2),
               Text(sub!,
@@ -452,7 +524,7 @@ class _SecondaryButton extends StatelessWidget {
       onTap: onTap,
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 15),
+        padding: const EdgeInsets.symmetric(vertical: kButtonPadV),
         decoration: BoxDecoration(
           color: c.surface,
           borderRadius: BorderRadius.circular(AppRadius.xl),

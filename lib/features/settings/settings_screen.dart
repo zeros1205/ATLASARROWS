@@ -270,7 +270,40 @@ Widget _rowShell(AppColors c, {required Widget child}) => Container(
       child: child,
     );
 
-class _Version extends StatelessWidget {
+/// LOGAN and LAND are separately tappable: ten taps on LOGAN arms the cheat
+/// button on the play screen, ten on LAND disarms it. Deliberately silent —
+/// the copyright line is the last place a player pokes at.
+class _Version extends StatefulWidget {
+  @override
+  State<_Version> createState() => _VersionState();
+}
+
+class _VersionState extends State<_Version> {
+  static const _tapsToToggle = 10;
+  int _logan = 0, _land = 0;
+
+  void _tapLogan() {
+    _land = 0;
+    if (++_logan < _tapsToToggle) return;
+    _logan = 0;
+    Progress.instance.setCheatOn(true);
+    _say('치트 ON');
+  }
+
+  void _tapLand() {
+    _logan = 0;
+    if (++_land < _tapsToToggle) return;
+    _land = 0;
+    Progress.instance.setCheatOn(false);
+    _say('치트 OFF');
+  }
+
+  void _say(String text) {
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(SnackBar(content: Text(text)));
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = AppColors.of(context);
@@ -284,9 +317,22 @@ class _Version extends StatelessWidget {
         final label = info == null
             ? 'v0.1.0'
             : 'v${info.version} (build ${info.buildNumber})';
-        return Text('$label · © 2026 LOGAN LAND',
-            textAlign: TextAlign.center,
-            style: AppText.caption.copyWith(color: c.inkFaint));
+        final style = AppText.caption.copyWith(color: c.inkFaint);
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text('$label · © 2026 ', style: style),
+            GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _tapLogan,
+                child: Text('LOGAN', style: style)),
+            Text(' ', style: style),
+            GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _tapLand,
+                child: Text('LAND', style: style)),
+          ],
+        );
       },
     );
   }

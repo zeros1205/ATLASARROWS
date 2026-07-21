@@ -40,11 +40,21 @@ abstract final class Sfx {
     _voice = EscapeVoice.values[_rng.nextInt(EscapeVoice.values.length)];
   }
 
-  /// Escape pop; [comboIndex] 0..n raises the pitch a semitone per step within
-  /// the stage's current [_voice].
+  /// Escape pop. [comboIndex] walks the voice's semitone ladder up and then
+  /// back down, over and over: 0..7, 6..1, 0..7. Clamping instead — which is
+  /// what this did — parks a long combo on the top note and hammers it, which
+  /// is where the sound stops being a reward and starts being a nuisance.
   static void pop(int comboIndex) {
-    _play('esc_${_voice.name}_${comboIndex.clamp(0, _comboSteps - 1)}.wav', 0.8);
+    _play('esc_${_voice.name}_${_ladder(comboIndex)}.wav', 0.8);
     _haptic(HapticFeedback.lightImpact);
+  }
+
+  /// Triangle wave over the [_comboSteps] pre-rendered pitches.
+  static int _ladder(int i) {
+    if (i < 0) return 0;
+    final period = (_comboSteps - 1) * 2; // up, then back down
+    final pos = i % period;
+    return pos < _comboSteps ? pos : period - pos;
   }
 
   static void block() {

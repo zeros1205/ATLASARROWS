@@ -3,6 +3,10 @@ import 'package:flutter/widgets.dart';
 /// Locale-aware type. Korean uses Paperlogy, other locales use Outfit,
 /// Pretendard is the glyph fallback for both. A 6-step scale keeps every
 /// screen on the same rhythm — use these, not ad-hoc sizes.
+///
+/// ⛔ 16 is the floor, everywhere. [label] and [caption] are no longer smaller
+/// than [body] — they differ in weight and tracking only. Do not reintroduce a
+/// `fontSize:` under 16 in a copyWith; that is what this scale exists to stop.
 abstract final class AppText {
   /// Latin display face; Hangul falls back to Paperlogy via [fallback].
   static const _latin = 'Outfit';
@@ -29,8 +33,15 @@ abstract final class AppText {
     fontSize: 16, fontWeight: FontWeight.w500, height: 1.35, letterSpacing: 0.1);
   static const label = TextStyle(
     fontFamily: _fam, fontFamilyFallback: fallback,
-    fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: 0.2);
+    fontSize: 16, fontWeight: FontWeight.w600, letterSpacing: 0.2);
   static const caption = TextStyle(
     fontFamily: _fam, fontFamilyFallback: fallback,
-    fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.3);
+    fontSize: 16, fontWeight: FontWeight.w600, letterSpacing: 0.3);
 }
+
+/// Every big action button — filled or outlined, on any screen — is this tall
+/// and this weight. They used to run 12/13/14/15/16/17/18 with w600 and w900
+/// mixed in, which reads as sloppiness the moment two of them share a screen.
+const double kButtonPadV = 18;
+final TextStyle kButtonText =
+    AppText.headline.copyWith(fontWeight: FontWeight.w800);

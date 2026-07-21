@@ -11,7 +11,7 @@ Run: python tools/atlas/build_wordmark.py
 
 from PIL import Image, ImageDraw, ImageFont
 
-FONT = "assets/fonts/Outfit-ExtraBold.ttf"
+FONT = "assets/fonts/Outfit-Bold.ttf"  # the Figma file's weight
 OUT = "assets/images/brand/atlas_arrows_wordmark.png"
 
 # Colours are the kit's published values, held until the app is given its own.
@@ -22,7 +22,13 @@ SLATE = (0x3A, 0x4A, 0x55)  # bottom line -- also the CTA background
 # a small render would land letters on uneven pixel boundaries.
 SIZE = 400
 TARGET_W = 1184  # 2x the 592px floor
-GAP_RATIO = 0.16  # gap between the lines, as a share of the line height
+GAP_RATIO = 0.157  # gap between the lines, as a share of the cap height
+# Straight from the Figma file: Outfit Bold 112, ATLAS +6% and ARROWS -5%.
+# ATLAS is the shorter word tracked slightly out, which leaves the lockup a
+# symmetric trapezoid -- that silhouette is the mark. Do NOT track it further
+# to match ARROWS in width; that squares it off and has been reverted once.
+TRACK_TOP = 0.06
+TRACK_BOTTOM = -0.05
 
 
 def render(text: str, rgb: tuple[int, int, int], tracking: float) -> Image.Image:
@@ -43,22 +49,25 @@ def render(text: str, rgb: tuple[int, int, int], tracking: float) -> Image.Image
 
 
 def main() -> None:
-    # Tracking is per line so both lines end up the same width without
-    # rescaling one of them to a different optical weight -- ATLAS has one
-    # fewer letter, so it gets the wider gaps.
-    top = render("ATLAS", ACCENT, 0.22)
-    bottom = render("ARROWS", SLATE, 0.04)
+    # Both lines are scaled by the SAME factor, so the narrower line stays
+    # narrower -- rescaling each to TARGET_W was what squared the lockup off.
+    top = render("ATLAS", ACCENT, TRACK_TOP)
+    bottom = render("ARROWS", SLATE, TRACK_BOTTOM)
+
+    # The wider line sets the width; the narrower one keeps its true share.
+    scale = TARGET_W / bottom.width
 
     def fit(img: Image.Image) -> Image.Image:
-        h = round(img.height * TARGET_W / img.width)
-        return img.resize((TARGET_W, h), Image.LANCZOS)
+        return img.resize(
+            (round(img.width * scale), round(img.height * scale)),
+            Image.LANCZOS)
 
     top, bottom = fit(top), fit(bottom)
     gap = round((top.height + bottom.height) / 2 * GAP_RATIO)
 
     out = Image.new("RGBA", (TARGET_W, top.height + gap + bottom.height),
                     (0, 0, 0, 0))
-    out.paste(top, (0, 0), top)
+    out.paste(top, ((TARGET_W - top.width) // 2, 0), top)
     out.paste(bottom, (0, top.height + gap), bottom)
     out = out.crop(out.getchannel("A").getbbox())
 

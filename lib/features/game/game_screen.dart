@@ -23,8 +23,9 @@ import '../../services/progress.dart';
 import '../../shared/motion.dart';
 import '../../shared/pressable.dart';
 
-/// One stage of the campaign: a header naming the place, a hearts strip, the
-/// board, a bottom bar (fit view / hint / remove / restart) and a banner.
+/// One stage of the campaign: a header (stage number centred, hearts right),
+/// a translucent place chip floating under it, the board, a bottom bar
+/// (fit view / hint / remove / restart) and a banner.
 /// Results come up as a bottom sheet with a top MREC banner; the heart
 /// economy grants a free refill then ad refills.
 class GameScreen extends StatefulWidget {
@@ -43,7 +44,6 @@ class _GameScreenState extends State<GameScreen> {
   late AtlasArrowsGame _game;
   final _hearts = ValueNotifier<int>(AtlasArrowsGame.maxHearts);
   _Result _result = _Result.none;
-  bool _freeRefillUsed = false;
 
   // Feature flags — both surfaces are kept but held off for now; flip to true
   // to bring them back. Runtime fields (not const) so the gated code stays
@@ -244,6 +244,23 @@ class _GameScreenState extends State<GameScreen> {
     return _repo.stageAt(_stage)?.displayName ?? _countryName;
   }
 
+  /// 'STAGE 12' — or '스테이지 12' in Korean. Other locales keep the Latin word
+  /// until real i18n lands; this is the one place a player reads a bare English
+  /// noun on the play screen, so it is worth the special case.
+  String _stageLabel(BuildContext context) {
+    final ko = Localizations.localeOf(context).languageCode == 'ko';
+    return ko ? '스테이지 ${_stage + 1}' : 'STAGE ${_stage + 1}';
+  }
+
+  /// The city this board depicts, or '' on the country finale and on a travel
+  /// leg — in both cases the place chip carries the country name alone (a path
+  /// heads toward the round's country; the finale is the country).
+  String get _cityLabel {
+    final st = _repo.stageAt(_stage);
+    if (st == null || st.kind != StageKind.city) return '';
+    return st.displayName;
+  }
+
   /// The ISO 3166-1 alpha-2 code of the country this stage belongs to, used to
   /// render its flag image in the header and on clear. A travel leg is not a
   /// country, so it carries no flag.
@@ -281,7 +298,6 @@ class _GameScreenState extends State<GameScreen> {
     }
     setState(() {
       _stage++;
-      _freeRefillUsed = false;
       _result = _Result.none;
       _showIntro = _introEnabled && crossedIntoNewCountry;
     });
@@ -290,10 +306,7 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   void _restart() {
-    setState(() {
-      _freeRefillUsed = false;
-      _result = _Result.none;
-    });
+    setState(() => _result = _Result.none);
     _game.restartLevel();
     _resetBoardView();
   }
@@ -304,6 +317,10 @@ class _GameScreenState extends State<GameScreen> {
   Future<void> _confirmRestart() async {
     final ok = await showDialog<bool>(
       context: context,
+      // Centre on the SCREEN. showDialog defaults to useSafeArea: true, which
+      // centres inside the status-bar inset instead and drops the box low
+      // enough that its title, not its middle, sits on the centre line.
+      useSafeArea: false,
       builder: (_) => const _ConfirmDialog(
         title: '다시 시작할까요?',
         body: '지금까지 뺀 화살표가 모두 처음 상태로 돌아갑니다.',
@@ -324,6 +341,7 @@ class _GameScreenState extends State<GameScreen> {
     }
     final ok = await showDialog<bool>(
       context: context,
+      useSafeArea: false,
       builder: (_) => const _ConfirmDialog(
         title: '게임을 나갈까요?',
         body: '지금 풀던 판은 저장되지 않아요.',
@@ -340,7 +358,7 @@ class _GameScreenState extends State<GameScreen> {
     }
 
     if (!viaAd) {
-      _freeRefillUsed = true;
+      Progress.instance.useRefillCoupon();
       grant();
     } else {
       Ads.showRewarded(onReward: grant, onUnavailable: grant);
@@ -420,15 +438,11 @@ class _GameScreenState extends State<GameScreen> {
                   child: Column(
                     children: [
                       _Header(
-                        stageLabel: 'STAGE ${_stage + 1}',
+                        stageLabel: _stageLabel(context),
+                        hearts: _hearts,
                         onBack: _maybeLeave,
                       ),
                       Container(height: 1, color: c.line),
-                      // Clearing hands the board over to the reveal, so the
-                      // hearts and the booster bar step aside; the fail path
-                      // keeps them.
-                      if (_result != _Result.cleared)
-                        _HeartsStrip(hearts: _hearts),
                     ],
                   ),
                 ),
@@ -439,6 +453,52 @@ class _GameScreenState extends State<GameScreen> {
                       // is what the board is fitted to and what the pan clamp
                       // measures against. Hit-tests through to the board.
                       SizedBox.expand(key: _playAreaKey),
+                      // Dev cheat, armed from Settings. Clears the stage by
+                      // the same path a real clear takes, so the reveal, the
+                      // unlock and the ad cadence all behave normally.
+                      if (_result == _Result.none)
+                        ValueListenableBuilder<bool>(
+                          valueListenable: Progress.instance.cheatOn,
+                          builder: (context, on, _) => !on
+                              ? const SizedBox.shrink()
+                              : Positioned(
+                                  right: 12,
+                                  top: 8,
+                                  child: Pressable(
+                                    onTap: () => setState(
+                                        () => _result = _Result.cleared),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 12, vertical: 7),
+                                      decoration: BoxDecoration(
+                                        color: c.danger,
+                                        borderRadius: BorderRadius.circular(
+                                            AppRadius.pill),
+                                      ),
+                                      child: Text('CLEAR',
+                                          style: AppText.label.copyWith(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w900)),
+                                    ),
+                                  ),
+                                ),
+                        ),
+                      // Floats rather than taking a band of the Column: it is
+                      // translucent precisely so the board shows through it.
+                      if (_result != _Result.cleared)
+                        Positioned(
+                          top: 8,
+                          left: 0,
+                          right: 0,
+                          child: IgnorePointer(
+                            child: Center(
+                              child: _PlaceChip(
+                                  city: _cityLabel,
+                                  country: _countryName,
+                                  flagIso: _flagIso),
+                            ),
+                          ),
+                        ),
                       // On clear, the solved board gives way in place to the
                       // territory silhouette: grey dots rise, then accent
                       // sweeps out from the centre.
@@ -493,7 +553,6 @@ class _GameScreenState extends State<GameScreen> {
                 place: _placeName,
                 flagIso: _flagIso,
                 isPath: _isPath,
-                freeRefillUsed: _freeRefillUsed,
                 onNext: _next,
                 onRestart: _restart,
                 onRefill: _refill,
@@ -582,7 +641,7 @@ class _RoundIntro extends StatelessWidget {
               children: [
                 Text('ROUND ${round.toString().padLeft(2, '0')}',
                     style: AppText.label.copyWith(
-                        color: c.accent, letterSpacing: 4, fontSize: 13)),
+                        color: c.accent, letterSpacing: 4)),
                 const SizedBox(height: 12),
                 Text(country.displayName,
                     style: AppText.display.copyWith(
@@ -610,7 +669,7 @@ class _RoundIntro extends StatelessWidget {
                       return Text(
                         blurb.isNotEmpty ? blurb : fallback,
                         style: AppText.body.copyWith(
-                            color: c.inkSoft, height: 1.55, fontSize: 15),
+                            color: c.inkSoft, height: 1.55),
                       );
                     }),
                   ),
@@ -664,7 +723,7 @@ class _RoundIntro extends StatelessWidget {
               const SizedBox(height: 2),
               Text(label,
                   style: AppText.caption.copyWith(
-                      color: c.inkFaint, letterSpacing: 1.5, fontSize: 11)),
+                      color: c.inkFaint, letterSpacing: 1.5)),
             ],
           ),
         ),
@@ -694,39 +753,49 @@ class _FlagImg extends StatelessWidget {
 class _Header extends StatelessWidget {
   const _Header({
     required this.stageLabel,
+    required this.hearts,
     required this.onBack,
   });
 
   final String stageLabel;
+  final ValueNotifier<int> hearts;
   final VoidCallback onBack;
 
   @override
   Widget build(BuildContext context) {
     final c = AppColors.of(context);
+    // A Stack, not a Row: the stage label has to sit on the screen's centre
+    // line, and in a Row the back button and the hearts would have to weigh
+    // exactly the same for that to hold. They don't, and the hearts change
+    // width as they are spent.
     return SizedBox(
       height: 60,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6),
-        child: Row(
-          children: [
-            Pressable(
+      child: Stack(
+        children: [
+          Center(
+            child: Text(stageLabel,
+                style: AppText.headline
+                    .copyWith(color: c.ink, fontWeight: FontWeight.w900)),
+          ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Pressable(
               onTap: onBack,
               child: SizedBox(
-                width: 44,
-                height: 44,
+                width: 50,
+                height: 50,
                 child: Icon(Icons.arrow_back, color: c.inkFaint, size: 24),
               ),
             ),
-            Expanded(
-              child: Center(
-                child: Text(stageLabel,
-                    style: AppText.label.copyWith(
-                        color: c.ink, fontSize: 16, fontWeight: FontWeight.w700)),
-              ),
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 14),
+              child: _Hearts(hearts: hearts),
             ),
-            const SizedBox(width: 44),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -748,16 +817,14 @@ class _ConfirmDialog extends StatelessWidget {
           child: Pressable(
             onTap: () => Navigator.of(context).pop(value),
             child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 13),
+              padding: const EdgeInsets.symmetric(vertical: kButtonPadV),
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: bg,
                 borderRadius: BorderRadius.circular(AppRadius.pill),
                 border: outline ? Border.all(color: c.line, width: 1.5) : null,
               ),
-              child: Text(label,
-                  style: AppText.label
-                      .copyWith(color: fg, fontWeight: FontWeight.w600)),
+              child: Text(label, style: kButtonText.copyWith(color: fg)),
             ),
           ),
         );
@@ -779,7 +846,7 @@ class _ConfirmDialog extends StatelessWidget {
             const SizedBox(height: 8),
             Text(body,
                 textAlign: TextAlign.center,
-                style: AppText.body.copyWith(color: c.inkSoft, fontSize: 13.5)),
+                style: AppText.body.copyWith(color: c.inkSoft)),
             const SizedBox(height: 20),
             Row(
               children: [
@@ -796,42 +863,35 @@ class _ConfirmDialog extends StatelessWidget {
   }
 }
 
-class _HeartsStrip extends StatelessWidget {
-  const _HeartsStrip({required this.hearts});
+/// The hearts, sized to sit inside the header rather than on a strip of their
+/// own. Rebuilds on its own notifier so spending one doesn't rebuild the board.
+class _Hearts extends StatelessWidget {
+  const _Hearts({required this.hearts});
   final ValueNotifier<int> hearts;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 34,
-      child: Padding(
-        padding: const EdgeInsets.only(left: 16),
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: ValueListenableBuilder<int>(
-            valueListenable: hearts,
-            builder: (context, h, _) => Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (var i = 0; i < AtlasArrowsGame.maxHearts; i++)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 5),
-                    child: Opacity(
-                      opacity: i < h ? 1 : 0.28,
-                      child: ColorFiltered(
-                        colorFilter: i < h
-                            ? const ColorFilter.mode(
-                                Colors.transparent, BlendMode.dst)
-                            : const ColorFilter.matrix(_grayscale),
-                        child: Image.asset('assets/images/icons/heart.png',
-                            width: 22, height: 22),
-                      ),
-                    ),
-                  ),
-              ],
+    return ValueListenableBuilder<int>(
+      valueListenable: hearts,
+      builder: (context, h, _) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (var i = 0; i < AtlasArrowsGame.maxHearts; i++)
+            Padding(
+              padding: const EdgeInsets.only(left: 5),
+              child: Opacity(
+                opacity: i < h ? 1 : 0.28,
+                child: ColorFiltered(
+                  colorFilter: i < h
+                      ? const ColorFilter.mode(
+                          Colors.transparent, BlendMode.dst)
+                      : const ColorFilter.matrix(_grayscale),
+                  child: Image.asset('assets/images/icons/heart.png',
+                      width: 22, height: 22),
+                ),
+              ),
             ),
-          ),
-        ),
+        ],
       ),
     );
   }
@@ -842,6 +902,42 @@ class _HeartsStrip extends StatelessWidget {
     0.33, 0.33, 0.33, 0, 0,
     0, 0, 0, 1, 0,
   ];
+}
+
+/// City · country · flag, floating just under the header on a translucent
+/// plate so the board reads through it. It names where the board is without
+/// spending a band of the play area on it.
+class _PlaceChip extends StatelessWidget {
+  const _PlaceChip(
+      {required this.city, required this.country, required this.flagIso});
+  final String city, country, flagIso;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = AppColors.of(context);
+    final text = [if (city.isNotEmpty) city, if (country.isNotEmpty) country]
+        .join(' · ');
+    if (text.isEmpty && flagIso.length != 2) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: c.surface.withValues(alpha: 0.62),
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: Border.all(color: c.line.withValues(alpha: 0.6)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (text.isNotEmpty)
+            Text(text, style: AppText.label.copyWith(color: c.inkSoft)),
+          if (flagIso.length == 2) ...[
+            const SizedBox(width: 8),
+            _FlagImg(iso: flagIso, height: 16),
+          ],
+        ],
+      ),
+    );
+  }
 }
 
 /// Fit-view and restart flank the two boosters. Both booster tiles are the
@@ -869,7 +965,9 @@ class _BoosterBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+      // Bottom padding is the gap to the ad banner: three times the top, so
+      // the controls read as part of the board rather than as part of the ad.
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 30),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -946,16 +1044,19 @@ class _UtilButton extends StatelessWidget {
     return Pressable(
       onTap: onTap,
       child: SizedBox(
-        width: 58,
-        height: 58,
+        width: 75,
+        height: 75,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 26, color: c.inkSoft),
+            Icon(icon, size: 34, color: c.inkSoft),
             const SizedBox(height: 3),
             Text(label,
                 style: AppText.caption.copyWith(
-                    fontSize: 9, color: c.inkFaint, letterSpacing: 0.5)),
+                    color: c.inkSoft,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 0.5,
+                    fontSize: 20)),
           ],
         ),
       ),
@@ -982,8 +1083,8 @@ class _BoosterButton extends StatelessWidget {
     return Pressable(
       onTap: onTap,
       child: Container(
-        width: 66,
-        height: 58,
+        width: 86,
+        height: 75,
         decoration: BoxDecoration(
           color: c.surface,
           borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -997,29 +1098,37 @@ class _BoosterButton extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Image.asset(icon, width: 28, height: 28),
+                  Image.asset(icon, width: 36, height: 36),
                   Text(label,
                       style: AppText.caption.copyWith(
-                          fontSize: 9, color: c.inkFaint, letterSpacing: 0.5)),
+                          color: c.inkSoft,
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: 0.5,
+                          fontSize: 20)),
                 ],
               ),
             ),
+            // Sized off the 16pt digit inside it, not the other way round.
             Positioned(
-              top: -8,
-              right: -8,
+              top: -11,
+              right: -11,
               child: Container(
-                constraints: const BoxConstraints(minWidth: 21),
-                height: 21,
+                constraints: const BoxConstraints(minWidth: 30),
+                height: 30,
                 alignment: Alignment.center,
-                padding: const EdgeInsets.symmetric(horizontal: 5),
+                padding: const EdgeInsets.symmetric(horizontal: 7),
                 decoration: BoxDecoration(
-                  color: count > 0 ? c.ink : c.accent,
+                  // Two different jobs, so two different weights: a stock count
+                  // is metadata and stays quiet, while '+' is an offer to buy
+                  // and earns the accent. Full-strength ink here would outrank
+                  // the item icon it belongs to.
+                  color: count > 0 ? c.inkSoft : c.accent,
                   borderRadius: BorderRadius.circular(AppRadius.pill),
                   border: Border.all(color: c.bg, width: 2),
                 ),
                 child: Text(count > 0 ? '$count' : '+',
                     style: AppText.caption.copyWith(
-                        color: c.bg, fontWeight: FontWeight.w900, fontSize: 11)),
+                        color: c.bg, fontWeight: FontWeight.w900, height: 1)),
               ),
             ),
           ],
@@ -1040,7 +1149,6 @@ class _ResultSheet extends StatefulWidget {
     required this.place,
     required this.flagIso,
     required this.isPath,
-    required this.freeRefillUsed,
     required this.onNext,
     required this.onRestart,
     required this.onRefill,
@@ -1050,7 +1158,6 @@ class _ResultSheet extends StatefulWidget {
   final String place;
   final String flagIso;
   final bool isPath;
-  final bool freeRefillUsed;
   final VoidCallback onNext, onRestart;
   final void Function({required bool viaAd}) onRefill;
 
@@ -1172,62 +1279,65 @@ class _ResultSheetState extends State<_ResultSheet>
         ],
       );
 
-  Widget _fail(AppColors c) {
-    final free = !widget.freeRefillUsed;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text('하트 소진',
-            style: AppText.title.copyWith(
-                color: c.ink, fontWeight: FontWeight.w900, fontSize: 22)),
-        const SizedBox(height: 10),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            for (var i = 0; i < 3; i++)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: Image.asset('assets/images/icons/heart.png',
-                    width: 30, height: 30),
+  Widget _fail(AppColors c) => ValueListenableBuilder<int>(
+        valueListenable: Progress.instance.refillCoupons,
+        builder: (context, coupons, _) {
+          final free = coupons > 0;
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('하트 소진',
+                  style: AppText.title.copyWith(
+                      color: c.ink, fontWeight: FontWeight.w900, fontSize: 22)),
+              const SizedBox(height: 12),
+              Text(free ? '계속 플레이 하세요.' : '광고 한 편 보면 하트가 가득 차요.',
+                  textAlign: TextAlign.center,
+                  style: AppText.body.copyWith(color: c.inkSoft)),
+              const SizedBox(height: 16),
+              // Both states are the primary action on this sheet, so both get
+              // the full accent. Accent-soft made the ad path look like the
+              // secondary option when by then it is the only one.
+              _bigButton(
+                c,
+                free ? '리필쿠폰($coupons)' : '광고 보고 충전',
+                c.accent,
+                c.onAccent,
+                () => widget.onRefill(viaAd: !free),
+                icon: free ? 'assets/images/icons/heart.png' : null,
               ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Text(free ? '풀던 판은 그대로! 이번 리필은 무료예요.' : '광고 한 편 보면 하트가 가득 차요.',
-            textAlign: TextAlign.center,
-            style: AppText.body.copyWith(color: c.inkSoft, fontSize: 13.5)),
-        const SizedBox(height: 16),
-        _bigButton(
-          c,
-          free ? '무료 충전' : '광고 보고 충전',
-          free ? c.success : c.accentSoft,
-          free ? Colors.white : c.accent,
-          () => widget.onRefill(viaAd: !free),
-        ),
-        const SizedBox(height: 10),
-        _bigButton(c, '다시 시작', Colors.transparent, c.inkFaint, widget.onRestart,
-            outline: true),
-      ],
-    );
-  }
+              const SizedBox(height: 10),
+              _bigButton(
+                  c, '다시 시작', Colors.transparent, c.inkFaint, widget.onRestart,
+                  outline: true),
+            ],
+          );
+        },
+      );
 
   Widget _bigButton(AppColors c, String label, Color bg, Color fg,
           VoidCallback onTap,
-          {bool outline = false}) =>
+          {bool outline = false, String? icon}) =>
       Pressable(
         onTap: onTap,
         child: Container(
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 14),
+          padding: const EdgeInsets.symmetric(vertical: kButtonPadV),
           alignment: Alignment.center,
           decoration: BoxDecoration(
             color: bg,
             borderRadius: BorderRadius.circular(AppRadius.pill),
             border: outline ? Border.all(color: c.line, width: 1.5) : null,
           ),
-          child: Text(label,
-              style: AppText.headline
-                  .copyWith(color: fg, fontWeight: FontWeight.w900)),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icon != null) ...[
+                Image.asset(icon, width: 22, height: 22),
+                const SizedBox(width: 8),
+              ],
+              Text(label, style: kButtonText.copyWith(color: fg)),
+            ],
+          ),
         ),
       );
 }
@@ -1298,7 +1408,7 @@ class _ItemSheetState extends State<_ItemSheet> {
                   color: c.ink, fontWeight: FontWeight.w900, fontSize: 20)),
           const SizedBox(height: 4),
           Text('채우고 이어서 풀 수 있어요.',
-              style: AppText.body.copyWith(color: c.inkSoft, fontSize: 13.5)),
+              style: AppText.body.copyWith(color: c.inkSoft)),
           const SizedBox(height: 18),
           // Prices and disabled states track the store, so rebuild on both.
           ValueListenableBuilder<List<ProductDetails>>(
@@ -1548,15 +1658,14 @@ class _ClearNextBar extends StatelessWidget {
           onTap: onNext,
           child: Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 16),
+            padding: const EdgeInsets.symmetric(vertical: kButtonPadV),
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: c.accent,
               borderRadius: BorderRadius.circular(AppRadius.pill),
             ),
             child: Text('다음 스테이지',
-                style: AppText.headline
-                    .copyWith(color: c.onAccent, fontWeight: FontWeight.w900)),
+                style: kButtonText.copyWith(color: c.onAccent)),
           ),
         ),
       ),

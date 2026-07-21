@@ -204,7 +204,7 @@ class _AdsMrecState extends State<AdsMrec> {
 /// Reserved height of the bottom banner slot. Set for a Toss banner (taller
 /// than AdMob's 50pt), so the row keeps its shape whether the creative is
 /// loaded or still the placeholder. Keep in sync with the stub.
-const double _bannerSlot = 100;
+const double _bannerSlot = 92;
 
 /// Bottom banner, present on every screen. Falls back to the reserved
 /// slot styling until the ad is loaded (or when unsupported).

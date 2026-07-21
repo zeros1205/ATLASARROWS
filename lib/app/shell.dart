@@ -14,6 +14,11 @@ import 'tokens/typography.dart';
 /// "세계지도" button jumps to the map). 0=home 1=map 2=shop 3=settings.
 final ValueNotifier<int> appTab = ValueNotifier<int>(0);
 
+/// Height the floating tab bar occupies above the bottom safe area — its own
+/// height plus the margin it floats on. Screens that draw behind it (the map
+/// sets `extendBody`) inset their content by this so nothing hides under it.
+const double kTabBarSlot = 64 + 14;
+
 /// The 4-tab home shell: home / map / shop / settings, with a floating
 /// capsule tab bar. All tabs open from the start (no locking).
 class AppShell extends StatefulWidget {
@@ -96,7 +101,7 @@ class _TabBar extends StatelessWidget {
       top: false,
       child: Container(
         margin: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-        height: 64,
+        height: kTabBarSlot - 14,
         decoration: BoxDecoration(
           color: c.surface,
           borderRadius: BorderRadius.circular(AppRadius.xxl),
@@ -126,31 +131,41 @@ class _TabBar extends StatelessWidget {
 class _TabItem extends StatelessWidget {
   const _TabItem({required this.tab, required this.selected});
 
+  /// One width for all four pills. Comfortably inside the narrowest tab slot
+  /// (a quarter of the bar) on a small phone.
+  static const double _pillWidth = 68;
+
   final ({IconData icon, IconData active, String label}) tab;
   final bool selected;
 
   @override
   Widget build(BuildContext context) {
     final c = AppColors.of(context);
-    final color = selected ? c.accent : c.inkFaint;
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        AnimatedContainer(
-          duration: AppDur.fast,
-          width: 46,
-          height: 30,
-          decoration: BoxDecoration(
-            color: selected ? c.accentSoft : Colors.transparent,
-            borderRadius: BorderRadius.circular(AppRadius.pill),
-          ),
-          child: Icon(selected ? tab.active : tab.icon, size: 22, color: color),
+    final color = selected ? c.accent : c.inkSoft;
+    // The selected pill wraps the icon AND the label — a chip round the icon
+    // alone reads as a separate control sitting above unrelated text.
+    //
+    // Fixed width, not padding: '홈' is one glyph and '상점' is two, so a pill
+    // sized to its content lands on a different width under every tab and the
+    // row reads as ragged.
+    return Center(
+      child: AnimatedContainer(
+        duration: AppDur.fast,
+        width: _pillWidth,
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        decoration: BoxDecoration(
+          color: selected ? c.accentSoft : Colors.transparent,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
         ),
-        const SizedBox(height: 2),
-        Text(tab.label,
-            style: AppText.caption.copyWith(
-                fontSize: 10.5, color: color, letterSpacing: 0)),
-      ],
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(selected ? tab.active : tab.icon, size: 20, color: color),
+            Text(tab.label,
+                style: AppText.caption.copyWith(color: color, letterSpacing: 0)),
+          ],
+        ),
+      ),
     );
   }
 }
