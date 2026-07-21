@@ -7,6 +7,7 @@ import 'dart:math' as math;
 import 'package:country_flags/country_flags.dart';
 import 'package:flame/game.dart' hide Matrix4;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show MatrixUtils;
 import 'package:in_app_purchase/in_app_purchase.dart';
 
 import '../../app/tokens/colors.dart';
@@ -63,11 +64,50 @@ class _GameScreenState extends State<GameScreen> {
 
   // ── Board pan/zoom ──────────────────────────────────────────────────────
   // Pinch to zoom, drag to pan — handled by an InteractiveViewer over the
-  // GameWidget. A stationary tap still passes through to Flame, and
-  // LineComponent's tap-slop ignores a tap that turned into a drag, so panning
-  // never fires an arrow. (The old hand-rolled Transform clamped panning to
-  // zero at fit scale and lost the pinch to Flame's own gesture arena.)
+  // GameWidget. Tapping an arrow, though, is NOT left to Flame: with one-finger
+  // pan enabled everywhere (boundaryMargin: infinity), the InteractiveViewer's
+  // pan recogniser would claim any press with the slightest travel and swallow
+  // the tap. So a Listener above it watches raw pointers — a single pointer that
+  // lifts near where it landed is routed straight to the game as a tap; anything
+  // with real travel falls through to the InteractiveViewer as a pan/zoom.
   final TransformationController _boardTc = TransformationController();
+
+  Offset? _pointerDownAt;
+  int _activePointers = 0;
+  bool _tapCandidate = false;
+
+  /// Travel (logical px) a press may drift and still count as a tap, not a pan.
+  /// Under the InteractiveViewer's own ~18px pan threshold, so a tap never also
+  /// nudges the board.
+  static const double _tapMoveSlop = 16;
+
+  void _onBoardPointerDown(PointerDownEvent e) {
+    _activePointers++;
+    if (_activePointers == 1) {
+      _pointerDownAt = e.localPosition;
+      _tapCandidate = true;
+    } else {
+      _tapCandidate = false; // second finger = pinch/zoom, never a tap
+    }
+  }
+
+  void _onBoardPointerUp(PointerUpEvent e) {
+    final wasSingle = _activePointers == 1;
+    _activePointers = (_activePointers - 1).clamp(0, 100);
+    final down = _pointerDownAt;
+    if (!wasSingle || !_tapCandidate || down == null) return;
+    _tapCandidate = false;
+    if ((e.localPosition - down).distance > _tapMoveSlop) return;
+    // Viewport point -> Flame scene point (undo the pan/zoom matrix).
+    final scene = MatrixUtils.transformPoint(
+        Matrix4.inverted(_boardTc.value), e.localPosition);
+    _game.tapAtScene(scene.dx, scene.dy);
+  }
+
+  void _onBoardPointerCancel(PointerCancelEvent e) {
+    _activePointers = (_activePointers - 1).clamp(0, 100);
+    _tapCandidate = false;
+  }
 
   /// How far past the fit view the board can be zoomed in.
   static const double _maxBoardZoom = 8;
@@ -311,7 +351,11 @@ class _GameScreenState extends State<GameScreen> {
                       // board would otherwise spill over the header and the
                       // hearts above it — clip it to this area.
                       Positioned.fill(
-                        child: ClipRect(
+                        child: Listener(
+                          onPointerDown: _onBoardPointerDown,
+                          onPointerUp: _onBoardPointerUp,
+                          onPointerCancel: _onBoardPointerCancel,
+                          child: ClipRect(
                           child: InteractiveViewer(
                             transformationController: _boardTc,
                             minScale: 1,
@@ -323,6 +367,7 @@ class _GameScreenState extends State<GameScreen> {
                             boundaryMargin: const EdgeInsets.all(double.infinity),
                             clipBehavior: Clip.none,
                             child: GameWidget(game: _game),
+                          ),
                           ),
                         ),
                       ),

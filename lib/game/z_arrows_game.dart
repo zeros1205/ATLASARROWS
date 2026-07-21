@@ -154,6 +154,30 @@ class ZArrowsGame extends FlameGame {
     board.position = Vector2(canvas.x / 2, canvas.y / 2);
   }
 
+  /// Fire the line under a point given in this game's canvas coordinates
+  /// (GameWidget-local, i.e. after the pan/zoom transform has been undone but
+  /// before the board's own centre-anchored fit scale). Tap detection lives in
+  /// the Flutter layer now — it hands us the point and we pick the nearest line.
+  void tapAtScene(double sx, double sy) {
+    final board = _board;
+    if (board == null || _inputLocked) return;
+    final local = (Vector2(sx, sy) - board.position) / _fitScale + board.size / 2;
+    LineComponent? nearest;
+    var bestD = double.infinity;
+    for (final lc in board.children.whereType<LineComponent>()) {
+      final d = lc.distanceToPoint(local);
+      if (d < bestD) {
+        bestD = d;
+        nearest = lc;
+      }
+    }
+    // A generous tap band (~half a cell) — the visible shaft is only 0.2 cell,
+    // so aim tolerance, not the ink, defines what is tappable.
+    if (nearest != null && bestD < BoardComponent.cell * 0.5) {
+      handleTap(nearest);
+    }
+  }
+
   void handleTap(LineComponent lineComponent) {
     if (_inputLocked || lineComponent.animating) return;
     if (removeArmed.value) {
