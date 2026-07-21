@@ -3,9 +3,10 @@ import 'package:flutter/material.dart';
 /// Semantic color tokens for Atlas Arrows, resolved per theme via a
 /// [ThemeExtension]. Reach them with `AppColors.of(context)`.
 ///
-/// Identity: paper + ink. Off-white paper ground, off-black ink for the
-/// maze and headings, one blue accent for action, red for mistakes. Two
-/// themes only — light and dark — per project policy.
+/// Identity: paper + ink. Off-white paper ground, teal-gray ink for the
+/// maze and headings, one mint accent for action, red for mistakes. The
+/// teal-gray (#3A4A55) and mint (#00A19B) are lifted from the Figma wordmark
+/// so the app matches its own store art. Two themes only — light and dark.
 @immutable
 class AppColors extends ThemeExtension<AppColors> {
   const AppColors({
@@ -47,17 +48,17 @@ class AppColors extends ThemeExtension<AppColors> {
   final Color shadow;       // soft shadow color
 
   static const light = AppColors(
-    bg: Color(0xFFF7F6F2),
+    bg: Color(0xFFF6F0E1),          // cream paper ground
     surface: Color(0xFFFFFFFF),
-    surfaceMuted: Color(0xFFEDECE6),
+    surfaceMuted: Color(0xFFEDE6D5), // recessed cream
     card: Color(0xFFFFFFFF),
-    ink: Color(0xFF23252E),
-    inkSoft: Color(0xFF6E6F78),
-    inkFaint: Color(0xFF9A9DAB),
-    line: Color(0xFFE7E5DE),
-    dot: Color(0xFFE4E3DD),
-    accent: Color(0xFF2F6BFF),
-    accentSoft: Color(0x1F2F6BFF),
+    ink: Color(0xFF3A4A55),
+    inkSoft: Color(0xFF5C6B73),
+    inkFaint: Color(0xFF97A2A7),
+    line: Color(0xFFE8E1CF),         // cream hairline
+    dot: Color(0xFFE6DFCD),          // cream empty-cell dot
+    accent: Color(0xFF00A19B),
+    accentSoft: Color(0x1F00A19B),
     danger: Color(0xFFFF4D67),
     success: Color(0xFF27C356),
     amber: Color(0xFFFF9E2C),
@@ -76,8 +77,8 @@ class AppColors extends ThemeExtension<AppColors> {
     inkFaint: Color(0xFF7C7F8C),
     line: Color(0xFF2E3038),
     dot: Color(0xFF33353F),
-    accent: Color(0xFF4C82FF),
-    accentSoft: Color(0x264C82FF),
+    accent: Color(0xFF22C7BE),
+    accentSoft: Color(0x2622C7BE),
     danger: Color(0xFFFF5D75),
     success: Color(0xFF3AD06A),
     amber: Color(0xFFFFAE47),
