@@ -48,15 +48,15 @@ class AppColors extends ThemeExtension<AppColors> {
   final Color shadow;       // soft shadow color
 
   static const light = AppColors(
-    bg: Color(0xFFF6F0E1),          // cream paper ground
+    bg: Color(0xFFF7F6F2),          // off-white paper ground
     surface: Color(0xFFFFFFFF),
-    surfaceMuted: Color(0xFFEDE6D5), // recessed cream
+    surfaceMuted: Color(0xFFEDECE6),
     card: Color(0xFFFFFFFF),
     ink: Color(0xFF3A4A55),
     inkSoft: Color(0xFF5C6B73),
     inkFaint: Color(0xFF97A2A7),
-    line: Color(0xFFE8E1CF),         // cream hairline
-    dot: Color(0xFFE6DFCD),          // cream empty-cell dot
+    line: Color(0xFFE7E5DE),
+    dot: Color(0xFFE4E3DD),
     accent: Color(0xFF00A19B),
     accentSoft: Color(0x1F00A19B),
     danger: Color(0xFFFF4D67),
