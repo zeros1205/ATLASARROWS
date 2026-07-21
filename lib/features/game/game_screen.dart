@@ -4,6 +4,7 @@ import 'dart:math' as math;
 // Flame and Flutter both export a Matrix4 (vector_math vs vector_math_64); we
 // only need GameWidget from Flame here, so hide its Matrix4 and let Flutter's
 // (which Transform expects) win.
+import 'package:country_flags/country_flags.dart';
 import 'package:flame/game.dart' hide Matrix4;
 import 'package:flutter/material.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
@@ -162,11 +163,12 @@ class _GameScreenState extends State<GameScreen> {
     return st.displayName;
   }
 
-  /// The flag emoji of the country this stage belongs to (shown on clear).
-  /// A travel leg is not a country, so it carries no flag.
-  String get _flag => _isPath || !_repo.isLoaded
+  /// The ISO 3166-1 alpha-2 code of the country this stage belongs to, used to
+  /// render its flag image in the header and on clear. A travel leg is not a
+  /// country, so it carries no flag.
+  String get _flagIso => _isPath || !_repo.isLoaded
       ? ''
-      : _repo.countries[_loc.countryIndex].flagEmoji;
+      : _repo.countries[_loc.countryIndex].iso;
 
   /// "3 / 12" — position inside the round. A global stage number would read as
   /// "stage 641 of 775", which says nothing a player cares about.
@@ -295,7 +297,7 @@ class _GameScreenState extends State<GameScreen> {
                   stageLabel: 'STAGE ${_stage + 1}',
                   city: _cityLabel,
                   country: _countryName,
-                  flag: _flag,
+                  flagIso: _flagIso,
                   onBack: _maybeLeave,
                 ),
                 Container(height: 1, color: c.line),
@@ -371,7 +373,7 @@ class _GameScreenState extends State<GameScreen> {
                 result: _result,
                 stage: _localStageLabel,
                 place: _placeName,
-                flag: _flag,
+                flagIso: _flagIso,
                 isPath: _isPath,
                 freeRefillUsed: _freeRefillUsed,
                 onNext: _next,
@@ -551,6 +553,24 @@ class _RoundIntro extends StatelessWidget {
       );
 }
 
+/// A country's flag as a real image (offline SVG by ISO code), rounded to sit
+/// beside a place name. Replaces the flag emoji, which Android has no glyphs
+/// for and would render as bare country letters.
+class _FlagImg extends StatelessWidget {
+  const _FlagImg({required this.iso, required this.height});
+  final String iso;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) => ClipRRect(
+        borderRadius: BorderRadius.circular(3),
+        child: CountryFlag.fromCountryCode(
+          iso,
+          theme: ImageTheme(width: height * 4 / 3, height: height),
+        ),
+      );
+}
+
 /// Back + stage number on the left; a small place chip (flag over city ·
 /// country) pinned to the top-right, so the player always knows where on the
 /// globe this board sits. On the country finale the city drops out and the
@@ -560,11 +580,11 @@ class _Header extends StatelessWidget {
     required this.stageLabel,
     required this.city,
     required this.country,
-    required this.flag,
+    required this.flagIso,
     required this.onBack,
   });
 
-  final String stageLabel, city, country, flag;
+  final String stageLabel, city, country, flagIso;
   final VoidCallback onBack;
 
   @override
@@ -603,8 +623,8 @@ class _Header extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (flag.isNotEmpty) ...[
-            Text(flag, style: const TextStyle(fontSize: 17)),
+          if (flagIso.isNotEmpty) ...[
+            _FlagImg(iso: flagIso, height: 15),
             const SizedBox(width: 7),
           ],
           Flexible(
@@ -938,7 +958,7 @@ class _ResultSheet extends StatefulWidget {
     required this.result,
     required this.stage,
     required this.place,
-    required this.flag,
+    required this.flagIso,
     required this.isPath,
     required this.freeRefillUsed,
     required this.onNext,
@@ -948,7 +968,7 @@ class _ResultSheet extends StatefulWidget {
   final _Result result;
   final String stage;
   final String place;
-  final String flag;
+  final String flagIso;
   final bool isPath;
   final bool freeRefillUsed;
   final VoidCallback onNext, onRestart;
@@ -1044,13 +1064,24 @@ class _ResultSheetState extends State<_ResultSheet>
                       color: c.ink, fontWeight: FontWeight.w800, fontSize: 22)),
           ] else ...[
             if (widget.place.isNotEmpty)
-              Text(
-                  widget.flag.isEmpty
-                      ? widget.place
-                      : '${widget.flag}  ${widget.place}',
-                  textAlign: TextAlign.center,
-                  style: AppText.title.copyWith(
-                      color: c.ink, fontWeight: FontWeight.w800, fontSize: 22)),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (widget.flagIso.isNotEmpty) ...[
+                    _FlagImg(iso: widget.flagIso, height: 22),
+                    const SizedBox(width: 10),
+                  ],
+                  Flexible(
+                    child: Text(widget.place,
+                        textAlign: TextAlign.center,
+                        style: AppText.title.copyWith(
+                            color: c.ink,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 22)),
+                  ),
+                ],
+              ),
             const SizedBox(height: 4),
             Text('클리어!',
                 style: AppText.headline.copyWith(
