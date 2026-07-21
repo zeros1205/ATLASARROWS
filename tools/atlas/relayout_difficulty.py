@@ -41,25 +41,32 @@ import time
 from collections import deque
 
 DIRS = [(-1, 0), (1, 0), (0, -1), (0, 1)]  # U D L R
+GROW = True  # repair fallback that lengthens an arrow to fill a lone hole;
+             # off => keep arrows short (more of them) at the cost of a few holes
 
 # Relative weights for the short (2-3 cells) / mid (4-6) / long (7-maxLen)
 # bands an arrow's length is drawn from. Mirrors lib/models/level_generator
 # LenMixes so a future Dart-side port lands the same distribution.
 BALANCED = dict(short=0.38, mid=0.42, long=0.20)
 LONGER = dict(short=0.22, mid=0.40, long=0.38)
+# Short-biased so a board carries >=100 bent arrows; late ranks get a few more
+# long arrows for far-block traps.
+SHORTBENT = dict(short=0.82, mid=0.14, long=0.04)
+SHORTMID = dict(short=0.72, mid=0.20, long=0.08)
 
 
 def tier(rank, total):
     """Difficulty knobs for a country's rank. Area-ascending campaign, so a
-    higher rank is later in the game. Returns (fill, lenmix, reorient_frac)."""
+    higher rank is later in the game. Returns (fill, lenmix, reorient_frac).
+
+    frac=1.0 EVERYWHERE: every arrow is reoriented to be blocked, so no stage
+    is spam-clearable (a cluster all pointing at an open edge). Fill is kept
+    high (dense) so most rays hit a wall — tapping a blocked arrow costs a
+    heart, which is what punishes spam-tapping. Difficulty ramps via arrow
+    length (more far-block traps late), not by leaving arrows freely escapable."""
     t = (rank - 1) / (total - 1) if total > 1 else 1.0
-    if t < 0.10:
-        return dict(fill=0.90, lenmix=BALANCED, frac=0.0)   # 온보딩/초반: 실수 ~0
-    if t < 0.45:
-        return dict(fill=0.85, lenmix=BALANCED, frac=0.5)   # 하트의 존재를 알림
-    if t < 0.75:
-        return dict(fill=0.80, lenmix=LONGER, frac=0.8)     # 함정 본격
-    return dict(fill=0.78, lenmix=LONGER, frac=1.0)         # 후반/보스
+    lenmix = SHORTBENT if t < 0.5 else SHORTMID
+    return dict(fill=0.97, lenmix=lenmix, frac=1.0)
 
 
 # ---------------------------------------------------------------------------
@@ -111,13 +118,13 @@ def gen_level(rows, cols, mask, seed, fill, max_len, lenmix):
     def sample_len():
         x = rng.random() * wt
         if x < ws:
-            return 2 + rng.randint(0, 1)
+            return 3 + rng.randint(0, 1)   # short: 3-4 (min 3 so it can bend)
         if x < wm:
             return 4 + rng.randint(0, 2)
         return 7 + rng.randint(0, max(0, max_len - 7))
 
     failures = 0
-    while len(occupied) < target and failures < 800:
+    while len(occupied) < target and failures < 2000:
         empties = [
             cell for cell in mask
             if cell not in occupied and any(
@@ -134,6 +141,7 @@ def gen_level(rows, cols, mask, seed, fill, max_len, lenmix):
         path = [cur]
         used = {cur}
         last_dir = None
+        turned = False
         tlen = sample_len()
         while len(path) < tlen:
             options = []
@@ -144,20 +152,28 @@ def gen_level(rows, cols, mask, seed, fill, max_len, lenmix):
             if not options:
                 break
             rng.shuffle(options)
+            straight = [o for o in options if o[0] == last_dir]
+            turn_opts = [o for o in options if o[0] != last_dir]
+            last = len(path) == tlen - 1
             pick = None
-            if last_dir is not None and rng.random() < 0.6:
-                for o in options:
-                    if o[0] == last_dir:
-                        pick = o
-            if pick is None and rng.random() < 0.7:
-                pick = max(options, key=lambda o: depth[o[1]])
+            # Guarantee a bend: if the arrow is about to finish straight, turn.
+            if last and not turned and last_dir is not None and turn_opts:
+                pick = max(turn_opts, key=lambda o: depth[o[1]])
+            # Otherwise mostly turn (kills long straight runs), rarely continue.
+            if pick is None and last_dir is not None and straight and rng.random() < 0.22:
+                pick = straight[0]
+            if pick is None and turn_opts:
+                pick = max(turn_opts, key=lambda o: depth[o[1]])
             if pick is None:
                 pick = options[0]
+            if last_dir is not None and pick[0] != last_dir:
+                turned = True
             path.append(pick[1])
             used.add(pick[1])
             cur = pick[1]
             last_dir = pick[0]
-        if len(path) < 2:
+        # Bent arrows only: a run that never turned (or is < 3 cells) is dropped.
+        if len(path) < 3 or not turned:
             failures += 1
             continue
         fwd = path
@@ -222,14 +238,31 @@ def gen_level(rows, cols, mask, seed, fill, max_len, lenmix):
                 continue
             r, c = cell
             done = False
-            for dr, dc in DIRS:
-                n = (r + dr, c + dc)
-                if n not in mask or n in occupied:
-                    continue
-                done = splice([cell, n]) or splice([n, cell])
+            # Bent 3-cell candidates through empty cells only (no straight
+            # arrows): cell as the corner, or cell as an end that turns at n.
+            empt = [((dr, dc), (r + dr, c + dc)) for dr, dc in DIRS
+                    if (r + dr, c + dc) in mask and (r + dr, c + dc) not in occupied]
+            cands = []
+            for i in range(len(empt)):
+                for j in range(len(empt)):
+                    if i == j:
+                        continue
+                    (d1, a), (d2, b) = empt[i], empt[j]
+                    if d1[0] == -d2[0] and d1[1] == -d2[1]:
+                        continue  # opposite dirs through the corner = straight
+                    cands.append([a, cell, b])
+            for (dr, dc), n in empt:
+                for dr2, dc2 in DIRS:
+                    if (dr2, dc2) == (dr, dc) or (dr2, dc2) == (-dr, -dc):
+                        continue
+                    m = (n[0] + dr2, n[1] + dc2)
+                    if m in mask and m not in occupied and m != cell:
+                        cands.append([cell, n, m])
+            for cand in cands:
+                done = splice(cand) or splice(cand[::-1])
                 if done:
                     break
-            if not done:
+            if not done and GROW:
                 for dr, dc in DIRS:
                     n = (r + dr, c + dc)
                     owner = cell_owner.get(n)
@@ -393,10 +426,58 @@ def relayout(path_in, path_out):
     t0 = time.time()
     nfail = nstage = 0
     seg = {'A': [], 'B': [], 'C': [], 'D': []}
+    # Verification tallies: every arrow must bend, every stage should carry
+    # >=100 arrows, and no stage should be spam-clearable.
+    n_straight = n_under100 = 0
+    counts = []
+    spam_ratios = []
+    under100 = []  # (count, mask cells, name, stage)
 
     def segname(rank):
         t = (rank - 1) / (total - 1) if total > 1 else 1.0
         return 'A' if t < 0.10 else 'B' if t < 0.45 else 'C' if t < 0.75 else 'D'
+
+    def build(rows, cols, mask, seed, cfg):
+        """Try a few seeds; keep the most-arrows solvable layout, stopping once
+        a layout carries >=100 arrows."""
+        best = None
+        for a in range(4):
+            sd = seed + a * 131
+            ori = gen_level(rows, cols, mask, sd, cfg['fill'], 20, cfg['lenmix'])
+            ori = chain_reorient(rows, cols, ori, cfg['frac'],
+                                 random.Random(sd + 7))
+            if not ori or not solvable(rows, cols, ori):
+                continue
+            if best is None or len(ori) > len(best):
+                best = ori
+            if len(best) >= 100:
+                break
+        return best
+
+    def initial_free(rows, cols, ori):
+        live = {}
+        for i, l in enumerate(ori):
+            for cell in l:
+                live[cell] = i
+
+        def blocked(i, l):
+            (r1, c1), (r2, c2) = l[-2], l[-1]
+            dr, dc = r2 - r1, c2 - c1
+            r, c = l[-1][0] + dr, l[-1][1] + dc
+            while 0 <= r < rows and 0 <= c < cols:
+                o = live.get((r, c))
+                if o is not None and o != i:
+                    return True
+                r += dr
+                c += dc
+            return False
+        return sum(1 for i, l in enumerate(ori) if not blocked(i, l))
+
+    def straight_count(ori):
+        return sum(1 for l in ori
+                   if all((l[k][0] - l[k - 1][0], l[k][1] - l[k - 1][1])
+                          == (l[1][0] - l[0][0], l[1][1] - l[0][1])
+                          for k in range(1, len(l))))
 
     for c in countries:
         rank = c["rank"]
@@ -408,13 +489,17 @@ def relayout(path_in, path_out):
             mask = {(r, cc) for r, row in enumerate(grid)
                     for cc, ch in enumerate(row) if ch == '#'}
             seed = rank * 100000 + si * 997 + len(grid)
-            rng = random.Random(seed)
-            ori = gen_level(rows, cols, mask, seed, cfg['fill'], 20, cfg['lenmix'])
-            ori = chain_reorient(rows, cols, ori, cfg['frac'], rng)
+            ori = build(rows, cols, mask, seed, cfg)
             if not ori or not solvable(rows, cols, ori):
                 nfail += 1  # leave the original layout in place
                 continue
             s["lines"] = [encode(l) for l in ori]
+            n_straight += straight_count(ori)
+            counts.append(len(ori))
+            spam_ratios.append(initial_free(rows, cols, ori) / len(ori))
+            if len(ori) < 100:
+                n_under100 += 1
+                under100.append((len(ori), len(mask), c["name"], s["name"]))
             seg[segname(rank)].append(measure(rows, cols, ori))
 
     with open(path_out, "w", encoding="utf-8") as f:
@@ -436,6 +521,20 @@ def relayout(path_in, path_out):
             k, len(ms), 100 * mn('density'), 100 * mn('two_cell'),
             100 * mn('long'), 100 * mn('trap'), mn('branching'),
             sum(m['solvable'] for m in ms), len(ms)))
+
+    cs = sorted(counts)
+    print("\n=== RULE CHECK ===")
+    print("straight arrows (must be 0): %d" % n_straight)
+    print("arrow count: min %d  median %d  max %d"
+          % (cs[0], cs[len(cs) // 2], cs[-1]))
+    print("stages with <100 arrows: %d/%d (%.0f%%)"
+          % (n_under100, len(counts), 100 * n_under100 / len(counts)))
+    print("spam (initial-escapable) ratio: mean %.0f%%  max %.0f%%"
+          % (100 * statistics.mean(spam_ratios), 100 * max(spam_ratios)))
+    if under100:
+        print("under-100 boards (count, cells, country/stage):")
+        for row in sorted(under100)[:25]:
+            print("   ", row)
 
 
 if __name__ == "__main__":
