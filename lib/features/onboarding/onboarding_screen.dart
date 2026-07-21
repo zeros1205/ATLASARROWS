@@ -119,7 +119,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         Text(page.body,
                             textAlign: TextAlign.center,
                             style: AppText.body.copyWith(
-                                color: c.inkSoft, fontSize: 15, height: 1.5)),
+                                color: c.inkSoft, height: 1.5)),
                         const Spacer(flex: 2),
                       ],
                     ),
@@ -135,15 +135,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 onTap: _next,
                 child: Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 17),
+                  padding: const EdgeInsets.symmetric(vertical: kButtonPadV),
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: c.accent,
                     borderRadius: BorderRadius.circular(AppRadius.pill),
                   ),
                   child: Text(_isLast ? '플레이 시작' : '다음',
-                      style: AppText.headline.copyWith(
-                          color: c.onAccent, fontWeight: FontWeight.w900)),
+                      style: kButtonText.copyWith(color: c.onAccent)),
                 ),
               ),
             ),

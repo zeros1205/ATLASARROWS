@@ -11,12 +11,19 @@ class Progress {
   static const int startingHints = 3;
   static const int startingRemoves = 1;
 
+  /// Heart-refill coupons. The player is given exactly one, ever — spending it
+  /// drops the fail sheet to the ad path for good. It used to be a per-stage
+  /// bool, so the "free" refill came back on every board.
+  static const int startingRefillCoupons = 1;
+
   late SharedPreferences _prefs;
 
   /// Highest level index the player may enter (0-based).
   final ValueNotifier<int> unlocked = ValueNotifier(0);
   final ValueNotifier<int> hints = ValueNotifier(startingHints);
   final ValueNotifier<int> removes = ValueNotifier(startingRemoves);
+  final ValueNotifier<int> refillCoupons =
+      ValueNotifier(startingRefillCoupons);
   final ValueNotifier<int> totalClears = ValueNotifier(0);
   final ValueNotifier<bool> soundOn = ValueNotifier(true);
   final ValueNotifier<bool> hapticsOn = ValueNotifier(true);
@@ -32,17 +39,26 @@ class Progress {
   /// first-stage coach overlay.
   final ValueNotifier<bool> coachDone = ValueNotifier(false);
 
+  /// Developer cheat: puts a "clear this stage" button on the play screen.
+  /// Armed by tapping LOGAN ten times in Settings, disarmed by tapping LAND
+  /// ten times. Persisted so a test session survives a restart — nothing shows
+  /// it but the button itself, so it cannot be reached by accident.
+  final ValueNotifier<bool> cheatOn = ValueNotifier(false);
+
   Future<void> load() async {
     _prefs = await SharedPreferences.getInstance();
     unlocked.value = _prefs.getInt('unlocked') ?? 0;
     hints.value = _prefs.getInt('hints') ?? startingHints;
     removes.value = _prefs.getInt('removes') ?? startingRemoves;
+    refillCoupons.value =
+        _prefs.getInt('refillCoupons') ?? startingRefillCoupons;
     totalClears.value = _prefs.getInt('totalClears') ?? 0;
     soundOn.value = _prefs.getBool('soundOn') ?? true;
     hapticsOn.value = _prefs.getBool('hapticsOn') ?? true;
     onboarded.value = _prefs.getBool('onboarded') ?? false;
     adsRemoved.value = _prefs.getBool('adsRemoved') ?? false;
     coachDone.value = _prefs.getBool('coachDone') ?? false;
+    cheatOn.value = _prefs.getBool('cheatOn') ?? false;
   }
 
   void markCleared(int levelIndex) {
@@ -100,6 +116,17 @@ class Progress {
   void setCoachDone(bool done) {
     coachDone.value = done;
     _prefs.setBool('coachDone', done);
+  }
+
+  void useRefillCoupon() {
+    if (refillCoupons.value <= 0) return;
+    refillCoupons.value--;
+    _prefs.setInt('refillCoupons', refillCoupons.value);
+  }
+
+  void setCheatOn(bool on) {
+    cheatOn.value = on;
+    _prefs.setBool('cheatOn', on);
   }
 
   void setAdsRemoved(bool removed) {
