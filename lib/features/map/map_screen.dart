@@ -10,10 +10,12 @@ import '../../services/progress.dart';
 import '../../shared/meta_header.dart';
 import 'round_intro_screen.dart';
 
-/// The map tab: a dotted world map. Land dots are coloured by campaign
-/// progress — in-progress country in accent blue, cleared countries dark
-/// grey, locked/other land grey, sea faint. Opens zoomed to the current
-/// country; pinch/pan to explore, tap a country to open its round intro.
+/// The map tab: a full-screen dotted world map. Land dots are coloured by
+/// campaign progress — in-progress country in accent blue, cleared countries
+/// dark grey, locked/other land grey. The map fills the screen height and
+/// scrolls left/right only (no zoom, no vertical pan); the header and the
+/// shell's tab bar float over it. Opens scrolled to the current country; tap a
+/// country to open its round intro.
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
 
@@ -24,9 +26,9 @@ class MapScreen extends StatefulWidget {
 class _MapScreenState extends State<MapScreen> {
   final _wm = WorldMap.instance;
   final _repo = CampaignRepository.instance;
-  final _tc = TransformationController();
+  final _hc = ScrollController();
   bool _ready = false;
-  bool _zoomed = false;
+  bool _centered = false;
 
   @override
   void initState() {
@@ -41,7 +43,7 @@ class _MapScreenState extends State<MapScreen> {
 
   @override
   void dispose() {
-    _tc.dispose();
+    _hc.dispose();
     super.dispose();
   }
 
@@ -64,46 +66,23 @@ class _MapScreenState extends State<MapScreen> {
     return (_wm.dotsOf(ci) * local / total).round();
   }
 
-  void _zoomToCurrent(Size world, Size viewport) {
+  /// Scrolls horizontally so the current country sits in the middle of the
+  /// viewport. Leaves the map at the start if that country isn't on the map.
+  void _centerOnCurrent(double mapWidth, double viewport) {
     final ci = _currentCountry;
-    var minR = 1 << 30, minC = 1 << 30, maxR = -1, maxC = -1;
+    var minC = 1 << 30, maxC = -1;
     for (var r = 0; r < _wm.rows; r++) {
       for (var c = 0; c < _wm.cols; c++) {
         if (_wm.countryOfCell(_wm.cellAt(r, c)) == ci) {
-          minR = math.min(minR, r);
-          maxR = math.max(maxR, r);
           minC = math.min(minC, c);
           maxC = math.max(maxC, c);
         }
       }
     }
-    if (maxR < 0) {
-      // current country isn't on the map — show the whole world, centred.
-      final s = (viewport.width / world.width).clamp(0.1, 8.0);
-      final ty = math.max(0.0, (viewport.height - world.height * s) / 2);
-      _tc.value = Matrix4(
-        s, 0, 0, 0, //
-        0, s, 0, 0, //
-        0, 0, 1, 0, //
-        0, ty, 0, 1, //
-      );
-      return;
-    }
-    final cw = world.width / _wm.cols, ch = world.height / _wm.rows;
-    final rect = Rect.fromLTRB(
-        (minC - 1) * cw, (minR - 1) * ch, (maxC + 2) * cw, (maxR + 2) * ch);
-    final scale = math
-        .min(viewport.width / rect.width, viewport.height / rect.height)
-        .clamp(1.0, 8.0);
-    final tx = viewport.width / 2 - rect.center.dx * scale;
-    final ty = viewport.height / 2 - rect.center.dy * scale;
-    // column-major scale + translate (p' = S·p + T)
-    _tc.value = Matrix4(
-      scale, 0, 0, 0, //
-      0, scale, 0, 0, //
-      0, 0, 1, 0, //
-      tx, ty, 0, 1, //
-    );
+    if (maxC < 0) return;
+    final centerCol = (minC + maxC) / 2 + 0.5;
+    final target = centerCol / _wm.cols * mapWidth - viewport / 2;
+    _hc.jumpTo(target.clamp(0.0, math.max(0.0, mapWidth - viewport)));
   }
 
   void _onTapUp(TapUpDetails d, Size world) {
@@ -120,69 +99,73 @@ class _MapScreenState extends State<MapScreen> {
   @override
   Widget build(BuildContext context) {
     final col = AppColors.of(context);
-    return SafeArea(
-      bottom: false,
-      child: Column(
-        children: [
-          const MetaHeader('맵'),
-          // The campaign runs smallest territory first, so the opening rounds
-          // colour a handful of dots that are easy to miss on a world map.
-          // A plain count makes the progress legible until the countries get
-          // big enough to see.
-          ValueListenableBuilder<int>(
-            valueListenable: Progress.instance.unlocked,
-            builder: (context, _, _) => Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Text(
-                _repo.isLoaded
-                    ? '$_currentCountry개국 완료 · ${_repo.countries.length}개국 중'
-                    : '',
-                style: AppText.caption.copyWith(color: col.inkFaint),
-              ),
-            ),
-          ),
-          Expanded(
-            child: !_ready
-                ? Center(child: CircularProgressIndicator(color: col.accent))
-                : !_wm.isLoaded
-                    ? Center(
-                        child: Text('지도를 불러올 수 없습니다.',
-                            style: TextStyle(color: col.inkFaint)))
-                    : LayoutBuilder(
-                        builder: (context, cons) {
-                          final world = Size(
-                              cons.maxWidth, cons.maxWidth * _wm.rows / _wm.cols);
-                          WidgetsBinding.instance.addPostFrameCallback((_) {
-                            if (!_zoomed && mounted) {
-                              _zoomed = true;
-                              _zoomToCurrent(
-                                  world, Size(cons.maxWidth, cons.maxHeight));
-                              setState(() {});
-                            }
-                          });
-                          return ValueListenableBuilder<int>(
-                            valueListenable: Progress.instance.unlocked,
-                            builder: (context, _, _) => InteractiveViewer(
-                              transformationController: _tc,
-                              minScale: 1,
-                              maxScale: 8,
-                              constrained: false,
-                              boundaryMargin: const EdgeInsets.all(120),
-                              child: GestureDetector(
-                                onTapUp: (d) => _onTapUp(d, world),
-                                child: CustomPaint(
-                                  size: world,
-                                  painter: _WorldPainter(_wm, _currentCountry,
-                                      _currentFilled, col),
-                                ),
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: !_ready
+              ? Center(child: CircularProgressIndicator(color: col.accent))
+              : !_wm.isLoaded
+                  ? Center(
+                      child: Text('지도를 불러올 수 없습니다.',
+                          style: TextStyle(color: col.inkFaint)))
+                  : LayoutBuilder(
+                      builder: (context, cons) {
+                        // Fill the screen height; the width follows the map's
+                        // aspect ratio, so it overflows sideways and the only
+                        // gesture left is a horizontal scroll.
+                        final h = cons.maxHeight;
+                        final w = h * _wm.cols / _wm.rows;
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (!_centered && mounted && _hc.hasClients) {
+                            _centered = true;
+                            _centerOnCurrent(w, cons.maxWidth);
+                          }
+                        });
+                        return ValueListenableBuilder<int>(
+                          valueListenable: Progress.instance.unlocked,
+                          builder: (context, _, _) => SingleChildScrollView(
+                            controller: _hc,
+                            scrollDirection: Axis.horizontal,
+                            child: GestureDetector(
+                              onTapUp: (d) => _onTapUp(d, Size(w, h)),
+                              child: CustomPaint(
+                                size: Size(w, h),
+                                painter: _WorldPainter(_wm, _currentCountry,
+                                    _currentFilled, col),
                               ),
                             ),
-                          );
-                        },
-                      ),
+                          ),
+                        );
+                      },
+                    ),
+        ),
+        // Header floats over the map with a transparent background.
+        SafeArea(
+          bottom: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const MetaHeader('맵'),
+              // The campaign runs smallest territory first, so the opening
+              // rounds colour a handful of dots that are easy to miss on a
+              // world map. A plain count makes the progress legible until the
+              // countries get big enough to see.
+              ValueListenableBuilder<int>(
+                valueListenable: Progress.instance.unlocked,
+                builder: (context, _, _) => Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Text(
+                    _repo.isLoaded
+                        ? '$_currentCountry개국 완료 · ${_repo.countries.length}개국 중'
+                        : '',
+                    style: AppText.caption.copyWith(color: col.inkFaint),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
