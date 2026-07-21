@@ -13,6 +13,10 @@ enum StageKind {
 
   /// The country silhouette that closes the round.
   country,
+
+  /// A travel interlude between two places — the puzzle is a transport
+  /// silhouette (bus, train, plane, ...) named by [CampaignStage.vehicle].
+  path,
 }
 
 /// One playable board, baked ahead of time by `tools/atlas/build_bank.py`.
@@ -30,6 +34,7 @@ class CampaignStage {
     required this.grid,
     required this.lineSpecs,
     this.teaches = '',
+    this.vehicle = '',
   });
 
   final StageKind kind;
@@ -37,6 +42,11 @@ class CampaignStage {
   final String ko;
   final int rows;
   final int cols;
+
+  /// For [StageKind.path] only: which transport silhouette this board depicts
+  /// (matches a `tools/atlas/vehicle_png/*.png` name, e.g. `snowmobile`). '' on
+  /// city/country stages.
+  final String vehicle;
 
   /// Silhouette rows, `#` for board cells. Kept as strings and expanded only
   /// when a board is actually opened: building every mask up front means
@@ -137,8 +147,9 @@ class CampaignCountry {
   int get stageCount => stages.length;
   int get cityCount => stages.where((s) => s.kind == StageKind.city).length;
 
-  /// Kept for the round-intro readout; every non-city stage is the finale.
-  int get pathCount => 0;
+  /// Travel interludes in this round, for the round-intro readout.
+  int get pathCount =>
+      stages.where((s) => s.kind == StageKind.path).length;
 
   /// The lesson this round exists to teach, if it is one of the opening
   /// tutorial rounds.
@@ -226,7 +237,11 @@ class CampaignRepository {
   }
 
   static CampaignStage _parseStage(Map<String, dynamic> s) => CampaignStage(
-        kind: s['kind'] == 'country' ? StageKind.country : StageKind.city,
+        kind: switch (s['kind']) {
+          'country' => StageKind.country,
+          'path' => StageKind.path,
+          _ => StageKind.city,
+        },
         name: (s['name'] as String?) ?? '',
         ko: (s['ko'] as String?) ?? '',
         rows: (s['rows'] as num).toInt(),
@@ -234,6 +249,7 @@ class CampaignRepository {
         grid: (s['grid'] as List).cast<String>(),
         lineSpecs: (s['lines'] as List).cast<String>(),
         teaches: (s['teaches'] as String?) ?? '',
+        vehicle: (s['vehicle'] as String?) ?? '',
       );
 
   static Map<String, String> _parseIntro(Object? raw) {

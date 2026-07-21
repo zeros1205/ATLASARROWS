@@ -102,7 +102,11 @@ void main() {
     for (final c in countries.cast<Map<String, dynamic>>()) {
       for (final s in (c['stages'] as List).cast<Map<String, dynamic>>()) {
         expect(
-            s['kind'] == 'country' ? StageKind.country : StageKind.city,
+            switch (s['kind']) {
+              'country' => StageKind.country,
+              'path' => StageKind.path,
+              _ => StageKind.city,
+            },
             isA<StageKind>());
       }
     }

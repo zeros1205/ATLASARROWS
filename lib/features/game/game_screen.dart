@@ -138,10 +138,19 @@ class _GameScreenState extends State<GameScreen> {
     return _repo.countries[_loc.countryIndex].displayName;
   }
 
-  /// What this particular board depicts — a city, or the country itself on the
-  /// round's last stage. This is the label worth showing while playing; the
-  /// country is already established by the round intro.
-  String get _placeName => _repo.stageAt(_stage)?.displayName ?? _countryName;
+  /// True when the current board is a travel interlude, not a place.
+  bool get _isPath => _repo.stageAt(_stage)?.kind == StageKind.path;
+
+  /// What this particular board depicts — a city, the country itself on the
+  /// round's last stage, or (on a travel leg) the place it is heading to. This
+  /// is the label revealed on clear.
+  String get _placeName {
+    if (_isPath) {
+      // A path always sits right before the place it delivers you to.
+      return _repo.stageAt(_stage + 1)?.displayName ?? _countryName;
+    }
+    return _repo.stageAt(_stage)?.displayName ?? _countryName;
+  }
 
   /// The two header lines: city over country. A country board — the round's
   /// finale, and the only stage a country without cities ever has — would
@@ -151,8 +160,10 @@ class _GameScreenState extends State<GameScreen> {
   (String, String?) get _headerLines => ('STAGE ${_stage + 1}', null);
 
   /// The flag emoji of the country this stage belongs to (shown on clear).
-  String get _flag =>
-      _repo.isLoaded ? _repo.countries[_loc.countryIndex].flagEmoji : '';
+  /// A travel leg is not a country, so it carries no flag.
+  String get _flag => _isPath || !_repo.isLoaded
+      ? ''
+      : _repo.countries[_loc.countryIndex].flagEmoji;
 
   /// "3 / 12" — position inside the round. A global stage number would read as
   /// "stage 641 of 775", which says nothing a player cares about.
@@ -311,6 +322,7 @@ class _GameScreenState extends State<GameScreen> {
                 stage: _localStageLabel,
                 place: _placeName,
                 flag: _flag,
+                isPath: _isPath,
                 freeRefillUsed: _freeRefillUsed,
                 onNext: _next,
                 onRestart: _restart,
@@ -858,6 +870,7 @@ class _ResultSheet extends StatelessWidget {
     required this.stage,
     required this.place,
     required this.flag,
+    required this.isPath,
     required this.freeRefillUsed,
     required this.onNext,
     required this.onRestart,
@@ -867,6 +880,7 @@ class _ResultSheet extends StatelessWidget {
   final String stage;
   final String place;
   final String flag;
+  final bool isPath;
   final bool freeRefillUsed;
   final VoidCallback onNext, onRestart;
   final void Function({required bool viaAd}) onRefill;
@@ -906,14 +920,18 @@ class _ResultSheet extends StatelessWidget {
               style: AppText.caption.copyWith(color: c.inkFaint, letterSpacing: 3)),
           const SizedBox(height: 10),
           // The place name + flag — held back from the header, revealed here so
-          // clearing a board is where you learn where you were.
+          // clearing a board is where you learn where you were. A travel leg
+          // instead announces where it just delivered you.
           if (place.isNotEmpty)
-            Text(flag.isEmpty ? place : '$flag  $place',
+            Text(
+                isPath
+                    ? '$place(으)로 이동'
+                    : (flag.isEmpty ? place : '$flag  $place'),
                 textAlign: TextAlign.center,
                 style: AppText.title.copyWith(
                     color: c.ink, fontWeight: FontWeight.w800, fontSize: 22)),
           const SizedBox(height: 4),
-          Text('클리어!',
+          Text(isPath ? '도착!' : '클리어!',
               style: AppText.headline.copyWith(
                   color: c.accent, fontWeight: FontWeight.w900)),
           const SizedBox(height: 18),

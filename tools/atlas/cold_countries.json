@@ -1,0 +1,19 @@
+{
+ "_note": "Countries whose NE-50m area-centroid latitude satisfies |lat|>=55. Snowmobile is forced on the entry+finale PATH stages of these countries' rounds. Regenerate via tools/atlas/build_paths.py (see docs/DATA_SOURCES.md 7).",
+ "threshold_deg": 55,
+ "countries": {
+  "Aland": 60.2,
+  "Faroe Islands": 62.1,
+  "Denmark": 56.0,
+  "Estonia": 58.7,
+  "Latvia": 56.9,
+  "Lithuania": 55.3,
+  "Iceland": 65.0,
+  "Finland": 64.5,
+  "Norway": 68.8,
+  "Sweden": 62.8,
+  "Greenland": 74.7,
+  "Canada": 61.4,
+  "Russia": 62.0
+ }
+}

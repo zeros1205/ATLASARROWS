@@ -128,12 +128,26 @@ relayout_difficulty.py ─▶ bank.json의 화살표 레이아웃만 재작성 (
 등을 타고 가는 느낌의 스테이지.
 
 **폐기·보류된 시도 (같은 길로 다시 가지 말 것):**
-- **교통수단 실루엣 마스크로 퍼즐** — 교통수단 실루엣 마스크 만들기가 너무 어려워 **보류**.
 - **산/바다/평지 컨셉 + 화살표 컬러링** — 원하는 퀄리티가 안 나와 **폐기**.
+- (해결됨) 교통수단 실루엣 마스크 제작 난이도 → Material Icons 글리프 + 디테일 유지
+  파이프라인으로 확정(아래).
 
-**현재 상태:** 앱 `StageKind` enum은 city/country만 있음(path 미정의). `bank.json`에 path 없음.
-`tools/atlas/path_boards.json`은 도시 없는 국가용 준비 자료(WIP)일 뿐 연결 안 됨.
-→ **PATH 스테이지의 보드 표현 방식이 아직 미확정**이라 생성 보류 상태.
+**파이프라인 (확정·구현됨):**
+```
+tools/atlas/vehicle_png/*.png  (큐레이션한 16종, 창문·바퀴 = 흰 공란)
+  ─ build_vehicle_masks.py ─▶ vehicle_masks.json (커버리지 격자 ~1200셀)
+assets/campaign/bank.json (내용 스테이지) ─ build_paths.py ─▶ bank.json (path 삽입)
+  └ 위도 게이팅 근거: cold_countries.json (NE 50m 면적중심 |위도|>=55, 13개국)
+```
+- `build_paths.py`는 **idempotent** — 기존 path 스테이지를 먼저 제거하고 재삽입.
+- 각 country 라운드: **내용 스테이지마다 앞에 path 1개** 삽입
+  → `[path, city_0, path, city_1, ..., path, finale]`. **캠페인 첫 국가만** 진입 path 없음.
+- 시드 = (rank, index) → 재현 가능, 같은 실루엣이라도 위치마다 다른 퍼즐.
+- 앱: `StageKind.path` + `CampaignStage.vehicle` 필드로 파싱. 게임플레이는 다른 보드와 동일,
+  클리어 화면만 여행 문구("○○(으)로 이동 / 도착!")로 분기.
+
+**현재 상태 (구현 완료):** 앱 `StageKind`에 `path` 추가, `bank.json`에 path 스테이지 삽입 완료.
+보드 표현 = 교통수단 실루엣 마스크(위 파이프라인). (구 `path_boards.json`은 미사용 잔재.)
 
 **교통수단 실루엣 마스크 (확정 진행 중):** Material Icons(Apache-2.0) 글리프에서
 디테일 유지(창문·바퀴 = 흰 공란, 검정 몸통만 화살로 채움) 파이프라인으로 추출. 큐레이션 후

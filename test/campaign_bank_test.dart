@@ -51,8 +51,8 @@ void main() {
       expect(stages.last['kind'], 'country',
           reason: '${country['name']} does not finish on the country board');
       for (final s in stages.take(stages.length - 1)) {
-        expect(s['kind'], 'city',
-            reason: '${country['name']} has a non-city before the finale');
+        expect(s['kind'], anyOf('city', 'path'),
+            reason: '${country['name']} has a country board before the finale');
       }
     }
   });
@@ -107,12 +107,23 @@ void main() {
     }
   });
 
-  test('the campaign is city and country boards only', () {
+  test('the campaign is city, country and path boards only', () {
     for (final country in countries.cast<Map<String, dynamic>>()) {
       for (final stage
           in (country['stages'] as List).cast<Map<String, dynamic>>()) {
-        expect(stage['kind'], anyOf('city', 'country'),
+        expect(stage['kind'], anyOf('city', 'country', 'path'),
             reason: '${country['name']} carries a ${stage['kind']} stage');
+      }
+    }
+  });
+
+  test('every path stage names a transport silhouette', () {
+    for (final country in countries.cast<Map<String, dynamic>>()) {
+      for (final stage
+          in (country['stages'] as List).cast<Map<String, dynamic>>()) {
+        if (stage['kind'] != 'path') continue;
+        expect((stage['vehicle'] as String?) ?? '', isNotEmpty,
+            reason: '${country['name']} has a path stage with no vehicle');
       }
     }
   });
