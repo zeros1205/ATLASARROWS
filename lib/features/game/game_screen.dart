@@ -5,8 +5,8 @@ import 'dart:async';
 // (which Transform expects) win.
 import 'package:flame/game.dart' hide Matrix4;
 import 'package:flutter/material.dart';
+import 'package:in_app_purchase/in_app_purchase.dart';
 
-import '../../app/shell.dart';
 import '../../app/tokens/colors.dart';
 import '../../app/tokens/dimens.dart';
 import '../../app/tokens/typography.dart';
@@ -14,6 +14,7 @@ import '../../game/z_arrows_game.dart';
 import '../../models/campaign_repository.dart' show CampaignCountry, CampaignRepository, StageKind;
 import '../../services/ads/ads.dart';
 import '../../services/game_services.dart';
+import '../../services/iap.dart';
 import '../../services/progress.dart';
 import '../../shared/motion.dart';
 import '../../shared/pressable.dart';
@@ -178,7 +179,8 @@ class _GameScreenState extends State<GameScreen> {
       levelIndex: _stage,
     );
     if (atCampaignEnd) {
-      Navigator.of(context).maybePop();
+      // Direct pop: the PopScope guard below blocks maybePop while playing.
+      Navigator.of(context).pop();
       return;
     }
     setState(() {
@@ -215,6 +217,26 @@ class _GameScreenState extends State<GameScreen> {
     if (ok == true && mounted) _restart();
   }
 
+  /// Leaving mid-stage throws away the board in progress, so — like restart —
+  /// it asks first. Once a result sheet is up the board is already resolved,
+  /// so backing out there is immediate. Uses a direct pop because the PopScope
+  /// guard blocks maybePop while the player is still on the board.
+  Future<void> _maybeLeave() async {
+    if (_result != _Result.none) {
+      Navigator.of(context).pop();
+      return;
+    }
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => const _ConfirmDialog(
+        title: '게임을 나갈까요?',
+        body: '지금 풀던 판은 저장되지 않아요.',
+        confirm: '나가기',
+      ),
+    );
+    if (ok == true && mounted) Navigator.of(context).pop();
+  }
+
   void _refill({required bool viaAd}) {
     void grant() {
       _game.refillHearts();
@@ -241,7 +263,14 @@ class _GameScreenState extends State<GameScreen> {
   Widget build(BuildContext context) {
     final c = AppColors.of(context);
     _game.palette = c;
-    return Scaffold(
+    return PopScope(
+      // Guard the system back gesture the same way as the header button —
+      // confirm before discarding an in-progress board.
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _maybeLeave();
+      },
+      child: Scaffold(
       backgroundColor: c.bg,
       body: SafeArea(
         bottom: false,
@@ -251,7 +280,7 @@ class _GameScreenState extends State<GameScreen> {
               children: [
                 _Header(
                   lines: _headerLines,
-                  onBack: () => Navigator.of(context).maybePop(),
+                  onBack: _maybeLeave,
                 ),
                 Container(height: 1, color: c.line),
                 _HeartsStrip(hearts: _hearts),
@@ -324,6 +353,7 @@ class _GameScreenState extends State<GameScreen> {
               ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -682,11 +712,17 @@ class _BoosterBar extends StatelessWidget {
   final ZArrowsGame game;
   final VoidCallback onResetView, onRestart;
 
-  /// Running dry is the moment the shop is most relevant — the '+' badge takes
-  /// the player straight there instead of doing nothing.
-  void _toShop(BuildContext context) {
-    Navigator.of(context).popUntil((route) => route.isFirst);
-    appTab.value = 2;
+  /// Running dry mid-board is the moment a top-up is most relevant, but sending
+  /// the player to the shop tab would tear down the board being solved. So the
+  /// '+' badge raises a sheet in place — buy bundles or watch an ad for a hint —
+  /// and the board stays live underneath.
+  void _openItemSheet(BuildContext context, {required bool forHint}) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => _ItemSheet(forHint: forHint),
+    );
   }
 
   @override
@@ -712,7 +748,7 @@ class _BoosterBar extends StatelessWidget {
               count: n,
               onTap: () {
                 if (n <= 0) {
-                  _toShop(context);
+                  _openItemSheet(context, forHint: true);
                   return;
                 }
                 // Only debit when a hint was actually shown.
@@ -733,7 +769,7 @@ class _BoosterBar extends StatelessWidget {
                 armed: armed,
                 onTap: () {
                   if (n <= 0) {
-                    _toShop(context);
+                    _openItemSheet(context, forHint: false);
                     return;
                   }
                   // Arming is free; the strike itself debits via onRemoveUsed.
@@ -1022,4 +1058,168 @@ class _ResultSheetState extends State<_ResultSheet>
                   .copyWith(color: fg, fontWeight: FontWeight.w900)),
         ),
       );
+}
+
+/// In-play top-up sheet, raised when a booster hits zero. Lists every refill
+/// path — a free rewarded-ad hint plus the store bundles — as buttons, so the
+/// player restocks without leaving the board, which keeps playing underneath.
+class _ItemSheet extends StatefulWidget {
+  const _ItemSheet({required this.forHint});
+
+  /// Which booster ran out — sets the heading and which bundle leads.
+  final bool forHint;
+
+  @override
+  State<_ItemSheet> createState() => _ItemSheetState();
+}
+
+class _ItemSheetState extends State<_ItemSheet> {
+  final _iap = IapService.instance;
+
+  /// Guards the ad row against a double tap while the ad opens.
+  bool _watchingAd = false;
+
+  void _watchAdForHint() {
+    if (_watchingAd) return;
+    setState(() => _watchingAd = true);
+    Ads.showRewarded(
+      onReward: () {
+        Progress.instance.grantHints(1);
+        // Got what they came for — close the sheet and let them play on.
+        if (mounted) Navigator.of(context).pop();
+      },
+      onUnavailable: () {
+        if (!mounted) return;
+        setState(() => _watchingAd = false);
+        ScaffoldMessenger.of(context)
+          ..clearSnackBars()
+          ..showSnackBar(const SnackBar(
+              content: Text('지금은 볼 수 있는 광고가 없어요. 잠시 후 다시 시도해 주세요.')));
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = AppColors.of(context);
+    final bottomInset = MediaQuery.of(context).viewPadding.bottom;
+    return Container(
+      decoration: BoxDecoration(
+        color: c.card,
+        borderRadius:
+            const BorderRadius.vertical(top: Radius.circular(AppRadius.xxl)),
+      ),
+      padding: EdgeInsets.fromLTRB(20, 12, 20, 20 + bottomInset),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+                color: c.line,
+                borderRadius: BorderRadius.circular(AppRadius.pill)),
+          ),
+          const SizedBox(height: 16),
+          Text(widget.forHint ? '힌트가 없어요' : '제거가 없어요',
+              style: AppText.title.copyWith(
+                  color: c.ink, fontWeight: FontWeight.w900, fontSize: 20)),
+          const SizedBox(height: 4),
+          Text('채우고 이어서 풀 수 있어요.',
+              style: AppText.body.copyWith(color: c.inkSoft, fontSize: 13.5)),
+          const SizedBox(height: 18),
+          // Prices and disabled states track the store, so rebuild on both.
+          ValueListenableBuilder<List<ProductDetails>>(
+            valueListenable: _iap.products,
+            builder: (context, _, _) => ValueListenableBuilder<bool>(
+              valueListenable: _iap.busy,
+              builder: (context, busy, _) => Column(
+                mainAxisSize: MainAxisSize.min,
+                children: _rows(c, busy),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _rows(AppColors c, bool busy) {
+    // The free ad only ever grants a hint, so it travels with the hint bundles.
+    final ad = _row(
+      c,
+      icon: 'assets/images/icons/hint.png',
+      label: '광고 보고 힌트 +1',
+      trailing: _watchingAd ? '재생 중…' : '무료',
+      tint: c.success,
+      enabled: !_watchingAd,
+      onTap: _watchAdForHint,
+    );
+    final hints = [
+      ad,
+      for (final id in IapService.hintProducts.keys)
+        _productRow(c, id, 'assets/images/icons/hint.png',
+            '힌트 ${IapService.hintProducts[id]}개', busy),
+    ];
+    final removes = [
+      for (final id in IapService.removeProducts.keys)
+        _productRow(c, id, 'assets/images/icons/remove.png',
+            '제거 ${IapService.removeProducts[id]}개', busy),
+    ];
+    // Lead with whichever item ran out.
+    return widget.forHint ? [...hints, ...removes] : [...removes, ...hints];
+  }
+
+  Widget _productRow(
+      AppColors c, String id, String icon, String label, bool busy) {
+    final product = _iap.productFor(id);
+    return _row(
+      c,
+      icon: icon,
+      label: label,
+      // Store's localized price when registered, 준비중 until then.
+      trailing: product?.price ?? '준비중',
+      tint: c.accent,
+      enabled: product != null && !busy,
+      onTap: product != null ? () => _iap.buy(product) : null,
+    );
+  }
+
+  Widget _row(
+    AppColors c, {
+    required String icon,
+    required String label,
+    required String trailing,
+    required Color tint,
+    required bool enabled,
+    VoidCallback? onTap,
+  }) {
+    final tile = Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+      decoration: BoxDecoration(
+        border: Border.all(color: c.line, width: 1.5),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+      ),
+      child: Row(
+        children: [
+          Image.asset(icon, width: 24, height: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(label,
+                style: AppText.label
+                    .copyWith(color: c.ink, fontWeight: FontWeight.w800)),
+          ),
+          Text(trailing,
+              style: AppText.label.copyWith(
+                  color: enabled ? tint : c.inkFaint,
+                  fontWeight: FontWeight.w900)),
+        ],
+      ),
+    );
+    if (!enabled || onTap == null) {
+      return Opacity(opacity: enabled ? 1 : 0.55, child: tile);
+    }
+    return Pressable(onTap: onTap, child: tile);
+  }
 }

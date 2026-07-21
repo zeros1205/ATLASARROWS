@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../app/tokens/colors.dart';
@@ -5,6 +7,7 @@ import '../../app/tokens/dimens.dart';
 import '../../app/tokens/typography.dart';
 import '../../app/shell.dart';
 import '../../models/campaign_repository.dart';
+import '../../models/world_map.dart';
 import '../../services/progress.dart';
 import '../../shared/motion.dart';
 import '../../shared/pressable.dart';
@@ -46,18 +49,28 @@ class HomeScreen extends StatelessWidget {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Centred game logo (wordmark stands in until the logo
-                      // art lands).
-                      Text.rich(
-                        TextSpan(children: [
-                          const TextSpan(text: 'ATLAS'),
-                          TextSpan(text: '·', style: TextStyle(color: c.accent)),
-                          const TextSpan(text: 'ARROWS'),
-                        ]),
-                        style: AppText.display.copyWith(
-                            color: c.ink, fontSize: 38, letterSpacing: -1),
+                      // The store feature graphic, brought in-app: the two-line
+                      // wordmark over a faint dotted world map (the same map
+                      // baked for the campaign). Map behind, mark on top.
+                      SizedBox(
+                        width: double.infinity,
+                        height: 188,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Positioned.fill(
+                              child: ClipRect(
+                                child: CustomPaint(
+                                  painter: _DotWorldBackdrop(
+                                      c.inkFaint.withValues(alpha: 0.45)),
+                                ),
+                              ),
+                            ),
+                            const _Wordmark(),
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 10),
                       Text('SHIFT THE ARROWS',
                           style: AppText.caption
                               .copyWith(color: c.inkFaint, letterSpacing: 2.5)),
@@ -114,6 +127,75 @@ String _resumeLabel() {
   // Position inside the round, not the global index: "stage 641" tells a
   // player nothing, and the round is the unit they are actually working on.
   return '${country.displayName} · ${local + 1} / ${country.stageCount}';
+}
+
+/// The two-line lockup from the Figma feature graphic: mint "ATLAS" spread
+/// wide over teal-gray "ARROWS" set tight. ATLAS is nudged right by half its
+/// letter-spacing so the trailing gap doesn't push the glyphs off-centre.
+class _Wordmark extends StatelessWidget {
+  const _Wordmark();
+
+  static const double _atlasSpacing = 10;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = AppColors.of(context);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Transform.translate(
+          offset: const Offset(_atlasSpacing / 2, 0),
+          child: Text('ATLAS',
+              style: AppText.display.copyWith(
+                  color: c.accent,
+                  fontSize: 44,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: _atlasSpacing,
+                  height: 1.0)),
+        ),
+        Text('ARROWS',
+            style: AppText.display.copyWith(
+                color: c.ink,
+                fontSize: 44,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -1,
+                height: 1.05)),
+      ],
+    );
+  }
+}
+
+/// A faint dotted world map drawn behind the wordmark — the same baked map the
+/// campaign uses, land dots only, fitted to width and centred. Draws nothing
+/// until [WorldMap] is loaded (boot awaits it, so it is by the time Home shows).
+class _DotWorldBackdrop extends CustomPainter {
+  _DotWorldBackdrop(this.color);
+  final Color color;
+  final WorldMap _wm = WorldMap.instance;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (!_wm.isLoaded) return;
+    // Contain: scale so the whole map fits, then centre it in the box.
+    final scale =
+        math.min(size.width / _wm.cols, size.height / _wm.rows);
+    final dx = (size.width - _wm.cols * scale) / 2;
+    final dy = (size.height - _wm.rows * scale) / 2;
+    final r = scale * 0.30;
+    final p = Paint()..color = color;
+    for (var row = 0; row < _wm.rows; row++) {
+      for (var col = 0; col < _wm.cols; col++) {
+        if (_wm.cells[row * _wm.cols + col] < 0) continue; // sea → blank
+        canvas.drawCircle(
+            Offset(dx + col * scale + scale / 2, dy + row * scale + scale / 2),
+            r,
+            p);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DotWorldBackdrop old) => old.color != color;
 }
 
 class _PrimaryButton extends StatelessWidget {
