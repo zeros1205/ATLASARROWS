@@ -1331,6 +1331,14 @@ double _smoothstep(double x, double a, double b) {
   return t * t * (3 - 2 * t);
 }
 
+/// Stable pseudo-random [0,1) per grid cell, so the reveal's grainy edge is
+/// jittered the same way on every frame (not shimmering).
+double _cellHash(int r, int c) {
+  var h = (r * 73856093) ^ (c * 19349663);
+  h &= 0x7fffffff;
+  return (h % 1000) / 1000.0;
+}
+
 class _RevealPainter extends CustomPainter {
   _RevealPainter(
       this.stage, this.cells, this.cr, this.cc, this.maxDist, this.c, this.t);
@@ -1350,17 +1358,27 @@ class _RevealPainter extends CustomPainter {
     final r = scale * 0.44;
 
     final grayA = (t / 0.20).clamp(0.0, 1.0); // silhouette fades in first
-    final spread = _smoothstep(t, 0.16, 0.82) * maxDist * 1.06; // wavefront
-    const edge = 1.6; // soft leading edge, in grid units
+    // Irregular wavefront: a low-frequency angular wobble bends the front into
+    // lobes, and a per-cell hash jitter grains the edge so it dissolves outward
+    // instead of sweeping as a clean ring. All in grid units.
+    const jitter = 1.4, edge = 1.8;
+    final reach = maxDist * 1.34 + jitter + edge;
+    final spread = _smoothstep(t, 0.16, 0.90) * reach;
+    final phaseA = (cells.length % 17) * 0.37;
+    final phaseB = (cells.length % 11) * 0.53;
     final p = Paint();
     for (final (rr, ccc) in cells) {
       final x = dx + ccc * scale + scale / 2;
       final y = dy + rr * scale + scale / 2;
       final dr = rr - cr, dc = ccc - cc;
       final dist = math.sqrt(dr * dr + dc * dc);
-      final a = ((spread - dist) / edge).clamp(0.0, 1.0);
-      p.color = Color.lerp(c.inkFaint, c.accent, a)!
-          .withValues(alpha: grayA);
+      final ang = math.atan2(dr, dc);
+      final wob = 1 +
+          0.20 * math.sin(3 * ang + phaseA) +
+          0.12 * math.sin(5 * ang + phaseB);
+      final eff = dist * wob + (_cellHash(rr, ccc) - 0.5) * 2 * jitter;
+      final a = ((spread - eff) / edge).clamp(0.0, 1.0);
+      p.color = Color.lerp(c.inkFaint, c.accent, a)!.withValues(alpha: grayA);
       canvas.drawCircle(Offset(x, y), r, p);
     }
   }
