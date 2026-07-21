@@ -129,12 +129,18 @@ class ZArrowsGame extends FlameGame {
   /// Scale at which the whole board is visible.
   double _fitScale = 1;
 
-  /// Share of the play area the board fills on its constraining axis — the
-  /// rest is breathing room. Half the 6% it used to be: the arrows are thin
-  /// enough that a wide margin just reads as wasted screen. What is left over
-  /// on the *other* axis is the letterbox, which this cannot touch — a square
-  /// board in a tall play area is short by aspect ratio, not by padding.
-  static const double _fitFill = 0.97;
+  /// Breathing room around the board, in logical pixels — a fixed margin
+  /// rather than a share of the screen, so the board doesn't lose more room
+  /// the bigger the phone gets. Only the tighter of the two binds: whichever
+  /// axis runs out first sets the scale, and the other one keeps its leftover
+  /// as letterbox.
+  ///
+  /// Note the arrows stop short of the board rectangle by roughly a stroke
+  /// width, so the margin the player *sees* runs ~8 device px wider than this
+  /// on a 3.75x phone. Sized so the board opens at ~0.9 of the width it would
+  /// fill edge to edge — a board pressed against the screen sides reads as
+  /// cramped, and the zoom is there for anyone who wants it bigger.
+  static const double _marginX = 22, _marginY = 27;
 
   /// Smallest on-screen cell we consider tappable, in logical pixels. Well
   /// under the 44pt guideline — a full-screen country silhouette simply cannot
@@ -183,8 +189,8 @@ class ZArrowsGame extends FlameGame {
     final playHeight =
         math.max(canvas.y - _insetTop - _insetBottom, canvas.y * 0.2);
     _fitScale = math.min(
-      canvas.x * _fitFill / board.size.x,
-      playHeight * _fitFill / board.size.y,
+      math.max(canvas.x - _marginX * 2, canvas.x * 0.5) / board.size.x,
+      math.max(playHeight - _marginY * 2, playHeight * 0.5) / board.size.y,
     );
     final fitCell = _fitScale * BoardComponent.cell;
     needsZoom.value = fitCell < _minTappableCell;
