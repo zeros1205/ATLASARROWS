@@ -72,9 +72,26 @@ class _GameScreenState extends State<GameScreen> {
   // with real travel falls through to the InteractiveViewer as a pan/zoom.
   final TransformationController _boardTc = TransformationController();
 
-  /// The board viewport (the Expanded area), captured each layout so the pan
-  /// clamp knows where the centre line is.
-  Size _viewport = Size.zero;
+  /// The visible play area — the gap between the chrome — in body coordinates.
+  /// The game surface itself is the whole body (so an escaping arrow can leave
+  /// the screen), but the board is fitted to this and the pan clamp measures
+  /// its centre line against it. Measured after layout rather than assumed,
+  /// because the bottom chrome swaps between the booster bar and the clear bar
+  /// and the ad slot disappears for remove-ads owners.
+  Rect _playRect = Rect.zero;
+  final GlobalKey _bodyKey = GlobalKey();
+  final GlobalKey _playAreaKey = GlobalKey();
+
+  void _syncPlayRect() {
+    final area = _playAreaKey.currentContext?.findRenderObject() as RenderBox?;
+    final body = _bodyKey.currentContext?.findRenderObject() as RenderBox?;
+    if (area == null || body == null || !area.hasSize || !body.hasSize) return;
+    final rect = area.localToGlobal(Offset.zero, ancestor: body) & area.size;
+    if (rect == _playRect) return;
+    _playRect = rect;
+    _game.setPlayInsets(rect.top, body.size.height - rect.bottom);
+    _clampBoard();
+  }
 
   Offset? _pointerDownAt;
   int _activePointers = 0;
@@ -124,18 +141,18 @@ class _GameScreenState extends State<GameScreen> {
   /// past centre. Runs on every controller change; the clamp is idempotent, so
   /// re-setting the value here doesn't loop.
   void _clampBoard() {
-    final v = _viewport;
+    final v = _playRect;
     if (v.isEmpty) return;
-    // Before the first board layout, fall back to the whole child.
-    final r = _game.boardRect ?? Offset.zero & v;
+    // Before the first board layout, fall back to the whole play area.
+    final r = _game.boardRect ?? v;
     final m = _boardTc.value;
     final s = m.getMaxScaleOnAxis();
     final tx = m.storage[12], ty = m.storage[13];
-    // Grid edges in viewport coords: left = tx + s*r.left, right = tx + s*r.right.
+    // Grid edges in body coords: left = tx + s*r.left, right = tx + s*r.right.
     // Keeping left ≤ centre and right ≥ centre bounds the translation to
     // [centre - s*right, centre - s*left].
-    final cx = tx.clamp(v.width / 2 - s * r.right, v.width / 2 - s * r.left);
-    final cy = ty.clamp(v.height / 2 - s * r.bottom, v.height / 2 - s * r.top);
+    final cx = tx.clamp(v.center.dx - s * r.right, v.center.dx - s * r.left);
+    final cy = ty.clamp(v.center.dy - s * r.bottom, v.center.dy - s * r.top);
     if (cx != tx || cy != ty) {
       _boardTc.value = m.clone()
         ..storage[12] = cx
@@ -348,6 +365,9 @@ class _GameScreenState extends State<GameScreen> {
   Widget build(BuildContext context) {
     final c = AppColors.of(context);
     _game.palette = c;
+    // The play area can only be measured once this frame is laid out; the
+    // chrome around it changes with the result state and the ad slot.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _syncPlayRect());
     return PopScope(
       // Guard the system back gesture the same way as the header button —
       // confirm before discarding an in-progress board.
@@ -360,64 +380,73 @@ class _GameScreenState extends State<GameScreen> {
       body: SafeArea(
         bottom: false,
         child: Stack(
+          key: _bodyKey,
           children: [
+            // The board surface is the whole body, not the gap between the
+            // chrome: an escaping arrow has to be able to fly off the screen
+            // and slide under the header, the way the reference games do.
+            // The chrome is painted over it below, opaque, so it does.
+            Positioned.fill(
+              // Clipped to the body, not to the play area: by the time a line
+              // reaches this edge it is already behind the header or the
+              // booster bar, so the clip is invisible — it only stops a panned
+              // board from painting up into the status bar.
+              child: ClipRect(
+                child: Listener(
+                onPointerDown: _onBoardPointerDown,
+                onPointerUp: _onBoardPointerUp,
+                onPointerCancel: _onBoardPointerCancel,
+                // Zoom-out stops at fit (minScale 1); zoom-in stops where a
+                // cell reaches a comfortable tap size, which depends on the
+                // board — see ZArrowsGame.maxZoom.
+                child: ValueListenableBuilder<double>(
+                  valueListenable: _game.maxZoom,
+                  child: GameWidget(game: _game),
+                  builder: (context, maxZoom, child) => InteractiveViewer(
+                    transformationController: _boardTc,
+                    minScale: 1,
+                    maxScale: maxZoom,
+                    // One-finger pan stays enabled everywhere; the reach is
+                    // bounded by _clampBoard (no edge past the play area's
+                    // centre) rather than by boundaryMargin, so this stays
+                    // infinite.
+                    boundaryMargin: const EdgeInsets.all(double.infinity),
+                    clipBehavior: Clip.none,
+                    child: child!,
+                  ),
+                ),
+                ),
+              ),
+            ),
             Column(
               children: [
-                _Header(
-                  stageLabel: 'STAGE ${_stage + 1}',
-                  city: _cityLabel,
-                  country: _countryName,
-                  flagIso: _flagIso,
-                  onBack: _maybeLeave,
+                ColoredBox(
+                  color: c.bg,
+                  child: Column(
+                    children: [
+                      _Header(
+                        stageLabel: 'STAGE ${_stage + 1}',
+                        city: _cityLabel,
+                        country: _countryName,
+                        flagIso: _flagIso,
+                        onBack: _maybeLeave,
+                      ),
+                      Container(height: 1, color: c.line),
+                      // Clearing hands the board over to the reveal, so the
+                      // hearts and the booster bar step aside; the fail path
+                      // keeps them.
+                      if (_result != _Result.cleared)
+                        _HeartsStrip(hearts: _hearts),
+                    ],
+                  ),
                 ),
-                Container(height: 1, color: c.line),
-                // Clearing hands the board over to the reveal, so the hearts and
-                // the booster bar step aside; the fail path keeps them.
-                if (_result != _Result.cleared) _HeartsStrip(hearts: _hearts),
                 Expanded(
                   child: Stack(
                     children: [
-                      // Flame paints the board wherever it sits, so a zoomed
-                      // board would otherwise spill over the header and the
-                      // hearts above it — clip it to this area.
-                      Positioned.fill(
-                        child: Listener(
-                          onPointerDown: _onBoardPointerDown,
-                          onPointerUp: _onBoardPointerUp,
-                          onPointerCancel: _onBoardPointerCancel,
-                          child: ClipRect(
-                          child: LayoutBuilder(
-                            builder: (context, constraints) {
-                              // Capture the viewport for the pan clamp.
-                              _viewport = Size(
-                                  constraints.maxWidth, constraints.maxHeight);
-                              // Zoom-out stops at fit (minScale 1); zoom-in
-                              // stops where a cell reaches a comfortable tap
-                              // size, which depends on the board — see
-                              // ZArrowsGame.maxZoom.
-                              return ValueListenableBuilder<double>(
-                                valueListenable: _game.maxZoom,
-                                child: GameWidget(game: _game),
-                                builder: (context, maxZoom, child) =>
-                                    InteractiveViewer(
-                                  transformationController: _boardTc,
-                                  minScale: 1,
-                                  maxScale: maxZoom,
-                                  // One-finger pan stays enabled everywhere;
-                                  // the reach is bounded by _clampBoard (no
-                                  // edge past the viewport centre) rather than
-                                  // by boundaryMargin, so this stays infinite.
-                                  boundaryMargin:
-                                      const EdgeInsets.all(double.infinity),
-                                  clipBehavior: Clip.none,
-                                  child: child!,
-                                ),
-                              );
-                            },
-                          ),
-                          ),
-                        ),
-                      ),
+                      // Empty probe: it measures the visible play area, which
+                      // is what the board is fitted to and what the pan clamp
+                      // measures against. Hit-tests through to the board.
+                      SizedBox.expand(key: _playAreaKey),
                       // On clear, the solved board gives way in place to the
                       // territory silhouette: grey dots rise, then accent
                       // sweeps out from the centre.
@@ -429,16 +458,21 @@ class _GameScreenState extends State<GameScreen> {
                     ],
                   ),
                 ),
-                if (_result == _Result.cleared)
-                  _ClearNextBar(onNext: _next)
-                else ...[
-                  _BoosterBar(
-                    game: _game,
-                    onResetView: _resetBoardView,
-                    onRestart: _confirmRestart,
-                  ),
-                  const AdsBanner(),
-                ],
+                ColoredBox(
+                  color: c.bg,
+                  child: _result == _Result.cleared
+                      ? _ClearNextBar(onNext: _next)
+                      : Column(
+                          children: [
+                            _BoosterBar(
+                              game: _game,
+                              onResetView: _resetBoardView,
+                              onRestart: _confirmRestart,
+                            ),
+                            const AdsBanner(),
+                          ],
+                        ),
+                ),
               ],
             ),
             // Coach cue, above the board but below every modal surface.

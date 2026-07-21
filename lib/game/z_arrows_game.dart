@@ -158,11 +158,26 @@ class ZArrowsGame extends FlameGame {
   /// tappable cell on the big boards or absurdly deep on the small ones.
   final ValueNotifier<double> maxZoom = ValueNotifier(_maxMaxZoom);
 
+  /// Height of the chrome painted over the top and bottom of the canvas. The
+  /// canvas is the whole screen so an escaping arrow can fly right off it and
+  /// slide under the header, but the board must still be fitted and centred in
+  /// the gap the player can actually see.
+  double _insetTop = 0, _insetBottom = 0;
+
+  void setPlayInsets(double top, double bottom) {
+    if (top == _insetTop && bottom == _insetBottom) return;
+    _insetTop = top;
+    _insetBottom = bottom;
+    if (_board != null) _layoutBoard(size);
+  }
+
   void _layoutBoard(Vector2 canvas) {
     final board = _board!;
+    final playHeight =
+        math.max(canvas.y - _insetTop - _insetBottom, canvas.y * 0.2);
     _fitScale = math.min(
       canvas.x * 0.94 / board.size.x,
-      canvas.y * 0.94 / board.size.y,
+      playHeight * 0.94 / board.size.y,
     );
     final fitCell = _fitScale * BoardComponent.cell;
     needsZoom.value = fitCell < _minTappableCell;
@@ -171,7 +186,8 @@ class ZArrowsGame extends FlameGame {
     // Open on the whole silhouette: recognising the country is the point of
     // the board, and zoom is one pinch away.
     board.scale = Vector2.all(_fitScale);
-    board.position = Vector2(canvas.x / 2, canvas.y / 2);
+    board.position =
+        Vector2(canvas.x / 2, _insetTop + playHeight / 2);
   }
 
   /// The grid's footprint in canvas coordinates (GameWidget-local), i.e. the
