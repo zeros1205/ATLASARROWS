@@ -90,6 +90,7 @@ class ZArrowsGame extends FlameGame {
     _inputLocked = false;
     _combo = 0;
     boardRevealed = false;
+    Sfx.pickStageVoice();
     removeArmed.value = false;
     logic = BoardLogic.fromLevel(level);
     _board?.removeFromParent();
