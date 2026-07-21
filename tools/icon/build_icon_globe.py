@@ -113,9 +113,13 @@ def _arrow_vertical(dr, x, y_tail, y_tip, bar, head_l, head_h, color) -> None:
     dr.polygon([(x, y_tip), (x - head_h / 2, y_neck), (x + head_h / 2, y_neck)], fill=color)
 
 
+LAND = (150, 148, 138, 255)   # solid continents: darker than the dot so the
+#                               filled hemisphere still reads against the cream
+
+
 def render_globe(size, background, *, center_lat=12.0, center_lon=-30.0,
                  n_across=50, disk_w=1.6, squash=0.68, cx=0.5, cy=0.70,
-                 supersample=4, with_arrows=True) -> Image.Image:
+                 supersample=4, with_arrows=True, style="dots") -> Image.Image:
     """The globe is drawn as a wide, vertically-squashed dome sitting low in the
     canvas, matching the reference: a curved-top world cap at the icon's bottom.
 
@@ -133,15 +137,25 @@ def render_globe(size, background, *, center_lat=12.0, center_lon=-30.0,
     dot_dr = ImageDraw.Draw(dot_layer)
     arrow_dr = ImageDraw.Draw(arrow_layer)
 
-    pts, step = globe_dots(center_lat, center_lon, n_across)
     Rx = S * disk_w / 2
     Ry = Rx * squash
     ox, oy = S * cx, S * cy
-    radius = 0.46 * Ry * step
-    for x, y in pts:
-        px = ox + x * Rx
-        py = oy - y * Ry
-        dot_dr.ellipse([px - radius, py - radius, px + radius, py + radius], fill=DOT)
+
+    if style == "solid":
+        # A fine lattice of cells filled edge-to-edge reads as solid continents
+        # (dots lose the coastline at icon size). Cells overlap slightly so no
+        # seams show between them.
+        pts, step = globe_dots(center_lat, center_lon, 240)
+        hw, hh = Rx * step * 0.62, Ry * step * 0.62
+        for x, y in pts:
+            px, py = ox + x * Rx, oy - y * Ry
+            dot_dr.rectangle([px - hw, py - hh, px + hw, py + hh], fill=LAND)
+    else:
+        pts, step = globe_dots(center_lat, center_lon, n_across)
+        radius = 0.46 * Ry * step
+        for x, y in pts:
+            px, py = ox + x * Rx, oy - y * Ry
+            dot_dr.ellipse([px - radius, py - radius, px + radius, py + radius], fill=DOT)
 
     if with_arrows:
         # Identical size and position to the last build_icon.py version: shaft
