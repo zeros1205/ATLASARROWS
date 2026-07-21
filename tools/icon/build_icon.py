@@ -174,7 +174,7 @@ def render(size: int, mask: list[list[bool]], inset: float,
     # of the canvas is the thinnest that still survives the shrink. The arrows
     # live on their own layer, so changing the continent size cannot change
     # their thickness or head size.
-    bar = S * 0.0374
+    bar = S * 0.0748
     head_l, head_h = bar * 2.35, bar * 3.05
 
     def gx(c: float) -> float:
