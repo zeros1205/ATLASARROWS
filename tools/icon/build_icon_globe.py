@@ -4,12 +4,10 @@ A copy of build_icon.py that replaces the flat Africa landmass with a dotted
 globe dome: the whole world grid from `assets/campaign/worldmap.json` reprojected
 onto a sphere (orthographic), so dots follow the curvature like the reference.
 
-This script does NOT overwrite any tracked asset. It only writes a preview PNG
-so the look can be judged before we commit to it:
+Running it writes the full platform icon set (store + Android + iOS + web),
+reusing build_icon.py's export helpers so only the artwork differs:
 
-    python tools/icon/build_icon_globe.py   -> <scratchpad>/globe_preview.png
-
-If approved, we fold render_globe() back into build_icon.py.
+    python tools/icon/build_icon_globe.py
 """
 from __future__ import annotations
 
@@ -24,9 +22,9 @@ from PIL import Image, ImageDraw  # noqa: E402
 # --- identity (same palette as build_icon.py) -----------------------------
 CREAM = (247, 246, 242, 255)
 DOT   = (90, 90, 96, 255)      # dense dark halftone (the approved "best" background)
-BLUE  = (18, 89, 255, 255)
+MINT  = (0, 161, 155, 255)     # AppColors.light.accent #00A19B — the in-game fired line
 INK   = (35, 37, 46, 255)
-RED   = (255, 36, 78, 255)
+RED   = (255, 77, 103, 255)    # AppColors.light.danger #FF4D67 — the in-game blocked line
 
 
 def _load_world():
@@ -211,7 +209,7 @@ def render_globe(size, background, *, center_lat=12.0, center_lon=-30.0,
         # Africa board grid to canvas fractions.
         bar = S * 0.081
         head_l, head_h = bar * 3.0, bar * 3.0
-        _arrow_vertical(arrow_dr, S * 0.81, S, S * 0.2195, bar, head_l, head_h, BLUE)
+        _arrow_vertical(arrow_dr, S * 0.81, S, S * 0.2195, bar, head_l, head_h, MINT)
         _arrow(arrow_dr, 0, S * 0.6701, S * 0.5323, bar, head_l, head_h, INK)
         _arrow(arrow_dr, S * 0.6213, S * 0.15, S * 0.76, bar, head_l, head_h, RED)
 
@@ -221,23 +219,27 @@ def render_globe(size, background, *, center_lat=12.0, center_lon=-30.0,
 
 
 def main() -> None:
-    scratch = os.environ.get(
-        "CLAUDE_SCRATCHPAD",
-        "/tmp/claude-0/-home-user-ATLASARROWS/"
-        "a2b5d670-cec2-5021-ae97-16a302757dc8/scratchpad",
-    )
-    os.makedirs(scratch, exist_ok=True)
+    import build_icon as b  # reuse the platform export helpers unchanged
+
+    assets = os.path.join(ROOT, "assets", "icon")
+    store = os.path.join(ROOT, "store", "icon")
+    os.makedirs(store, exist_ok=True)
 
     full = render_globe(1024, CREAM)
-    out = os.path.join(scratch, "globe_preview.png")
-    full.resize((512, 512), Image.LANCZOS).save(out)
+    full.save(os.path.join(assets, "icon.png"))
 
-    bare = render_globe(1024, CREAM, with_arrows=False)
-    out_bare = os.path.join(scratch, "globe_preview_bare.png")
-    bare.resize((512, 512), Image.LANCZOS).save(out_bare)
+    # Android adaptive foreground: fit the whole composition into the 66dp safe
+    # zone (the full-bleed globe would otherwise be clipped by OEM masks).
+    fg = b.fit_to_safe_zone(render_globe(1024, None), 1024 * (66 / 108))
+    fg.save(os.path.join(assets, "icon_fg.png"))
 
-    print("wrote preview ->", out)
-    print("wrote bare globe ->", out_bare)
+    full.resize((512, 512), Image.LANCZOS).save(os.path.join(store, "play_512.png"))
+    full.convert("RGB").save(os.path.join(store, "appstore_1024.png"))
+    full.resize((48, 48), Image.LANCZOS).save(os.path.join(store, "preview_48.png"))
+    b.export_platform_icons(full, fg)
+    b.export_android_mask_preview(full, fg, os.path.join(store, "android_mask_preview.png"))
+
+    print("wrote store, Android, iOS, and web icon assets")
 
 
 if __name__ == "__main__":
