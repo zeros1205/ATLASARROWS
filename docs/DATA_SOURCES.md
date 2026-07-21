@@ -141,7 +141,8 @@ relayout_difficulty.py ─▶ bank.json의 화살표 레이아웃만 재작성 (
 local_shipping, local_taxi, moped, pedal_bike, sailing, snowmobile, subway,
 train, tram, two_wheeler, airport_shuttle.
 
-**차량 선택(vehicle picker) 규칙 — 위도 게이팅:**
-- `snowmobile`은 **도착지 위도만** 기준으로 한대일 때만 후보 풀에 포함(출발지 무관).
-  임계값 기본 **|위도| ≥ 55°**(도시 폴리곤 중심 위도, 국가는 NE 폴리곤 중심 위도).
-- 위도 원본: 도시 = `cities_raw.json` 폴리곤 중심, 국가 = NE 50m 폴리곤 중심.
+**차량 선택(vehicle picker) 규칙 — snowmobile 강제:**
+- **도착지가 국가**(city→country 전환)이고 그 **국가가 한대**일 때 → `snowmobile` **강제**(반드시 등장).
+  도시 도착(→city) 전환에는 적용하지 않음. 출발지 위도는 보지 않음.
+- 한대 판정: **국가 중심 위도 |위도| ≥ 55°**(NE 50m 폴리곤 중심).
+- 위도 원본: 국가 = NE 50m 폴리곤 중심(도시 판정은 이 규칙에서 미사용).
