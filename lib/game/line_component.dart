@@ -7,7 +7,7 @@ import 'package:flutter/painting.dart';
 
 import '../models/arrow_line.dart';
 import 'board_component.dart';
-import 'z_arrows_game.dart';
+import 'atlas_arrows_game.dart';
 
 enum _Anim { idle, escaping, bumpOut, bumpBack, vaporizing }
 
@@ -16,7 +16,7 @@ enum _Anim { idle, escaping, bumpOut, bumpBack, vaporizing }
 /// All lines share the ink color — reading the maze is the puzzle — and
 /// only speak in color when tapped: blue while escaping, red when blocked.
 class LineComponent extends PositionComponent
-    with HasGameReference<ZArrowsGame> {
+    with HasGameReference<AtlasArrowsGame> {
   LineComponent({required this.line, required Vector2 boardSize})
       : super(position: Vector2.zero(), size: boardSize);
 

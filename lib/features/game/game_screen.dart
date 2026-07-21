@@ -13,7 +13,7 @@ import 'package:in_app_purchase/in_app_purchase.dart';
 import '../../app/tokens/colors.dart';
 import '../../app/tokens/dimens.dart';
 import '../../app/tokens/typography.dart';
-import '../../game/z_arrows_game.dart';
+import '../../game/atlas_arrows_game.dart';
 import '../../models/campaign_repository.dart'
     show CampaignCountry, CampaignRepository, CampaignStage, StageKind;
 import '../../services/ads/ads.dart';
@@ -40,8 +40,8 @@ enum _Result { none, cleared, failed }
 class _GameScreenState extends State<GameScreen> {
   final _repo = CampaignRepository.instance;
   late int _stage = widget.stage;
-  late ZArrowsGame _game;
-  final _hearts = ValueNotifier<int>(ZArrowsGame.maxHearts);
+  late AtlasArrowsGame _game;
+  final _hearts = ValueNotifier<int>(AtlasArrowsGame.maxHearts);
   _Result _result = _Result.none;
   bool _freeRefillUsed = false;
 
@@ -130,7 +130,7 @@ class _GameScreenState extends State<GameScreen> {
     }
   }
 
-  ZArrowsGame _buildGame(AppColors palette) => ZArrowsGame(
+  AtlasArrowsGame _buildGame(AppColors palette) => AtlasArrowsGame(
         initialLevel: _repo.levelAt(_stage),
         palette: palette,
         onHeartsChanged: (h) => _hearts.value = h,
@@ -161,7 +161,7 @@ class _GameScreenState extends State<GameScreen> {
       totalClears: Progress.instance.totalClears.value,
       countryCompleted: countryCompleted,
       // No heart lost on this stage — the strict-play achievement.
-      flawless: _hearts.value == ZArrowsGame.maxHearts,
+      flawless: _hearts.value == AtlasArrowsGame.maxHearts,
     ));
     // Finishing a country can complete its continent (the last country of that
     // continent in area order). Idempotent, so pass every completed continent.
@@ -778,7 +778,7 @@ class _HeartsStrip extends StatelessWidget {
             builder: (context, h, _) => Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                for (var i = 0; i < ZArrowsGame.maxHearts; i++)
+                for (var i = 0; i < AtlasArrowsGame.maxHearts; i++)
                   Padding(
                     padding: const EdgeInsets.only(right: 5),
                     child: Opacity(
@@ -815,7 +815,7 @@ class _HeartsStrip extends StatelessWidget {
 class _BoosterBar extends StatelessWidget {
   const _BoosterBar(
       {required this.game, required this.onResetView, required this.onRestart});
-  final ZArrowsGame game;
+  final AtlasArrowsGame game;
   final VoidCallback onResetView, onRestart;
 
   /// Running dry mid-board is the moment a top-up is most relevant, but sending
