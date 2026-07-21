@@ -57,66 +57,24 @@ class _GameScreenState extends State<GameScreen> {
   /// first-time player is shown a legal move instead of being told about one.
   Timer? _coachTimer;
 
-  // ── Board pan/zoom (Flutter-level) ──────────────────────────────────────
-  // Pan and pinch are handled here with a GestureDetector + Transform over the
-  // GameWidget, not inside Flame: a one-finger drag has to move the board, and
-  // Flame's scale callbacks don't deliver a single-finger pan on device. The
-  // Transform sits on top of the fit view Flame lays out (identity == fit), and
-  // Flutter maps taps back through it so a tapped line still hits.
-  final ValueNotifier<Matrix4> _boardMatrix = ValueNotifier(Matrix4.identity());
-  double _boardScale = 1;
-  Offset _boardOffset = Offset.zero;
-  double _gestureBaseScale = 1;
-  Offset _gestureBaseOffset = Offset.zero;
-  Offset _gestureStartFocal = Offset.zero;
-  Size _boardBox = Size.zero;
+  // ── Board pan/zoom ──────────────────────────────────────────────────────
+  // Pinch to zoom, drag to pan — handled by an InteractiveViewer over the
+  // GameWidget. A stationary tap still passes through to Flame, and
+  // LineComponent's tap-slop ignores a tap that turned into a drag, so panning
+  // never fires an arrow. (The old hand-rolled Transform clamped panning to
+  // zero at fit scale and lost the pinch to Flame's own gesture arena.)
+  final TransformationController _boardTc = TransformationController();
 
-  /// How far past the fit view the board can be pinched in.
+  /// How far past the fit view the board can be zoomed in.
   static const double _maxBoardZoom = 8;
 
-  void _applyBoardTransform(double scale, Offset offset) {
-    _boardScale = scale;
-    _boardOffset = offset;
-    _boardMatrix.value = Matrix4.identity()
-      ..translate(offset.dx, offset.dy)
-      ..scale(scale);
-  }
-
-  /// Back to the whole silhouette (the 맞춤 보기 button, and every new board).
-  void _resetBoardView() => _applyBoardTransform(1, Offset.zero);
-
-  void _onBoardScaleStart(ScaleStartDetails d) {
-    _gestureBaseScale = _boardScale;
-    _gestureBaseOffset = _boardOffset;
-    _gestureStartFocal = d.localFocalPoint;
-  }
-
-  void _onBoardScaleUpdate(ScaleUpdateDetails d) {
-    final scale = (_gestureBaseScale * d.scale).clamp(1.0, _maxBoardZoom).toDouble();
-    // Keep the content point that was under the fingers at gesture start pinned
-    // under the current focal point.
-    final contentPt = (_gestureStartFocal - _gestureBaseOffset) / _gestureBaseScale;
-    var offset = d.localFocalPoint - contentPt * scale;
-    // The GameWidget fills the box, so at scale 1 there's nothing to pan to;
-    // when zoomed, clamp the translation so the board keeps covering the box.
-    final minX = _boardBox.width * (1 - scale);
-    final minY = _boardBox.height * (1 - scale);
-    offset = Offset(
-      offset.dx.clamp(minX, 0.0).toDouble(),
-      offset.dy.clamp(minY, 0.0).toDouble(),
-    );
-    _applyBoardTransform(scale, offset);
-  }
-
-  /// Terrain reveal is a demo on the first few stages only for now.
-  static const int _terrainStages = 3;
-  void _syncTerrain() => _game.terrainEnabled = _stage < _terrainStages;
+  /// Back to the whole silhouette (the 화면맞춤 button, and every new board).
+  void _resetBoardView() => _boardTc.value = Matrix4.identity();
 
   @override
   void initState() {
     super.initState();
     _game = _buildGame(AppColors.light);
-    _syncTerrain();
     if (_coachEnabled && !Progress.instance.coachDone.value) {
       _coachTimer = Timer.periodic(const Duration(seconds: 3), (t) {
         if (Progress.instance.coachDone.value) {
@@ -230,7 +188,6 @@ class _GameScreenState extends State<GameScreen> {
       _showIntro = _introEnabled && crossedIntoNewCountry;
     });
     _game.loadLevel(_repo.levelAt(_stage));
-    _syncTerrain();
     _resetBoardView();
   }
 
@@ -240,7 +197,6 @@ class _GameScreenState extends State<GameScreen> {
       _result = _Result.none;
     });
     _game.restartLevel();
-    _syncTerrain();
     _resetBoardView();
   }
 
@@ -277,7 +233,7 @@ class _GameScreenState extends State<GameScreen> {
   void dispose() {
     _coachTimer?.cancel();
     _hearts.dispose();
-    _boardMatrix.dispose();
+    _boardTc.dispose();
     super.dispose();
   }
 
@@ -304,27 +260,20 @@ class _GameScreenState extends State<GameScreen> {
                     children: [
                       // Flame paints the board wherever it sits, so a zoomed
                       // board would otherwise spill over the header and the
-                      // hearts above it.
+                      // hearts above it — clip it to this area.
                       Positioned.fill(
                         child: ClipRect(
-                          child: LayoutBuilder(
-                            builder: (context, constraints) {
-                              _boardBox = Size(
-                                  constraints.maxWidth, constraints.maxHeight);
-                              return GestureDetector(
-                                behavior: HitTestBehavior.opaque,
-                                onScaleStart: _onBoardScaleStart,
-                                onScaleUpdate: _onBoardScaleUpdate,
-                                child: ValueListenableBuilder<Matrix4>(
-                                  valueListenable: _boardMatrix,
-                                  builder: (context, matrix, child) => Transform(
-                                    transform: matrix,
-                                    child: child,
-                                  ),
-                                  child: GameWidget(game: _game),
-                                ),
-                              );
-                            },
+                          child: InteractiveViewer(
+                            transformationController: _boardTc,
+                            minScale: 1,
+                            maxScale: _maxBoardZoom,
+                            // Let the board be dragged with one finger even at
+                            // fit scale — with the default zero margin the
+                            // board fills the box and panning clamps to nothing
+                            // until zoomed, which read as "drag doesn't work".
+                            boundaryMargin: const EdgeInsets.all(double.infinity),
+                            clipBehavior: Clip.none,
+                            child: GameWidget(game: _game),
                           ),
                         ),
                       ),

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../app/app_settings.dart';
 import '../../app/shell.dart';
@@ -273,8 +274,20 @@ class _Version extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = AppColors.of(context);
-    return Text('v0.1.0 · © 2026 LOGAN LAND',
-        textAlign: TextAlign.center,
-        style: AppText.caption.copyWith(color: c.inkFaint));
+    // Version + build number, so a tester can tell exactly which build they're
+    // on. CI passes --build-number=<github run number>, so the build number
+    // here matches the Actions run that produced the APK/IPA.
+    return FutureBuilder<PackageInfo>(
+      future: PackageInfo.fromPlatform(),
+      builder: (context, snap) {
+        final info = snap.data;
+        final label = info == null
+            ? 'v0.1.0'
+            : 'v${info.version} (build ${info.buildNumber})';
+        return Text('$label · © 2026 LOGAN LAND',
+            textAlign: TextAlign.center,
+            style: AppText.caption.copyWith(color: c.inkFaint));
+      },
+    );
   }
 }
