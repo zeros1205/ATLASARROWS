@@ -38,6 +38,11 @@ dependencies:
   # splash. Android ships no flag-emoji glyphs, so the emoji would show as
   # letters ("FR") — this draws the real flag instead.
   country_flags: ^4.1.2
+  # Crash + error reporting. The DSN is injected at build time
+  # (--dart-define=SENTRY_DSN); with no DSN it initializes as a no-op. A range
+  # rather than a caret so pub can pick a build whose transitive deps
+  # (package_info_plus, etc.) line up with the rest of the app.
+  sentry_flutter: ">=8.0.0 <10.0.0"
 
 dev_dependencies:
   flutter_test:
