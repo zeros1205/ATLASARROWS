@@ -142,13 +142,11 @@ class _GameScreenState extends State<GameScreen> {
   bool get _isPath => _repo.stageAt(_stage)?.kind == StageKind.path;
 
   /// What this particular board depicts — a city, the country itself on the
-  /// round's last stage, or (on a travel leg) the place it is heading to. This
-  /// is the label revealed on clear.
+  /// round's last stage, or (on a travel leg) the country the round is heading
+  /// to. This is the label revealed on clear.
   String get _placeName {
-    if (_isPath) {
-      // A path always sits right before the place it delivers you to.
-      return _repo.stageAt(_stage + 1)?.displayName ?? _countryName;
-    }
+    // A travel leg announces the round's destination country ("Next Atlas").
+    if (_isPath) return _countryName;
     return _repo.stageAt(_stage)?.displayName ?? _countryName;
   }
 
@@ -919,21 +917,32 @@ class _ResultSheet extends StatelessWidget {
           Text(stage,
               style: AppText.caption.copyWith(color: c.inkFaint, letterSpacing: 3)),
           const SizedBox(height: 10),
-          // The place name + flag — held back from the header, revealed here so
-          // clearing a board is where you learn where you were. A travel leg
-          // instead announces where it just delivered you.
-          if (place.isNotEmpty)
-            Text(
-                isPath
-                    ? '$place(으)로 이동'
-                    : (flag.isEmpty ? place : '$flag  $place'),
-                textAlign: TextAlign.center,
-                style: AppText.title.copyWith(
-                    color: c.ink, fontWeight: FontWeight.w800, fontSize: 22)),
-          const SizedBox(height: 4),
-          Text(isPath ? '도착!' : '클리어!',
-              style: AppText.headline.copyWith(
-                  color: c.accent, fontWeight: FontWeight.w900)),
+          // A travel leg points ahead to the round's destination country
+          // ("Next Atlas" over the country name, no flag); a place board
+          // reveals the place name + flag it held back from the header.
+          if (isPath) ...[
+            Text('NEXT ATLAS',
+                style: AppText.caption.copyWith(
+                    color: c.accent,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 3)),
+            const SizedBox(height: 6),
+            if (place.isNotEmpty)
+              Text(place,
+                  textAlign: TextAlign.center,
+                  style: AppText.title.copyWith(
+                      color: c.ink, fontWeight: FontWeight.w800, fontSize: 22)),
+          ] else ...[
+            if (place.isNotEmpty)
+              Text(flag.isEmpty ? place : '$flag  $place',
+                  textAlign: TextAlign.center,
+                  style: AppText.title.copyWith(
+                      color: c.ink, fontWeight: FontWeight.w800, fontSize: 22)),
+            const SizedBox(height: 4),
+            Text('클리어!',
+                style: AppText.headline.copyWith(
+                    color: c.accent, fontWeight: FontWeight.w900)),
+          ],
           const SizedBox(height: 18),
           _bigButton(c, '다음 스테이지', c.accent, c.onAccent, onNext),
         ],
