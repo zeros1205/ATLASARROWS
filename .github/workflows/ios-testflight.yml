@@ -134,6 +134,7 @@ jobs:
         run: |
           flutter build ipa --release \
             --build-number=${{ github.run_number }} \
+            --dart-define=SENTRY_DSN=${{ secrets.SENTRY_DSN }} \
             --export-options-plist="$RUNNER_TEMP/ExportOptions.plist"
           # Flutter names the IPA after the app's display name ("Atlas
           # Arrows.ipa"), not the Dart package, and a rename would silently
