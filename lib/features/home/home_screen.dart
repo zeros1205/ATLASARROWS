@@ -22,7 +22,6 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = AppColors.of(context);
     void play() {
       final stage = Progress.instance.unlocked.value
           .clamp(0, (CampaignRepository.instance.totalStages - 1).clamp(0, 1 << 30));
@@ -41,9 +40,9 @@ class HomeScreen extends StatelessWidget {
             // The country the play button will open into — its dots get lit and
             // pulsed on the map below, tying the CTA to a place on the globe.
             final target = _targetCountry(unlocked);
-            // Stacked top-to-bottom now, no overlap: wordmark, tagline, then the
-            // map as the hero, then the CTA. Each block arrives on the same
-            // ease-out signature, lightly staggered.
+            // Stacked top-to-bottom now, no overlap: wordmark, then the map as
+            // the hero, then the CTA. The old "SHIFT THE ARROWS" tagline is
+            // dropped — it just repeated the wordmark and cost the map height.
             return Column(
               children: [
                 const SizedBox(height: 24),
@@ -61,17 +60,10 @@ class HomeScreen extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(height: 10),
-                EnterFade(
-                  delay: const Duration(milliseconds: 80),
-                  child: Text('SHIFT THE ARROWS',
-                      style: AppText.caption
-                          .copyWith(color: c.inkFaint, letterSpacing: 2.5)),
-                ),
                 const SizedBox(height: AppGap.xl),
                 Expanded(
                   child: EnterFade(
-                    delay: const Duration(milliseconds: 140),
+                    delay: const Duration(milliseconds: 120),
                     child: _RadarWorldMap(target: target),
                   ),
                 ),
