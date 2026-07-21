@@ -132,10 +132,18 @@ int _targetCountry(int unlocked) {
 /// The two-line lockup from the Figma feature graphic: mint "ATLAS" spread
 /// wide over teal-gray "ARROWS" set tight. ATLAS is nudged right by half its
 /// letter-spacing so the trailing gap doesn't push the glyphs off-centre.
+///
+/// Each line carries the slight white outside stroke from the Figma lockup —
+/// a wider stroked pass painted behind the fill, so only its outer half shows.
+/// Its job is to punch the type off a busy ground; on the plain paper here it
+/// is nearly invisible, and reads as a light halo in dark mode.
 class _Wordmark extends StatelessWidget {
   const _Wordmark();
 
   static const double _atlasSpacing = 10;
+
+  /// At the 44px drawing size; the FittedBox scales it down with everything.
+  static const double _strokeWidth = 3;
 
   @override
   Widget build(BuildContext context) {
@@ -145,21 +153,29 @@ class _Wordmark extends StatelessWidget {
       children: [
         Transform.translate(
           offset: const Offset(_atlasSpacing / 2, 0),
-          child: Text('ATLAS',
-              style: AppText.display.copyWith(
-                  color: c.accent,
-                  fontSize: 44,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: _atlasSpacing,
-                  height: 1.0)),
+          child: _line('ATLAS', c.accent, _atlasSpacing, 1.0),
         ),
-        Text('ARROWS',
-            style: AppText.display.copyWith(
-                color: c.ink,
-                fontSize: 44,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -1,
-                height: 1.05)),
+        _line('ARROWS', c.ink, -1, 1.05),
+      ],
+    );
+  }
+
+  Widget _line(String text, Color fill, double spacing, double height) {
+    final base = AppText.display.copyWith(
+        fontSize: 44,
+        fontWeight: FontWeight.w800,
+        letterSpacing: spacing,
+        height: height);
+    return Stack(
+      children: [
+        Text(text,
+            style: base.copyWith(
+                foreground: Paint()
+                  ..style = PaintingStyle.stroke
+                  ..strokeWidth = _strokeWidth
+                  ..strokeJoin = StrokeJoin.round
+                  ..color = Colors.white)),
+        Text(text, style: base.copyWith(color: fill)),
       ],
     );
   }
