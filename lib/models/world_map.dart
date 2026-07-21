@@ -27,7 +27,19 @@ class WorldMap {
   Int32List _ordinal = Int32List(0);
   final Map<int, int> _countryDots = {};
 
+  /// Approximate (col, row) grid position for each global stage — a city's real
+  /// centroid where it has one, null for path/country stages. Baked by
+  /// tools/atlas/build_city_pins.py so the next-stage radar can sit on the
+  /// actual place instead of the whole country.
+  List<(double, double)?> _pins = const [];
+
   bool get isLoaded => cols > 0;
+
+  /// Map pin for a global stage, or null if it has none (or is out of range).
+  (double, double)? pinAt(int globalStage) =>
+      (globalStage >= 0 && globalStage < _pins.length)
+          ? _pins[globalStage]
+          : null;
 
   /// How many map dots belong to [countryIndex].
   int dotsOf(int countryIndex) => _countryDots[countryIndex] ?? 0;
@@ -49,6 +61,22 @@ class WorldMap {
     names = (d['names'] as List).cast<String>();
     cells = Int32List.fromList((d['cells'] as List).cast<int>());
     _resolve();
+    await _loadPins();
+  }
+
+  Future<void> _loadPins() async {
+    try {
+      final raw = await rootBundle.loadString('assets/campaign/city_pins.json');
+      final d = jsonDecode(raw) as Map<String, dynamic>;
+      _pins = [
+        for (final e in (d['pins'] as List))
+          e == null
+              ? null
+              : ((e[0] as num).toDouble(), (e[1] as num).toDouble()),
+      ];
+    } catch (_) {
+      _pins = const []; // no pins bundled — radar falls back to the country
+    }
   }
 
   /// Re-links world countries to the loaded campaign (call after both load).
