@@ -175,7 +175,7 @@ def render(size: int, mask: list[list[bool]], inset: float,
     # downsample factor rescales the layout instead of shoving the lower
     # arrows off the bottom of a shorter board.
     _arrow_vertical(arrow_dr, S * 0.86, S, gy(0.18 * H), bar, head_l, head_h, BLUE)
-    _arrow(arrow_dr, 0, gx(0.67 * W), gy(0.56 * H), bar, head_l, head_h, INK)
+    _arrow(arrow_dr, 0, gx(0.67 * W), gy(0.52 * H), bar, head_l, head_h, INK)
     # Red is the shortest, but its shaft still has to out-measure its head or
     # it stops reading as an arrow at all.
     _arrow(arrow_dr, gx(0.62 * W), S * 0.15, gy(0.74 * H), bar, head_l, head_h, RED)
