@@ -19,8 +19,8 @@ import 'sfx.dart';
 /// The Flame game for one stage. Level-agnostic: it plays whatever [Level]
 /// it is given and reports outcomes via callbacks; the surrounding Flutter
 /// screen owns stage progression, hearts UI and result sheets.
-class ZArrowsGame extends FlameGame {
-  ZArrowsGame({
+class AtlasArrowsGame extends FlameGame {
+  AtlasArrowsGame({
     required this.initialLevel,
     required this.palette,
     this.onCleared,

@@ -13,7 +13,7 @@ import 'package:in_app_purchase/in_app_purchase.dart';
 import '../../app/tokens/colors.dart';
 import '../../app/tokens/dimens.dart';
 import '../../app/tokens/typography.dart';
-import '../../game/z_arrows_game.dart';
+import '../../game/atlas_arrows_game.dart';
 import '../../models/campaign_repository.dart'
     show CampaignCountry, CampaignRepository, CampaignStage, StageKind;
 import '../../services/ads/ads.dart';
@@ -40,8 +40,8 @@ enum _Result { none, cleared, failed }
 class _GameScreenState extends State<GameScreen> {
   final _repo = CampaignRepository.instance;
   late int _stage = widget.stage;
-  late ZArrowsGame _game;
-  final _hearts = ValueNotifier<int>(ZArrowsGame.maxHearts);
+  late AtlasArrowsGame _game;
+  final _hearts = ValueNotifier<int>(AtlasArrowsGame.maxHearts);
   _Result _result = _Result.none;
   bool _freeRefillUsed = false;
 
@@ -180,7 +180,7 @@ class _GameScreenState extends State<GameScreen> {
     }
   }
 
-  ZArrowsGame _buildGame(AppColors palette) => ZArrowsGame(
+  AtlasArrowsGame _buildGame(AppColors palette) => AtlasArrowsGame(
         initialLevel: _repo.levelAt(_stage),
         palette: palette,
         onHeartsChanged: (h) => _hearts.value = h,
@@ -211,7 +211,7 @@ class _GameScreenState extends State<GameScreen> {
       totalClears: Progress.instance.totalClears.value,
       countryCompleted: countryCompleted,
       // No heart lost on this stage — the strict-play achievement.
-      flawless: _hearts.value == ZArrowsGame.maxHearts,
+      flawless: _hearts.value == AtlasArrowsGame.maxHearts,
     ));
     // Finishing a country can complete its continent (the last country of that
     // continent in area order). Idempotent, so pass every completed continent.
@@ -242,15 +242,6 @@ class _GameScreenState extends State<GameScreen> {
     // A travel leg announces the round's destination country ("Next Atlas").
     if (_isPath) return _countryName;
     return _repo.stageAt(_stage)?.displayName ?? _countryName;
-  }
-
-  /// The city this board depicts, or '' on the country finale and on a travel
-  /// leg — in both cases the place chip carries the country name alone (a path
-  /// heads toward the round's country; the finale is the country).
-  String get _cityLabel {
-    final st = _repo.stageAt(_stage);
-    if (st == null || st.kind != StageKind.city) return '';
-    return st.displayName;
   }
 
   /// The ISO 3166-1 alpha-2 code of the country this stage belongs to, used to
@@ -402,7 +393,7 @@ class _GameScreenState extends State<GameScreen> {
                 onPointerCancel: _onBoardPointerCancel,
                 // Zoom-out stops at fit (minScale 1); zoom-in stops where a
                 // cell reaches a comfortable tap size, which depends on the
-                // board — see ZArrowsGame.maxZoom.
+                // board — see AtlasArrowsGame.maxZoom.
                 child: ValueListenableBuilder<double>(
                   valueListenable: _game.maxZoom,
                   child: GameWidget(game: _game),
@@ -430,9 +421,6 @@ class _GameScreenState extends State<GameScreen> {
                     children: [
                       _Header(
                         stageLabel: 'STAGE ${_stage + 1}',
-                        city: _cityLabel,
-                        country: _countryName,
-                        flagIso: _flagIso,
                         onBack: _maybeLeave,
                       ),
                       Container(height: 1, color: c.line),
@@ -701,20 +689,15 @@ class _FlagImg extends StatelessWidget {
       );
 }
 
-/// Back + stage number on the left; a small place chip (flag over city ·
-/// country) pinned to the top-right, so the player always knows where on the
-/// globe this board sits. On the country finale the city drops out and the
-/// chip carries the country alone.
+/// Back on the left; the stage number centred. A 44px spacer balances the back
+/// button so the label sits at the true centre of the header.
 class _Header extends StatelessWidget {
   const _Header({
     required this.stageLabel,
-    required this.city,
-    required this.country,
-    required this.flagIso,
     required this.onBack,
   });
 
-  final String stageLabel, city, country, flagIso;
+  final String stageLabel;
   final VoidCallback onBack;
 
   @override
@@ -734,49 +717,16 @@ class _Header extends StatelessWidget {
                 child: Icon(Icons.arrow_back, color: c.inkFaint, size: 24),
               ),
             ),
-            Text(stageLabel,
-                style: AppText.label.copyWith(
-                    color: c.ink, fontSize: 16, fontWeight: FontWeight.w700)),
-            const Spacer(),
-            if (country.isNotEmpty) _placeChip(c),
+            Expanded(
+              child: Center(
+                child: Text(stageLabel,
+                    style: AppText.label.copyWith(
+                        color: c.ink, fontSize: 16, fontWeight: FontWeight.w700)),
+              ),
+            ),
+            const SizedBox(width: 44),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _placeChip(AppColors c) {
-    final primary = city.isNotEmpty ? city : country;
-    final secondary = city.isNotEmpty ? country : null;
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 172),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (flagIso.isNotEmpty) ...[
-            _FlagImg(iso: flagIso, height: 15),
-            const SizedBox(width: 7),
-          ],
-          Flexible(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(primary,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppText.label.copyWith(
-                        color: c.ink, fontSize: 13, fontWeight: FontWeight.w800)),
-                if (secondary != null)
-                  Text(secondary,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppText.caption
-                          .copyWith(color: c.inkFaint, fontSize: 10.5)),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -863,7 +813,7 @@ class _HeartsStrip extends StatelessWidget {
             builder: (context, h, _) => Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                for (var i = 0; i < ZArrowsGame.maxHearts; i++)
+                for (var i = 0; i < AtlasArrowsGame.maxHearts; i++)
                   Padding(
                     padding: const EdgeInsets.only(right: 5),
                     child: Opacity(
@@ -900,7 +850,7 @@ class _HeartsStrip extends StatelessWidget {
 class _BoosterBar extends StatelessWidget {
   const _BoosterBar(
       {required this.game, required this.onResetView, required this.onRestart});
-  final ZArrowsGame game;
+  final AtlasArrowsGame game;
   final VoidCallback onResetView, onRestart;
 
   /// Running dry mid-board is the moment a top-up is most relevant, but sending
