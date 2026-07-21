@@ -113,29 +113,29 @@ class _GameScreenState extends State<GameScreen> {
     _tapCandidate = false;
   }
 
-  /// How far past the fit view the board can be zoomed in.
-  static const double _maxBoardZoom = 8;
-
   /// Back to the whole silhouette (the 화면맞춤 button, and every new board).
   void _resetBoardView() => _boardTc.value = Matrix4.identity();
 
-  /// Keep the board on screen: no edge of it may be dragged past the viewport's
-  /// centre line, so at least half the board always shows (and it can never hide
-  /// behind the header). The board fills the viewport at fit, so its edges are
-  /// the viewport-sized child's edges under the current pan/zoom. Runs on every
-  /// controller change; the clamp is idempotent, so re-setting the value here
-  /// doesn't loop.
+  /// Keep the board on screen: no edge of the *grid* may be dragged past the
+  /// viewport's centre line, so at least half the puzzle always shows (and it
+  /// can never hide behind the header). Clamping on the child's edges instead
+  /// would be too loose — the grid is inset inside the GameWidget by the fit
+  /// margin and the letterbox, so on the shorter axis it could travel 20-30%
+  /// past centre. Runs on every controller change; the clamp is idempotent, so
+  /// re-setting the value here doesn't loop.
   void _clampBoard() {
     final v = _viewport;
     if (v.isEmpty) return;
+    // Before the first board layout, fall back to the whole child.
+    final r = _game.boardRect ?? Offset.zero & v;
     final m = _boardTc.value;
     final s = m.getMaxScaleOnAxis();
     final tx = m.storage[12], ty = m.storage[13];
-    // Child edges in viewport coords: left = tx, right = tx + s*width. Left/top
-    // may reach the centre (≤ half); right/bottom may reach it from the other
-    // side (≥ half), which for the translation is `half - s*extent`.
-    final cx = tx.clamp(v.width / 2 - s * v.width, v.width / 2);
-    final cy = ty.clamp(v.height / 2 - s * v.height, v.height / 2);
+    // Grid edges in viewport coords: left = tx + s*r.left, right = tx + s*r.right.
+    // Keeping left ≤ centre and right ≥ centre bounds the translation to
+    // [centre - s*right, centre - s*left].
+    final cx = tx.clamp(v.width / 2 - s * r.right, v.width / 2 - s * r.left);
+    final cy = ty.clamp(v.height / 2 - s * r.bottom, v.height / 2 - s * r.top);
     if (cx != tx || cy != ty) {
       _boardTc.value = m.clone()
         ..storage[12] = cx
@@ -391,18 +391,27 @@ class _GameScreenState extends State<GameScreen> {
                               // Capture the viewport for the pan clamp.
                               _viewport = Size(
                                   constraints.maxWidth, constraints.maxHeight);
-                              return InteractiveViewer(
-                                transformationController: _boardTc,
-                                minScale: 1,
-                                maxScale: _maxBoardZoom,
-                                // One-finger pan stays enabled everywhere; the
-                                // reach is bounded by _clampBoard (no edge past
-                                // the viewport centre) rather than by
-                                // boundaryMargin, so this stays infinite.
-                                boundaryMargin:
-                                    const EdgeInsets.all(double.infinity),
-                                clipBehavior: Clip.none,
+                              // Zoom-out stops at fit (minScale 1); zoom-in
+                              // stops where a cell reaches a comfortable tap
+                              // size, which depends on the board — see
+                              // ZArrowsGame.maxZoom.
+                              return ValueListenableBuilder<double>(
+                                valueListenable: _game.maxZoom,
                                 child: GameWidget(game: _game),
+                                builder: (context, maxZoom, child) =>
+                                    InteractiveViewer(
+                                  transformationController: _boardTc,
+                                  minScale: 1,
+                                  maxScale: maxZoom,
+                                  // One-finger pan stays enabled everywhere;
+                                  // the reach is bounded by _clampBoard (no
+                                  // edge past the viewport centre) rather than
+                                  // by boundaryMargin, so this stays infinite.
+                                  boundaryMargin:
+                                      const EdgeInsets.all(double.infinity),
+                                  clipBehavior: Clip.none,
+                                  child: child!,
+                                ),
                               );
                             },
                           ),
