@@ -48,7 +48,7 @@ class AppColors extends ThemeExtension<AppColors> {
   final Color shadow;       // soft shadow color
 
   static const light = AppColors(
-    bg: Color(0xFFF7F6F2),          // off-white paper ground
+    bg: Color(0xFFFFFFFF),          // white page ground
     surface: Color(0xFFFFFFFF),
     surfaceMuted: Color(0xFFEDECE6),
     card: Color(0xFFFFFFFF),
@@ -57,8 +57,8 @@ class AppColors extends ThemeExtension<AppColors> {
     inkFaint: Color(0xFF97A2A7),
     line: Color(0xFFE7E5DE),
     dot: Color(0xFFE4E3DD),
-    accent: Color(0xFF00A19B),
-    accentSoft: Color(0x1F00A19B),
+    accent: Color(0xFF1D8BFF),      // 여기어때 YDS Cyan 800 (primary)
+    accentSoft: Color(0x1F1D8BFF),
     danger: Color(0xFFFF4D67),
     success: Color(0xFF27C356),
     amber: Color(0xFFFF9E2C),
