@@ -77,8 +77,8 @@ class AppColors extends ThemeExtension<AppColors> {
     inkFaint: Color(0xFF7C7F8C),
     line: Color(0xFF2E3038),
     dot: Color(0xFF33353F),
-    accent: Color(0xFF22C7BE),
-    accentSoft: Color(0x2622C7BE),
+    accent: Color(0xFF4DA6FF),      // 여기어때 primary, lifted for dark ground
+    accentSoft: Color(0x264DA6FF),
     danger: Color(0xFFFF5D75),
     success: Color(0xFF3AD06A),
     amber: Color(0xFFFFAE47),

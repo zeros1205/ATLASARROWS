@@ -22,7 +22,7 @@ from PIL import Image, ImageDraw  # noqa: E402
 # --- identity (same palette as build_icon.py) -----------------------------
 CREAM = (247, 246, 242, 255)
 DOT   = (90, 90, 96, 255)      # dense dark halftone (the approved "best" background)
-MINT  = (0, 161, 155, 255)     # AppColors.light.accent #00A19B — the in-game fired line
+MINT  = (0x1D, 0x8B, 0xFF, 255)  # AppColors.light.accent #1D8BFF — the in-game fired line
 INK   = (35, 37, 46, 255)
 RED   = (255, 77, 103, 255)    # AppColors.light.danger #FF4D67 — the in-game blocked line
 
