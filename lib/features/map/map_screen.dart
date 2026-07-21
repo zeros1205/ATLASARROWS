@@ -204,8 +204,7 @@ class _WorldPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final cw = size.width / wm.cols, ch = size.height / wm.rows;
-    final rLand = math.min(cw, ch) * 0.36, rSea = math.min(cw, ch) * 0.15;
-    final sea = Paint()..color = c.dot;
+    final rLand = math.min(cw, ch) * 0.36;
     final done = Paint()..color = c.accent;
     final locked = Paint()..color = c.inkFaint.withValues(alpha: 0.55);
     for (var r = 0; r < wm.rows; r++) {
@@ -213,10 +212,7 @@ class _WorldPainter extends CustomPainter {
         final i = r * wm.cols + col;
         final v = wm.cells[i];
         final o = Offset(col * cw + cw / 2, r * ch + ch / 2);
-        if (v < 0) {
-          canvas.drawCircle(o, rSea, sea);
-          continue;
-        }
+        if (v < 0) continue; // sea — dots only on land
         final ci = wm.countryOfCell(v);
         final Paint p;
         if (ci == null || ci > current) {
