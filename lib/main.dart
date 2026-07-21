@@ -38,7 +38,7 @@ Future<void> main() async {
         LoganLandBootGate<void>(
           config: kBootConfig,
           bootstrap: bootServices,
-          builder: (context, _) => const ZArrowsApp(),
+          builder: (context, _) => const AtlasArrowsApp(),
           onBooted: (_) => initDeferredServices(),
         ),
       );

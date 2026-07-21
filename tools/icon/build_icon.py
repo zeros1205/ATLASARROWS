@@ -87,7 +87,7 @@ def downsample(mask: list[list[bool]], factor: int) -> list[list[bool]]:
 def _arrow(dr, x_tail, x_tip, y, bar, head_l, head_h, color) -> None:
     """One horizontal arrow. Points left when x_tip < x_tail.
 
-    Shaped after the arrows on the board itself: a thin stroke with a round
+    Shaped after the arrows on the board itself: a thin stroke with a squared
     cap and a small head, not a fat bar with a big one. The genre draws these
     as lines, and a heavy bar reads as a signpost instead.
     """
@@ -96,16 +96,8 @@ def _arrow(dr, x_tail, x_tip, y, bar, head_l, head_h, color) -> None:
     radius = bar / 2
 
     if rightward:
-        dr.ellipse(
-            [x_tail - radius, y - radius, x_tail + radius, y + radius],
-            fill=color,
-        )
         dr.rectangle([x_tail, y - radius, x_neck, y + radius], fill=color)
     else:
-        dr.ellipse(
-            [x_tail - radius, y - radius, x_tail + radius, y + radius],
-            fill=color,
-        )
         dr.rectangle([x_neck, y - radius, x_tail, y + radius], fill=color)
 
     dr.polygon(
@@ -120,10 +112,6 @@ def _arrow_vertical(dr, x, y_tail, y_tip, bar, head_l, head_h, color) -> None:
     y_neck = y_tip + (head_l if upward else -head_l)
     radius = bar / 2
 
-    dr.ellipse(
-        [x - radius, y_tail - radius, x + radius, y_tail + radius],
-        fill=color,
-    )
     top, bottom = sorted((y_tail, y_neck))
     dr.rectangle([x - radius, top, x + radius, bottom], fill=color)
 
@@ -174,7 +162,7 @@ def render(size: int, mask: list[list[bool]], inset: float,
     # of the canvas is the thinnest that still survives the shrink. The arrows
     # live on their own layer, so changing the continent size cannot change
     # their thickness or head size.
-    bar = S * 0.0374
+    bar = S * 0.0748
     head_l, head_h = bar * 2.35, bar * 3.05
 
     def gx(c: float) -> float:
@@ -186,8 +174,8 @@ def render(size: int, mask: list[list[bool]], inset: float,
     # Placed as fractions of the grid, not as cell numbers, so changing the
     # downsample factor rescales the layout instead of shoving the lower
     # arrows off the bottom of a shorter board.
-    _arrow_vertical(arrow_dr, S * 0.86, S * 0.955, gy(0.18 * H), bar, head_l, head_h, BLUE)
-    _arrow(arrow_dr, S * 0.045, gx(0.67 * W), gy(0.56 * H), bar, head_l, head_h, INK)
+    _arrow_vertical(arrow_dr, S * 0.86, S, gy(0.18 * H), bar, head_l, head_h, BLUE)
+    _arrow(arrow_dr, 0, gx(0.67 * W), gy(0.52 * H), bar, head_l, head_h, INK)
     # Red is the shortest, but its shaft still has to out-measure its head or
     # it stops reading as an arrow at all.
     _arrow(arrow_dr, gx(0.62 * W), S * 0.15, gy(0.74 * H), bar, head_l, head_h, RED)

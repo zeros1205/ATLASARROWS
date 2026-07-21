@@ -7,8 +7,8 @@ import 'theme.dart';
 
 /// Root of the app: applies the light/dark themes and locale from
 /// [AppSettings], and shows a temporary landing until the real screens land.
-class ZArrowsApp extends StatelessWidget {
-  const ZArrowsApp({super.key});
+class AtlasArrowsApp extends StatelessWidget {
+  const AtlasArrowsApp({super.key});
 
   @override
   Widget build(BuildContext context) {

@@ -3,12 +3,12 @@ import 'package:flutter/painting.dart';
 
 import '../models/level.dart';
 import 'line_component.dart';
-import 'z_arrows_game.dart';
+import 'atlas_arrows_game.dart';
 
 /// Hosts the arrow lines over faint dots marking the board silhouette.
 /// Intrinsic size is [cell] px per grid cell; the game scales/centers it.
 class BoardComponent extends PositionComponent
-    with HasGameReference<ZArrowsGame> {
+    with HasGameReference<AtlasArrowsGame> {
   BoardComponent({required this.level})
       : super(size: Vector2(level.cols * cell, level.rows * cell));
 
