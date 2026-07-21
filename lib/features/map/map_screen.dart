@@ -12,11 +12,11 @@ import '../../shared/motion.dart';
 import 'round_intro_screen.dart';
 
 /// The map tab: a full-screen dotted world map. Land dots are coloured by
-/// campaign progress — in-progress country in accent blue, cleared countries
-/// dark grey, locked/other land grey. The map fills the screen height and
-/// scrolls left/right only (no zoom, no vertical pan); the header and the
-/// shell's tab bar float over it. Opens scrolled to the current country; tap a
-/// country to open its round intro.
+/// campaign progress — the in-progress country in accent, cleared countries a
+/// brighter accent, locked/other land faint grey. The map fills the screen
+/// height and scrolls left/right only (no zoom, no vertical pan); the header
+/// and the shell's tab bar float over it. Opens scrolled to the next-stage
+/// beacon; tap a country to open its round intro.
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
 
@@ -146,7 +146,11 @@ class _MapScreenState extends State<MapScreen>
   @override
   Widget build(BuildContext context) {
     final col = AppColors.of(context);
+    // StackFit.expand ties the map to the full screen. Without it the Stack
+    // would shrink-wrap its only non-positioned child — the min-height header —
+    // and the map would collapse to a thin band at the top.
     return Stack(
+      fit: StackFit.expand,
       children: [
         Positioned.fill(
           child: !_ready
@@ -220,30 +224,36 @@ class _MapScreenState extends State<MapScreen>
                       },
                     ),
         ),
-        // Header floats over the map with a transparent background.
-        SafeArea(
-          bottom: false,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const MetaHeader('맵'),
-              // The campaign runs smallest territory first, so the opening
-              // rounds colour a handful of dots that are easy to miss on a
-              // world map. A plain count makes the progress legible until the
-              // countries get big enough to see.
-              ValueListenableBuilder<int>(
-                valueListenable: Progress.instance.unlocked,
-                builder: (context, _, _) => Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Text(
-                    _repo.isLoaded
-                        ? '$_currentCountry개국 완료 · ${_repo.countries.length}개국 중'
-                        : '',
-                    style: AppText.caption.copyWith(color: col.inkFaint),
+        // Header floats over the map with a transparent background. Pinned to
+        // the top (not stretched) so StackFit.expand doesn't force it full-height.
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: SafeArea(
+            bottom: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const MetaHeader('맵'),
+                // The campaign runs smallest territory first, so the opening
+                // rounds colour a handful of dots that are easy to miss on a
+                // world map. A plain count makes the progress legible until the
+                // countries get big enough to see.
+                ValueListenableBuilder<int>(
+                  valueListenable: Progress.instance.unlocked,
+                  builder: (context, _, _) => Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Text(
+                      _repo.isLoaded
+                          ? '$_currentCountry개국 완료 · ${_repo.countries.length}개국 중'
+                          : '',
+                      style: AppText.caption.copyWith(color: col.inkFaint),
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ],
