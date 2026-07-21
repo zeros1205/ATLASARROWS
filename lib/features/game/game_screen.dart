@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 // Flame and Flutter both export a Matrix4 (vector_math vs vector_math_64); we
 // only need GameWidget from Flame here, so hide its Matrix4 and let Flutter's
@@ -11,7 +12,8 @@ import '../../app/tokens/colors.dart';
 import '../../app/tokens/dimens.dart';
 import '../../app/tokens/typography.dart';
 import '../../game/z_arrows_game.dart';
-import '../../models/campaign_repository.dart' show CampaignCountry, CampaignRepository, StageKind;
+import '../../models/campaign_repository.dart'
+    show CampaignCountry, CampaignRepository, CampaignStage, StageKind;
 import '../../services/ads/ads.dart';
 import '../../services/game_services.dart';
 import '../../services/iap.dart';
@@ -144,14 +146,15 @@ class _GameScreenState extends State<GameScreen> {
   /// country is already established by the round intro.
   String get _placeName => _repo.stageAt(_stage)?.displayName ?? _countryName;
 
-  /// The two header lines: city over country. A country board — the round's
-  /// finale, and the only stage a country without cities ever has — would
-  /// otherwise repeat its own name twice, so it stands alone on one line.
-  // The place name is held back for the clear reveal now; the header is just
-  // the stage number.
-  (String, String?) get _headerLines => ('STAGE ${_stage + 1}', null);
+  /// The city this board depicts, or '' on the country finale (where the place
+  /// chip shows the country alone rather than repeating its name twice).
+  String get _cityLabel {
+    final st = _repo.stageAt(_stage);
+    if (st == null || st.kind == StageKind.country) return '';
+    return st.displayName;
+  }
 
-  /// The flag emoji of the country this stage belongs to (shown on clear).
+  /// The flag emoji of the country this stage belongs to.
   String get _flag =>
       _repo.isLoaded ? _repo.countries[_loc.countryIndex].flagEmoji : '';
 
@@ -279,11 +282,16 @@ class _GameScreenState extends State<GameScreen> {
             Column(
               children: [
                 _Header(
-                  lines: _headerLines,
+                  stageLabel: 'STAGE ${_stage + 1}',
+                  city: _cityLabel,
+                  country: _countryName,
+                  flag: _flag,
                   onBack: _maybeLeave,
                 ),
                 Container(height: 1, color: c.line),
-                _HeartsStrip(hearts: _hearts),
+                // Clearing hands the board over to the reveal, so the hearts and
+                // the booster bar step aside; the fail path keeps them.
+                if (_result != _Result.cleared) _HeartsStrip(hearts: _hearts),
                 Expanded(
                   child: Stack(
                     children: [
@@ -306,15 +314,27 @@ class _GameScreenState extends State<GameScreen> {
                           ),
                         ),
                       ),
+                      // On clear, the solved board gives way in place to the
+                      // territory silhouette: grey dots rise, then accent
+                      // sweeps out from the centre.
+                      if (_result == _Result.cleared &&
+                          _repo.stageAt(_stage) != null)
+                        Positioned.fill(
+                          child: _ClearReveal(stage: _repo.stageAt(_stage)!),
+                        ),
                     ],
                   ),
                 ),
-                _BoosterBar(
-                  game: _game,
-                  onResetView: _resetBoardView,
-                  onRestart: _confirmRestart,
-                ),
-                const AdsBanner(),
+                if (_result == _Result.cleared)
+                  _ClearNextBar(onNext: _next)
+                else ...[
+                  _BoosterBar(
+                    game: _game,
+                    onResetView: _resetBoardView,
+                    onRestart: _confirmRestart,
+                  ),
+                  const AdsBanner(),
+                ],
               ],
             ),
             // Coach cue, above the board but below every modal surface.
@@ -334,7 +354,9 @@ class _GameScreenState extends State<GameScreen> {
                             : const SizedBox.shrink(),
                       ),
               ),
-            if (_result != _Result.none)
+            // Clear is now the in-place reveal above; only the fail sheet
+            // (hearts refill) remains a modal surface over the board.
+            if (_result == _Result.failed)
               _ResultSheet(
                 result: _result,
                 stage: _localStageLabel,
@@ -518,71 +540,79 @@ class _RoundIntro extends StatelessWidget {
       );
 }
 
-/// Place name, centred on the screen's own axis. The back button is laid over
-/// the top rather than beside the text, so the name does not drift off-centre
-/// with whatever chrome happens to sit next to it.
+/// Back + stage number on the left; a small place chip (flag over city ·
+/// country) pinned to the top-right, so the player always knows where on the
+/// globe this board sits. On the country finale the city drops out and the
+/// chip carries the country alone.
 class _Header extends StatelessWidget {
-  const _Header({required this.lines, required this.onBack});
+  const _Header({
+    required this.stageLabel,
+    required this.city,
+    required this.country,
+    required this.flag,
+    required this.onBack,
+  });
 
-  /// (city, country) on a city board; (country, null) on a country board.
-  final (String, String?) lines;
+  final String stageLabel, city, country, flag;
   final VoidCallback onBack;
-
-  static const _sideInset = 56.0;
 
   @override
   Widget build(BuildContext context) {
     final c = AppColors.of(context);
-    final (title, subtitle) = lines;
     return SizedBox(
-      height: 72,
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: Padding(
-              // Equal on both sides, so a single line sits dead centre and a
-              // two-line block is centred as a block.
-              padding: const EdgeInsets.symmetric(horizontal: _sideInset),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Text(title,
-                      maxLines: 1,
-                      textAlign: TextAlign.center,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppText.label.copyWith(
-                          color: c.ink,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          height: 1.25)),
-                  if (subtitle != null)
-                    Text(subtitle,
-                        maxLines: 1,
-                        textAlign: TextAlign.center,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppText.body.copyWith(
-                            color: c.inkSoft,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w400,
-                            height: 1.25)),
-                ],
+      height: 60,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        child: Row(
+          children: [
+            Pressable(
+              onTap: onBack,
+              child: SizedBox(
+                width: 44,
+                height: 44,
+                child: Icon(Icons.arrow_back, color: c.inkFaint, size: 24),
               ),
             ),
-          ),
-          Positioned(
-            left: 6,
-            top: 0,
-            bottom: 0,
-            child: Center(
-              child: Pressable(
-                onTap: onBack,
-                child: SizedBox(
-                  width: 44,
-                  height: 44,
-                  child: Icon(Icons.arrow_back, color: c.inkFaint, size: 24),
-                ),
-              ),
+            Text(stageLabel,
+                style: AppText.label.copyWith(
+                    color: c.ink, fontSize: 16, fontWeight: FontWeight.w700)),
+            const Spacer(),
+            if (country.isNotEmpty) _placeChip(c),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _placeChip(AppColors c) {
+    final primary = city.isNotEmpty ? city : country;
+    final secondary = city.isNotEmpty ? country : null;
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 172),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (flag.isNotEmpty) ...[
+            Text(flag, style: const TextStyle(fontSize: 17)),
+            const SizedBox(width: 7),
+          ],
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(primary,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.label.copyWith(
+                        color: c.ink, fontSize: 13, fontWeight: FontWeight.w800)),
+                if (secondary != null)
+                  Text(secondary,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.caption
+                          .copyWith(color: c.inkFaint, fontSize: 10.5)),
+              ],
             ),
           ),
         ],
@@ -1221,5 +1251,155 @@ class _ItemSheetState extends State<_ItemSheet> {
       return Opacity(opacity: enabled ? 1 : 0.55, child: tile);
     }
     return Pressable(onTap: onTap, child: tile);
+  }
+}
+
+/// The clear moment, in place of a bottom sheet: the solved board dissolves
+/// into the territory it depicted. Grey silhouette dots rise, then accent
+/// sweeps out from the centroid to the edges. Freezes to the finished frame
+/// under OS reduce-motion.
+class _ClearReveal extends StatefulWidget {
+  const _ClearReveal({required this.stage});
+  final CampaignStage stage;
+
+  @override
+  State<_ClearReveal> createState() => _ClearRevealState();
+}
+
+class _ClearRevealState extends State<_ClearReveal>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 1700));
+
+  late final List<(int, int)> _cells = widget.stage.mask.toList();
+  late final double _cr, _cc, _maxDist;
+
+  @override
+  void initState() {
+    super.initState();
+    var sr = 0.0, sc = 0.0;
+    for (final (r, cc) in _cells) {
+      sr += r;
+      sc += cc;
+    }
+    final n = _cells.isEmpty ? 1 : _cells.length;
+    _cr = sr / n;
+    _cc = sc / n;
+    var md = 0.0;
+    for (final (r, cc) in _cells) {
+      final dr = r - _cr, dc = cc - _cc;
+      final d = math.sqrt(dr * dr + dc * dc);
+      if (d > md) md = d;
+    }
+    _maxDist = md <= 0 ? 1 : md;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_c.status == AnimationStatus.dismissed) {
+      if (reduceMotion(context)) {
+        _c.value = 1;
+      } else {
+        _c.forward();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = AppColors.of(context);
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (_, __) => CustomPaint(
+        size: Size.infinite,
+        painter: _RevealPainter(
+            widget.stage, _cells, _cr, _cc, _maxDist, c, _c.value),
+      ),
+    );
+  }
+}
+
+double _smoothstep(double x, double a, double b) {
+  final t = ((x - a) / (b - a)).clamp(0.0, 1.0);
+  return t * t * (3 - 2 * t);
+}
+
+class _RevealPainter extends CustomPainter {
+  _RevealPainter(
+      this.stage, this.cells, this.cr, this.cc, this.maxDist, this.c, this.t);
+  final CampaignStage stage;
+  final List<(int, int)> cells;
+  final double cr, cc, maxDist, t;
+  final AppColors c;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Opaque ground hides the emptied board underneath.
+    canvas.drawRect(Offset.zero & size, Paint()..color = c.bg);
+    final cols = stage.cols, rows = stage.rows;
+    final scale = math.min(size.width / cols, size.height / rows);
+    final dx = (size.width - cols * scale) / 2;
+    final dy = (size.height - rows * scale) / 2;
+    final r = scale * 0.44;
+
+    final grayA = (t / 0.20).clamp(0.0, 1.0); // silhouette fades in first
+    final spread = _smoothstep(t, 0.16, 0.82) * maxDist * 1.06; // wavefront
+    const edge = 1.6; // soft leading edge, in grid units
+    final p = Paint();
+    for (final (rr, ccc) in cells) {
+      final x = dx + ccc * scale + scale / 2;
+      final y = dy + rr * scale + scale / 2;
+      final dr = rr - cr, dc = ccc - cc;
+      final dist = math.sqrt(dr * dr + dc * dc);
+      final a = ((spread - dist) / edge).clamp(0.0, 1.0);
+      p.color = Color.lerp(c.inkFaint, c.accent, a)!
+          .withValues(alpha: grayA);
+      canvas.drawCircle(Offset(x, y), r, p);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_RevealPainter old) =>
+      old.t != t || old.c != c || !identical(old.cells, cells);
+}
+
+/// The single action after a clear: advance. It rises in after the reveal has
+/// swept, so the territory reads first and the button second.
+class _ClearNextBar extends StatelessWidget {
+  const _ClearNextBar({required this.onNext});
+  final VoidCallback onNext;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = AppColors.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+      child: EnterFade(
+        delay: const Duration(milliseconds: 1450),
+        rise: 12,
+        child: Pressable(
+          onTap: onNext,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: c.accent,
+              borderRadius: BorderRadius.circular(AppRadius.pill),
+            ),
+            child: Text('다음 스테이지',
+                style: AppText.headline
+                    .copyWith(color: c.onAccent, fontWeight: FontWeight.w900)),
+          ),
+        ),
+      ),
+    );
   }
 }
