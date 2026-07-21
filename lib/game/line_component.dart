@@ -24,7 +24,7 @@ class LineComponent extends PositionComponent
 
   final ArrowLine line;
 
-  late final ui.PathMetric _metric;
+  late ui.PathMetric _metric;
   late final double _lineLen;
 
   _Anim _anim = _Anim.idle;
@@ -93,10 +93,47 @@ class LineComponent extends PositionComponent
   }
 
   void escape({required VoidCallback onGone}) {
+    // Lengthen the exit ray so the whole line slides off the visible play area
+    // (the Flame canvas) before it is removed — otherwise a letterboxed or
+    // small board removes it a few cells past the board edge, mid-view.
+    _extendExitOffScreen();
     _anim = _Anim.escaping;
     _speed = cell * 15;
     _onGone = onGone;
     priority = 100;
+  }
+
+  /// Rebuilds the path's straight exit ray to reach just past the on-screen
+  /// board area, using the board's fit transform: the canvas edges are the
+  /// screen sides (L/R), just under the header (top) and above the booster bar
+  /// (bottom), which is exactly where the line should vanish. Falls back to the
+  /// onLoad path if the board hasn't been laid out yet.
+  void _extendExitOffScreen() {
+    final board = parent;
+    if (board is! PositionComponent || board.scale.x <= 0) return;
+    final s = board.scale.x; // fit scale
+    final canvas = game.size;
+    final bx = board.size.x, by = board.size.y;
+    final px = board.position.x, py = board.position.y; // board centre on canvas
+    final centers = _centers;
+    final head = centers.last;
+    final dir = line.headDir;
+    // Board-coord travel for the head to pass the canvas edge along its heading.
+    final t = switch ((dir.dx, dir.dy)) {
+      (1, _) => bx / 2 + (canvas.x - px) / s - head.dx,
+      (-1, _) => head.dx - bx / 2 + px / s,
+      (_, 1) => by / 2 + (canvas.y - py) / s - head.dy,
+      _ => head.dy - by / 2 + py / s,
+    };
+    // +2 cells so the tail clears too; never shorter than the old estimate.
+    final rayLen = math.max(t + cell * 2, cell * 3);
+    final exit = head + Offset(dir.dx.toDouble(), dir.dy.toDouble()) * rayLen;
+    final path = Path()..moveTo(centers.first.dx, centers.first.dy);
+    for (final p in centers.skip(1)) {
+      path.lineTo(p.dx, p.dy);
+    }
+    path.lineTo(exit.dx, exit.dy);
+    _metric = path.computeMetrics().first;
   }
 
   void bump(int freeSteps, {required VoidCallback onImpact}) {
