@@ -23,7 +23,7 @@ from PIL import Image, ImageDraw  # noqa: E402
 
 # --- identity (same palette as build_icon.py) -----------------------------
 CREAM = (247, 246, 242, 255)
-DOT   = (168, 166, 156, 255)
+DOT   = (90, 90, 96, 255)      # dense dark halftone (the approved "best" background)
 BLUE  = (18, 89, 255, 255)
 INK   = (35, 37, 46, 255)
 RED   = (255, 36, 78, 255)
@@ -93,6 +93,49 @@ def globe_dots(center_lat, center_lon, n_across):
     return pts, step
 
 
+# Arrowhead corner rounding as a fraction of the shaft, measured off the
+# reference: the point softens ~1.5px and each rear tip ~2.5px on a 14px shaft.
+TIP_ROUND = 0.11
+BASE_ROUND = 0.18
+
+
+def _round_poly(verts, radii, steps=10):
+    """Fill-ready point list for a polygon with a fillet at each vertex.
+    radii[i] is the corner radius at verts[i]; 0 keeps the corner sharp."""
+    out = []
+    n = len(verts)
+    for i in range(n):
+        v, a, b = verts[i], verts[(i - 1) % n], verts[(i + 1) % n]
+        r = radii[i]
+        if r <= 0:
+            out.append(v)
+            continue
+        ua = (a[0] - v[0], a[1] - v[1])
+        ub = (b[0] - v[0], b[1] - v[1])
+        la, lb = math.hypot(*ua), math.hypot(*ub)
+        ua, ub = (ua[0] / la, ua[1] / la), (ub[0] / lb, ub[1] / lb)
+        half = math.acos(max(-1.0, min(1.0, ua[0] * ub[0] + ua[1] * ub[1]))) / 2
+        t = min(r / math.tan(half), la * 0.5, lb * 0.5)
+        r_eff = t * math.tan(half)
+        bis = (ua[0] + ub[0], ua[1] + ub[1])
+        lbis = math.hypot(*bis)
+        c = (v[0] + bis[0] / lbis * r_eff / math.sin(half),
+             v[1] + bis[1] / lbis * r_eff / math.sin(half))
+        t1 = (v[0] + ua[0] * t, v[1] + ua[1] * t)
+        t2 = (v[0] + ub[0] * t, v[1] + ub[1] * t)
+        a1 = math.atan2(t1[1] - c[1], t1[0] - c[0])
+        a2 = math.atan2(t2[1] - c[1], t2[0] - c[0])
+        da = a2 - a1
+        while da <= -math.pi:
+            da += 2 * math.pi
+        while da > math.pi:
+            da -= 2 * math.pi
+        for s in range(steps + 1):
+            aa = a1 + da * s / steps
+            out.append((c[0] + r_eff * math.cos(aa), c[1] + r_eff * math.sin(aa)))
+    return out
+
+
 def _arrow(dr, x_tail, x_tip, y, bar, head_l, head_h, color) -> None:
     rightward = x_tip > x_tail
     x_neck = x_tip - (head_l if rightward else -head_l)
@@ -101,7 +144,9 @@ def _arrow(dr, x_tail, x_tip, y, bar, head_l, head_h, color) -> None:
         dr.rectangle([x_tail, y - radius, x_neck, y + radius], fill=color)
     else:
         dr.rectangle([x_neck, y - radius, x_tail, y + radius], fill=color)
-    dr.polygon([(x_tip, y), (x_neck, y - head_h / 2), (x_neck, y + head_h / 2)], fill=color)
+    head = [(x_tip, y), (x_neck, y - head_h / 2), (x_neck, y + head_h / 2)]
+    dr.polygon(_round_poly(head, [bar * TIP_ROUND, bar * BASE_ROUND, bar * BASE_ROUND]),
+               fill=color)
 
 
 def _arrow_vertical(dr, x, y_tail, y_tip, bar, head_l, head_h, color) -> None:
@@ -110,7 +155,9 @@ def _arrow_vertical(dr, x, y_tail, y_tip, bar, head_l, head_h, color) -> None:
     radius = bar / 2
     top, bottom = sorted((y_tail, y_neck))
     dr.rectangle([x - radius, top, x + radius, bottom], fill=color)
-    dr.polygon([(x, y_tip), (x - head_h / 2, y_neck), (x + head_h / 2, y_neck)], fill=color)
+    head = [(x, y_tip), (x - head_h / 2, y_neck), (x + head_h / 2, y_neck)]
+    dr.polygon(_round_poly(head, [bar * TIP_ROUND, bar * BASE_ROUND, bar * BASE_ROUND]),
+               fill=color)
 
 
 LAND = (150, 148, 138, 255)   # solid continents: darker than the dot so the
@@ -151,8 +198,8 @@ def render_globe(size, background, *, center_lat=12.0, center_lon=-30.0,
             px, py = ox + x * Rx, oy - y * Ry
             dot_dr.rectangle([px - hw, py - hh, px + hw, py + hh], fill=LAND)
     else:
-        pts, step = globe_dots(center_lat, center_lon, n_across)
-        radius = 0.46 * Ry * step
+        pts, step = globe_dots(center_lat, center_lon, 120)
+        radius = 0.42 * Ry * step
         for x, y in pts:
             px, py = ox + x * Rx, oy - y * Ry
             dot_dr.ellipse([px - radius, py - radius, px + radius, py + radius], fill=DOT)
@@ -164,9 +211,9 @@ def render_globe(size, background, *, center_lat=12.0, center_lon=-30.0,
         # Africa board grid to canvas fractions.
         bar = S * 0.081
         head_l, head_h = bar * 3.0, bar * 3.0
-        _arrow_vertical(arrow_dr, S * 0.86, S, S * 0.2195, bar, head_l, head_h, BLUE)
+        _arrow_vertical(arrow_dr, S * 0.81, S, S * 0.2195, bar, head_l, head_h, BLUE)
         _arrow(arrow_dr, 0, S * 0.6701, S * 0.5323, bar, head_l, head_h, INK)
-        _arrow(arrow_dr, S * 0.6213, S * 0.15, S * 0.7347, bar, head_l, head_h, RED)
+        _arrow(arrow_dr, S * 0.6213, S * 0.15, S * 0.76, bar, head_l, head_h, RED)
 
     img.alpha_composite(dot_layer)
     img.alpha_composite(arrow_layer)
