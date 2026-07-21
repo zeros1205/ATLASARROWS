@@ -103,30 +103,32 @@ class LineComponent extends PositionComponent
     priority = 100;
   }
 
-  /// Rebuilds the path's straight exit ray to reach just past the on-screen
-  /// board area, using the board's fit transform: the canvas edges are the
-  /// screen sides (L/R), just under the header (top) and above the booster bar
-  /// (bottom), which is exactly where the line should vanish. Falls back to the
-  /// onLoad path if the board hasn't been laid out yet.
+  /// Rebuilds the path's straight exit ray so the line leaves the screen,
+  /// using the board's fit transform and the current pan/zoom. Falls back to
+  /// the onLoad path if the board hasn't been laid out yet.
   void _extendExitOffScreen() {
     final board = parent;
     if (board is! PositionComponent || board.scale.x <= 0) return;
     final s = board.scale.x; // fit scale
-    final canvas = game.size;
+    final view = game.visibleRect;
     final bx = board.size.x, by = board.size.y;
     final px = board.position.x, py = board.position.y; // board centre on canvas
     final centers = _centers;
     final head = centers.last;
     final dir = line.headDir;
-    // Board-coord travel for the head to pass the canvas edge along its heading.
+    // Board-coord travel for the head to pass the edge of the visible area
+    // along its heading.
     final t = switch ((dir.dx, dir.dy)) {
-      (1, _) => bx / 2 + (canvas.x - px) / s - head.dx,
-      (-1, _) => head.dx - bx / 2 + px / s,
-      (_, 1) => by / 2 + (canvas.y - py) / s - head.dy,
-      _ => head.dy - by / 2 + py / s,
+      (1, _) => bx / 2 + (view.right - px) / s - head.dx,
+      (-1, _) => head.dx - bx / 2 - (view.left - px) / s,
+      (_, 1) => by / 2 + (view.bottom - py) / s - head.dy,
+      _ => head.dy - by / 2 - (view.top - py) / s,
     };
-    // +2 cells so the tail clears too; never shorter than the old estimate.
-    final rayLen = math.max(t + cell * 2, cell * 3);
+    // The ray has to carry the *tail* past the edge, not just the head: the
+    // head stops dead at the end of the path (render clamps to it) and the
+    // line then collapses in place instead of flying off. So add the body's
+    // own length, plus 2 cells of slack.
+    final rayLen = math.max(t + _lineLen + cell * 2, cell * 3);
     final exit = head + Offset(dir.dx.toDouble(), dir.dy.toDouble()) * rayLen;
     final path = Path()..moveTo(centers.first.dx, centers.first.dy);
     for (final p in centers.skip(1)) {
@@ -168,7 +170,11 @@ class LineComponent extends PositionComponent
         // the cap holds it near ~1 cell/frame — a smooth slide at any zoom.
         _speed = math.min(cell * 70, _speed + cell * 20 * dt);
         _slide += _speed * dt;
-        if (_slide >= _metric.length) {
+        // Gone once the *head* reaches the end of the extended path — by then
+        // the tail is off screen too. Waiting for the tail to travel the whole
+        // path instead would park the head at the end and eat the body in
+        // place, which reads as vanishing mid-air.
+        if (_slide + _lineLen >= _metric.length) {
           removeFromParent();
           _onGone?.call();
         }

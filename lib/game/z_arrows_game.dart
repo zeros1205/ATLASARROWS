@@ -190,6 +190,26 @@ class ZArrowsGame extends FlameGame {
         Vector2(canvas.x / 2, _insetTop + playHeight / 2);
   }
 
+  /// The pan/zoom the Flutter layer applies on top of this canvas. Needed
+  /// because an escaping line has to leave the *screen*, and once the board is
+  /// panned the canvas edge is no longer the screen edge — it can sit right in
+  /// the middle of the view, which is where arrows appeared to vanish.
+  double _viewScale = 1, _viewTx = 0, _viewTy = 0;
+
+  void setView(double scale, double tx, double ty) {
+    _viewScale = scale;
+    _viewTx = tx;
+    _viewTy = ty;
+  }
+
+  /// The part of the canvas the player can actually see, in canvas coordinates.
+  Rect get visibleRect => Rect.fromLTRB(
+        -_viewTx / _viewScale,
+        -_viewTy / _viewScale,
+        (size.x - _viewTx) / _viewScale,
+        (size.y - _viewTy) / _viewScale,
+      );
+
   /// The grid's footprint in canvas coordinates (GameWidget-local), i.e. the
   /// board's intrinsic size under the fit scale, centred. Null until the board
   /// has been laid out. The pan clamp needs this rather than the canvas: the

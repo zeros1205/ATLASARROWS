@@ -157,7 +157,11 @@ class _GameScreenState extends State<GameScreen> {
       _boardTc.value = m.clone()
         ..storage[12] = cx
         ..storage[13] = cy;
+      return; // the re-set fires this listener again with the clamped values
     }
+    // An escaping line has to fly past the edge of the *view*, which the pan
+    // and zoom move around over the canvas.
+    _game.setView(s, cx, cy);
   }
 
   @override
