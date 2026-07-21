@@ -72,6 +72,10 @@ class _GameScreenState extends State<GameScreen> {
   // with real travel falls through to the InteractiveViewer as a pan/zoom.
   final TransformationController _boardTc = TransformationController();
 
+  /// The board viewport (the Expanded area), captured each layout so the pan
+  /// clamp knows where the centre line is.
+  Size _viewport = Size.zero;
+
   Offset? _pointerDownAt;
   int _activePointers = 0;
   bool _tapCandidate = false;
@@ -115,10 +119,35 @@ class _GameScreenState extends State<GameScreen> {
   /// Back to the whole silhouette (the 화면맞춤 button, and every new board).
   void _resetBoardView() => _boardTc.value = Matrix4.identity();
 
+  /// Keep the board on screen: no edge of it may be dragged past the viewport's
+  /// centre line, so at least half the board always shows (and it can never hide
+  /// behind the header). The board fills the viewport at fit, so its edges are
+  /// the viewport-sized child's edges under the current pan/zoom. Runs on every
+  /// controller change; the clamp is idempotent, so re-setting the value here
+  /// doesn't loop.
+  void _clampBoard() {
+    final v = _viewport;
+    if (v.isEmpty) return;
+    final m = _boardTc.value;
+    final s = m.getMaxScaleOnAxis();
+    final tx = m.storage[12], ty = m.storage[13];
+    // Child edges in viewport coords: left = tx, right = tx + s*width. Left/top
+    // may reach the centre (≤ half); right/bottom may reach it from the other
+    // side (≥ half), which for the translation is `half - s*extent`.
+    final cx = tx.clamp(v.width / 2 - s * v.width, v.width / 2);
+    final cy = ty.clamp(v.height / 2 - s * v.height, v.height / 2);
+    if (cx != tx || cy != ty) {
+      _boardTc.value = m.clone()
+        ..storage[12] = cx
+        ..storage[13] = cy;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     _game = _buildGame(AppColors.light);
+    _boardTc.addListener(_clampBoard);
     if (_coachEnabled && !Progress.instance.coachDone.value) {
       _coachTimer = Timer.periodic(const Duration(seconds: 3), (t) {
         if (Progress.instance.coachDone.value) {
@@ -310,6 +339,7 @@ class _GameScreenState extends State<GameScreen> {
   void dispose() {
     _coachTimer?.cancel();
     _hearts.dispose();
+    _boardTc.removeListener(_clampBoard);
     _boardTc.dispose();
     super.dispose();
   }
@@ -356,17 +386,25 @@ class _GameScreenState extends State<GameScreen> {
                           onPointerUp: _onBoardPointerUp,
                           onPointerCancel: _onBoardPointerCancel,
                           child: ClipRect(
-                          child: InteractiveViewer(
-                            transformationController: _boardTc,
-                            minScale: 1,
-                            maxScale: _maxBoardZoom,
-                            // Let the board be dragged with one finger even at
-                            // fit scale — with the default zero margin the
-                            // board fills the box and panning clamps to nothing
-                            // until zoomed, which read as "drag doesn't work".
-                            boundaryMargin: const EdgeInsets.all(double.infinity),
-                            clipBehavior: Clip.none,
-                            child: GameWidget(game: _game),
+                          child: LayoutBuilder(
+                            builder: (context, constraints) {
+                              // Capture the viewport for the pan clamp.
+                              _viewport = Size(
+                                  constraints.maxWidth, constraints.maxHeight);
+                              return InteractiveViewer(
+                                transformationController: _boardTc,
+                                minScale: 1,
+                                maxScale: _maxBoardZoom,
+                                // One-finger pan stays enabled everywhere; the
+                                // reach is bounded by _clampBoard (no edge past
+                                // the viewport centre) rather than by
+                                // boundaryMargin, so this stays infinite.
+                                boundaryMargin:
+                                    const EdgeInsets.all(double.infinity),
+                                clipBehavior: Clip.none,
+                                child: GameWidget(game: _game),
+                              );
+                            },
                           ),
                           ),
                         ),
