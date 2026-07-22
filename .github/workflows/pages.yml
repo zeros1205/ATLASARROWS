@@ -1,0 +1,43 @@
+name: Pages (promo site)
+
+# Publishes the static promo/landing page in `site/` to GitHub Pages.
+#
+# Manual dispatch only — same rule as every other workflow here: a push must
+# never publish anything on its own. Run this by hand when you want the live
+# site updated. Custom domain (atlasarrows.loganland.app) is carried by
+# `site/CNAME`; Pages must be enabled once in repo Settings → Pages (Source:
+# GitHub Actions) and the DNS CNAME record pointed at zeros1205.github.io.
+on:
+  workflow_dispatch:
+
+# Least-privilege token for the Pages deployment.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One live deploy at a time; don't cancel an in-flight publish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy site/ to Pages
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/configure-pages@v5
+
+      - name: Upload site artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
