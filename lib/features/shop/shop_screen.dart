@@ -177,7 +177,7 @@ class _Inventory extends StatelessWidget {
                 const SizedBox(width: 7),
                 Text('$n',
                     style: AppText.headline.copyWith(
-                        color: c.ink, fontWeight: FontWeight.w900)),
+                        color: c.ink, fontWeight: FontWeight.w700)),
                 const SizedBox(width: 4),
                 Text(label,
                     style: AppText.caption.copyWith(color: c.inkFaint)),
@@ -249,7 +249,7 @@ class _Tile extends StatelessWidget {
           Text(price,
               style: AppText.label.copyWith(
                   color: enabled ? tint : c.inkFaint,
-                  fontWeight: FontWeight.w900)),
+                  fontWeight: FontWeight.w700)),
         ],
       ),
     );

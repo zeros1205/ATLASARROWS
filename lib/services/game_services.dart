@@ -107,9 +107,20 @@ abstract final class GameServices {
   /// Attempts a silent sign-in during boot. Called from the boot sequence and
   /// allowed to fail — a declined or unavailable sign-in must not delay the
   /// player or surface an error.
+  ///
+  /// Checks [GameAuth.isSignedIn] first rather than calling [GameAuth.signIn]
+  /// unconditionally: an already-authenticated player gets the platform's own
+  /// silent restore (Play Games shows its small "signed in" banner at the top
+  /// on its own) instead of the interactive account-picker sheet, which
+  /// [GameAuth.signIn] pops up every time regardless of whether the player
+  /// was already signed in.
   static Future<void> init() async {
     if (!supported) return;
     try {
+      if (await GameAuth.isSignedIn) {
+        signedIn.value = true;
+        return;
+      }
       await GameAuth.signIn();
       signedIn.value = await GameAuth.isSignedIn;
     } catch (_) {

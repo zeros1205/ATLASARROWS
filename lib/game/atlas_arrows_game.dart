@@ -428,7 +428,7 @@ class AtlasArrowsGame extends FlameGame {
         style: TextStyle(
           color: palette.danger,
           fontSize: 46,
-          fontWeight: FontWeight.w900,
+          fontWeight: FontWeight.w700,
           fontFamily: 'Outfit',
         ),
       ),

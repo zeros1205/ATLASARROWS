@@ -77,7 +77,7 @@ class AdsBanner extends StatelessWidget {
               child: Text('AD',
                   style: AppText.label.copyWith(
                       color: c.inkFaint,
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.w700,
                       letterSpacing: 4)),
             ),
     );

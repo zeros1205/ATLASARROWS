@@ -52,6 +52,18 @@ class _MapScreenState extends State<MapScreen>
   void initState() {
     super.initState();
     _load();
+    // The shell keeps every tab mounted in an IndexedStack, so this screen's
+    // initState (and the one-time postFrame centering below) only ever fires
+    // once for the whole app session — not each time the player actually
+    // switches to this tab. Recentre explicitly on every switch instead, so
+    // "open the map" always shows the current next-stage beacon, not wherever
+    // the last visit happened to leave the scroll position.
+    appTab.addListener(_onTabChanged);
+  }
+
+  void _onTabChanged() {
+    if (appTab.value != 1 || _copyW <= 0 || !_hc.hasClients) return;
+    _centerOnCurrent(_copyW, _hc.position.viewportDimension);
   }
 
   Future<void> _load() async {
@@ -77,6 +89,7 @@ class _MapScreenState extends State<MapScreen>
     _radar.dispose();
     _hc.removeListener(_wrapScroll);
     _hc.dispose();
+    appTab.removeListener(_onTabChanged);
     super.dispose();
   }
 
@@ -382,11 +395,13 @@ class _MapScreenState extends State<MapScreen>
             right: 16,
             bottom: 96,
             child: _MyLocationButton(onTap: () {
-              if (!_hc.hasClients) return;
-              final viewport = _hc.position.viewportDimension;
-              final h = math.max(
-                  MediaQuery.sizeOf(context).height - _padV * 2, 1.0);
-              _goToCurrent(h * _wm.cols / _wm.rows, viewport);
+              // Reuse the copy width captured at layout ([_copyW]) rather than
+              // recomputing it here: an independent recompute drifted from the
+              // real render size (it missed the tab-bar slot and bottom safe
+              // area baked into the map's actual height), so the target column
+              // landed off-centre.
+              if (!_hc.hasClients || _copyW <= 0) return;
+              _goToCurrent(_copyW, _hc.position.viewportDimension);
             }),
           ),
         // Header floats over the map with a transparent background. Pinned to

@@ -45,3 +45,8 @@ abstract final class AppText {
 const double kButtonPadV = 18;
 final TextStyle kButtonText =
     AppText.headline.copyWith(fontWeight: FontWeight.w800);
+
+/// Pill buttons inside a compact popup (confirm dialogs, bottom sheets) — the
+/// full [kButtonPadV] height reads as oversized against the tighter copy a
+/// modal is built from. Popups only; screen-level CTAs keep [kButtonPadV].
+const double kPopupButtonPadV = 14;
