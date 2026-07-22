@@ -159,6 +159,7 @@ class _Flag extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColors.of(context).line, width: 1),
           boxShadow: [
             BoxShadow(
                 color: Colors.black.withValues(alpha: 0.28),
@@ -167,7 +168,7 @@ class _Flag extends StatelessWidget {
           ],
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(9),
           child: CountryFlag.fromCountryCode(
             iso,
             theme: const ImageTheme(width: 116, height: 77),

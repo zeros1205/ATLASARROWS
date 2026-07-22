@@ -22,6 +22,7 @@ import '../../services/iap.dart';
 import '../../services/progress.dart';
 import '../../shared/motion.dart';
 import '../../shared/pressable.dart';
+import '../home/play_transition.dart';
 
 /// One stage of the campaign: a header (stage number centred, hearts right),
 /// a translucent place chip floating under it, the board, a bottom bar
@@ -29,8 +30,13 @@ import '../../shared/pressable.dart';
 /// Results come up as a bottom sheet with a top MREC banner; the heart
 /// economy grants a free refill then ad refills.
 class GameScreen extends StatefulWidget {
-  const GameScreen({super.key, required this.stage});
+  const GameScreen({super.key, required this.stage, this.dive});
   final int stage;
+
+  /// When present, the screen was opened by the home sky-dive: it plays the
+  /// entrance sequence (globe dive → board dots rain in → arrows fill → chrome
+  /// slides in) instead of appearing whole. Null on every other entry.
+  final DiveArgs? dive;
 
   @override
   State<GameScreen> createState() => _GameScreenState();
@@ -44,6 +50,16 @@ class _GameScreenState extends State<GameScreen> {
   late AtlasArrowsGame _game;
   final _hearts = ValueNotifier<int>(AtlasArrowsGame.maxHearts);
   _Result _result = _Result.none;
+
+  /// Home sky-dive entrance state. [_diving] holds the globe overlay on top of
+  /// the board; [_chromeIn] is the phase-5 flag that slides the top/bottom bars
+  /// in. Both stay false on every non-dive entry, leaving the screen unchanged.
+  bool _diving = false;
+  bool _chromeIn = false;
+
+  /// The blank beat after touchdown (phase 3): the place's name + flag hold in
+  /// the centre for a moment, then fade, before the board starts assembling.
+  bool _titleCard = false;
 
   // Feature flags — both surfaces are kept but held off for now; flip to true
   // to bring them back. Runtime fields (not const) so the gated code stays
@@ -167,6 +183,7 @@ class _GameScreenState extends State<GameScreen> {
   @override
   void initState() {
     super.initState();
+    _diving = widget.dive != null;
     _game = _buildGame(AppColors.light);
     _boardTc.addListener(_clampBoard);
     if (_coachEnabled && !Progress.instance.coachDone.value) {
@@ -188,7 +205,30 @@ class _GameScreenState extends State<GameScreen> {
         onFailed: () => setState(() => _result = _Result.failed),
         onEscaped: _onEscaped,
         onRemoveUsed: Progress.instance.useRemove,
+        introOnLoad: widget.dive != null,
+        // Phase 5: the arrows have started filling — bring the chrome in.
+        onIntroArrows: () {
+          if (mounted) setState(() => _chromeIn = true);
+        },
       );
+
+  /// The globe dive has touched down: drop the overlay and, on the now-blank
+  /// screen, hold the place's name card for a beat.
+  void _onDiveDone() {
+    if (!mounted) return;
+    setState(() {
+      _diving = false;
+      _titleCard = true;
+    });
+  }
+
+  /// The name card has faded: start the board's own reveal (dots rain, then
+  /// arrows fill).
+  void _onTitleDone() {
+    if (!mounted) return;
+    setState(() => _titleCard = false);
+    _game.beginIntro();
+  }
 
   /// The coach retires itself the first time the player frees a line on their
   /// own — the rule is learned by doing it, not by reading it twice.
@@ -378,6 +418,22 @@ class _GameScreenState extends State<GameScreen> {
   Widget build(BuildContext context) {
     final c = AppColors.of(context);
     _game.palette = c;
+    // Phase 5: on a dive entry the top/bottom bars start off-screen and slide
+    // in once [_chromeIn] flips (when the arrows begin). Off a dive they render
+    // in place, untouched.
+    final diving = widget.dive != null;
+    Widget chrome(Widget child, {required bool top}) => !diving
+        ? child
+        : AnimatedSlide(
+            duration: const Duration(milliseconds: 380),
+            curve: Curves.easeOutCubic,
+            offset: _chromeIn ? Offset.zero : Offset(0, top ? -1 : 1),
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 380),
+              opacity: _chromeIn ? 1 : 0,
+              child: child,
+            ),
+          );
     // The play area can only be measured once this frame is laid out; the
     // chrome around it changes with the result state and the ad slot.
     WidgetsBinding.instance.addPostFrameCallback((_) => _syncPlayRect());
@@ -390,7 +446,9 @@ class _GameScreenState extends State<GameScreen> {
       },
       child: Scaffold(
       backgroundColor: c.bg,
-      body: SafeArea(
+      body: Stack(
+        children: [
+        SafeArea(
         bottom: false,
         child: Stack(
           key: _bodyKey,
@@ -433,7 +491,9 @@ class _GameScreenState extends State<GameScreen> {
             ),
             Column(
               children: [
-                ColoredBox(
+                chrome(
+                  top: true,
+                  ColoredBox(
                   color: c.bg,
                   child: Column(
                     children: [
@@ -445,6 +505,7 @@ class _GameScreenState extends State<GameScreen> {
                       Container(height: 1, color: c.line),
                     ],
                   ),
+                ),
                 ),
                 Expanded(
                   child: Stack(
@@ -485,7 +546,9 @@ class _GameScreenState extends State<GameScreen> {
                         ),
                       // Floats rather than taking a band of the Column: it is
                       // translucent precisely so the board shows through it.
-                      if (_result != _Result.cleared)
+                      // On a dive entry it holds until the chrome arrives, so
+                      // it doesn't flash over the raining board.
+                      if (_result != _Result.cleared && (!diving || _chromeIn))
                         Positioned(
                           top: 8,
                           left: 0,
@@ -510,7 +573,9 @@ class _GameScreenState extends State<GameScreen> {
                     ],
                   ),
                 ),
-                ColoredBox(
+                chrome(
+                  top: false,
+                  ColoredBox(
                   color: c.bg,
                   child: _result == _Result.cleared
                       ? _ClearNextBar(onNext: _next)
@@ -524,6 +589,7 @@ class _GameScreenState extends State<GameScreen> {
                             const AdsBanner(),
                           ],
                         ),
+                ),
                 ),
               ],
             ),
@@ -565,6 +631,21 @@ class _GameScreenState extends State<GameScreen> {
               ),
           ],
         ),
+        ),
+        // Phase 2–3a: the sky-dive overlay sits over everything until it lands.
+        if (_diving && widget.dive != null)
+          DiveLayer(args: widget.dive!, onDone: _onDiveDone),
+        // Phase 3: the place's name + flag, centred on the blank screen.
+        if (_titleCard)
+          Positioned.fill(
+            child: _IntroTitleCard(
+              title: _cityLabel.isNotEmpty ? _cityLabel : _countryName,
+              sub: _cityLabel.isNotEmpty ? _countryName : '',
+              flagIso: _flagIso,
+              onDone: _onTitleDone,
+            ),
+          ),
+        ],
       ),
       ),
     );
@@ -739,13 +820,24 @@ class _FlagImg extends StatelessWidget {
   final double height;
 
   @override
-  Widget build(BuildContext context) => ClipRRect(
+  Widget build(BuildContext context) {
+    final c = AppColors.of(context);
+    // 1px hairline so a flag with white at its edge (Japan, etc.) still reads
+    // as a distinct chip on the paper ground.
+    return Container(
+      decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(3),
+        border: Border.all(color: c.line, width: 1),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(2),
         child: CountryFlag.fromCountryCode(
           iso,
           theme: ImageTheme(width: height * 4 / 3, height: height),
         ),
-      );
+      ),
+    );
+  }
 }
 
 /// Back on the left; the stage number centred. A 44px spacer balances the back
@@ -935,6 +1027,98 @@ class _PlaceChip extends StatelessWidget {
             _FlagImg(iso: flagIso, height: 16),
           ],
         ],
+      ),
+    );
+  }
+}
+
+/// Phase 3 of the dive-in: on the blank screen right after touchdown, the
+/// place's name and flag hold in the centre for a beat, then fade — a title
+/// card before the board assembles. Rises in on an ease-out, holds ~1.3s, then
+/// fades out and hands off to the board reveal.
+class _IntroTitleCard extends StatefulWidget {
+  const _IntroTitleCard({
+    required this.title,
+    required this.sub,
+    required this.flagIso,
+    required this.onDone,
+  });
+  final String title, sub, flagIso;
+  final VoidCallback onDone;
+
+  @override
+  State<_IntroTitleCard> createState() => _IntroTitleCardState();
+}
+
+class _IntroTitleCardState extends State<_IntroTitleCard>
+    with SingleTickerProviderStateMixin {
+  static const int _inMs = 260, _holdMs = 1300, _outMs = 360;
+  static const int _total = _inMs + _holdMs + _outMs;
+
+  late final AnimationController _c = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: _total));
+
+  @override
+  void initState() {
+    super.initState();
+    _c.forward().whenComplete(() {
+      if (mounted) widget.onDone();
+    });
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  double get _opacity {
+    final ms = _c.value * _total;
+    if (ms < _inMs) return Curves.easeOut.transform(ms / _inMs);
+    if (ms < _inMs + _holdMs) return 1;
+    return 1 - Curves.easeIn.transform((ms - _inMs - _holdMs) / _outMs);
+  }
+
+  /// A few px of upward travel on entry only — the exit is a pure fade.
+  double get _rise {
+    final ms = _c.value * _total;
+    return ms < _inMs ? 10 * (1 - Curves.easeOut.transform(ms / _inMs)) : 0;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = AppColors.of(context);
+    return IgnorePointer(
+      child: AnimatedBuilder(
+        animation: _c,
+        builder: (context, child) => Opacity(
+          opacity: _opacity,
+          child: Transform.translate(offset: Offset(0, _rise), child: child),
+        ),
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (widget.flagIso.length == 2) ...[
+                  _FlagImg(iso: widget.flagIso, height: 40),
+                  const SizedBox(height: 16),
+                ],
+                Text(widget.title,
+                    textAlign: TextAlign.center,
+                    style: AppText.display.copyWith(
+                        color: c.ink, fontWeight: FontWeight.w900, height: 1.05)),
+                if (widget.sub.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(widget.sub,
+                      textAlign: TextAlign.center,
+                      style: AppText.label.copyWith(color: c.inkSoft)),
+                ],
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
