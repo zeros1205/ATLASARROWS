@@ -118,11 +118,15 @@ class _HomeScreenState extends State<HomeScreen> {
             return Column(
               children: [
                 const SizedBox(height: 24),
-                _ExitSlide(
+                // Transform stays OUTERMOST: it lifts the paint out of the
+                // layout slot and, unlike Opacity, remaps hit tests to the
+                // lifted position. Wrapping it in _ExitSlide's Opacity would
+                // gate taps at the un-lifted bounds and kill the button.
+                Transform.translate(
+                  offset: Offset(0, _wordmarkShift),
+                  child: _ExitSlide(
                   gone: _diving,
                   up: true,
-                  child: Transform.translate(
-                  offset: Offset(0, _wordmarkShift),
                   child: EnterFade(
                     rise: 12,
                     // The wordmark holds to ~40% of the width so the map below
@@ -150,12 +154,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: AppGap.xl),
                 // Lifted a button's height off the bottom. A translation, not
                 // layout: giving the Column the space would take it from the
-                // map, which is not what was asked for.
-                _ExitSlide(
+                // map, which is not what was asked for. Transform stays
+                // OUTERMOST so it remaps taps to the lifted position — an
+                // Opacity wrapped around it would reject them at the old bounds
+                // and the button would go dead.
+                Transform.translate(
+                  offset: const Offset(0, -_ctaLift),
+                  child: _ExitSlide(
                   gone: _diving,
                   up: false,
-                  child: Transform.translate(
-                  offset: const Offset(0, -_ctaLift),
                   child: EnterFade(
                   delay: const Duration(milliseconds: 200),
                   rise: 14,
