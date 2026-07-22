@@ -28,6 +28,9 @@ class AtlasArrowsGame extends FlameGame {
     this.onFailed,
     this.onEscaped,
     this.onRemoveUsed,
+    this.onIntroArrows,
+    this.onIntroDone,
+    this.introOnLoad = false,
   });
 
   static const int maxHearts = 3;
@@ -48,6 +51,24 @@ class AtlasArrowsGame extends FlameGame {
   /// free and cancellable).
   final VoidCallback? onRemoveUsed;
   final void Function(int hearts)? onHeartsChanged;
+
+  /// Fired the moment the board intro moves from raining dots to filling in the
+  /// arrows — the screen slides its top/bottom chrome in on this. And when the
+  /// whole intro finishes and input unlocks.
+  final VoidCallback? onIntroArrows;
+  final VoidCallback? onIntroDone;
+
+  /// When true, the first level plays the entrance intro (dots rain in, then
+  /// arrows fill) instead of appearing whole. Later levels always appear whole.
+  final bool introOnLoad;
+
+  // Intro reveal progress, both 0 (nothing shown) → 1 (fully shown). Default 1
+  // so a normal load draws the finished board; [beginIntro] drives them from 0.
+  // The board dots stagger on [introDots]; the arrows on [introArrows].
+  double introDots = 1, introArrows = 1;
+  bool _introActive = false;
+  bool _arrowsFired = false;
+  double _introClock = 0;
 
   int hearts = maxHearts;
 
@@ -71,13 +92,19 @@ class AtlasArrowsGame extends FlameGame {
   Future<void> onLoad() async {
     await Sfx.preload();
     _heartSprite = await Sprite.load('icons/heart.png');
-    loadLevel(initialLevel);
+    loadLevel(initialLevel, intro: introOnLoad);
   }
 
-  void loadLevel(Level level) {
+  void loadLevel(Level level, {bool intro = false}) {
     _current = level;
     hearts = maxHearts;
-    _inputLocked = false;
+    // An intro keeps the board hidden and input locked until [beginIntro] runs;
+    // a normal load shows it whole and plays immediately.
+    introDots = intro ? 0 : 1;
+    introArrows = intro ? 0 : 1;
+    _introActive = false;
+    _arrowsFired = false;
+    _inputLocked = intro;
     _combo = 0;
     Sfx.pickStageVoice();
     removeArmed.value = false;
@@ -91,6 +118,22 @@ class AtlasArrowsGame extends FlameGame {
   }
 
   void restartLevel() => loadLevel(_current);
+
+  /// Starts the entrance reveal: the board dots rain in, then the arrows fill
+  /// over them, then input unlocks. Called by the screen once the sky-dive
+  /// overlay has touched down. No-op unless the level was loaded with intro on.
+  void beginIntro() {
+    if (introDots >= 1) return;
+    _introActive = true;
+    _arrowsFired = false;
+    _introClock = 0;
+  }
+
+  // Reveal timing (seconds): dots rain over [_dotsDur]; the arrows start a hair
+  // before the last dots land ([_arrowsAt]) and fill over [_arrowsDur].
+  static const double _dotsDur = 0.72;
+  static const double _arrowsAt = 0.58;
+  static const double _arrowsDur = 0.62;
 
   /// Refills hearts to full and unlocks input (heart-economy continue).
   void refillHearts() {
@@ -118,6 +161,24 @@ class AtlasArrowsGame extends FlameGame {
   void armRemove() {
     if (_inputLocked) return;
     removeArmed.value = !removeArmed.value;
+  }
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+    if (!_introActive) return;
+    _introClock += dt;
+    introDots = (_introClock / _dotsDur).clamp(0.0, 1.0);
+    introArrows = ((_introClock - _arrowsAt) / _arrowsDur).clamp(0.0, 1.0);
+    if (!_arrowsFired && _introClock >= _arrowsAt) {
+      _arrowsFired = true;
+      onIntroArrows?.call();
+    }
+    if (introDots >= 1 && introArrows >= 1) {
+      _introActive = false;
+      _inputLocked = false;
+      onIntroDone?.call();
+    }
   }
 
   @override

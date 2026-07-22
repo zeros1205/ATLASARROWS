@@ -13,6 +13,7 @@ import '../../shared/motion.dart';
 import '../../shared/pressable.dart';
 import '../../shared/theme_toggle_button.dart';
 import '../game/game_screen.dart';
+import 'play_transition.dart';
 
 /// One button's height — the CTA is lifted by exactly that off the bottom.
 /// (18px padding above and below an 18px headline line.)
@@ -40,6 +41,10 @@ class _HomeScreenState extends State<HomeScreen> {
   /// or below it moves the map too. Only the wordmark is supposed to move.
   double _wordmarkShift = 0;
 
+  /// Phase 1 of the play transition: the wordmark and CTAs slide off (up and
+  /// down) while the map stays, just before the sky-dive route takes over.
+  bool _diving = false;
+
   void _syncWordmark() {
     final map = _mapKey.currentContext?.findRenderObject() as RenderBox?;
     final mark = _wordmarkKey.currentContext?.findRenderObject() as RenderBox?;
@@ -66,10 +71,34 @@ class _HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _syncWordmark());
 
     void play() {
-      final stage = Progress.instance.unlocked.value
+      final unlocked = Progress.instance.unlocked.value;
+      final stage = unlocked
           .clamp(0, (CampaignRepository.instance.totalStages - 1).clamp(0, 1 << 30));
-      Navigator.of(context).push(
-          MaterialPageRoute<void>(builder: (_) => GameScreen(stage: stage)));
+
+      // Build the sky-dive data from where the map sits right now. Falls back to
+      // a plain push when the map isn't measured yet or motion is reduced.
+      DiveArgs? dive;
+      final box = _mapKey.currentContext?.findRenderObject() as RenderBox?;
+      if (!reduceMotion(context) && box != null && box.hasSize && box.attached) {
+        dive = DiveArgs.of(
+            box.localToGlobal(Offset.zero) & box.size, _targetCountry(unlocked));
+      }
+      if (dive == null) {
+        Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => GameScreen(stage: stage)));
+        return;
+      }
+
+      // Phase 1: send the chrome off, then hand over to the dive route. On
+      // return, restore the home chrome.
+      setState(() => _diving = true);
+      final args = dive;
+      Future<void>.delayed(const Duration(milliseconds: 240), () {
+        if (!mounted) return;
+        Navigator.of(context).push(playDiveRoute(stage, args)).then((_) {
+          if (mounted) setState(() => _diving = false);
+        });
+      });
     }
 
     return Scaffold(
@@ -89,7 +118,10 @@ class _HomeScreenState extends State<HomeScreen> {
             return Column(
               children: [
                 const SizedBox(height: 24),
-                Transform.translate(
+                _ExitSlide(
+                  gone: _diving,
+                  up: true,
+                  child: Transform.translate(
                   offset: Offset(0, _wordmarkShift),
                   child: EnterFade(
                     rise: 12,
@@ -106,6 +138,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   ),
+                  ),
                 ),
                 const SizedBox(height: AppGap.xl),
                 Expanded(
@@ -118,7 +151,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 // Lifted a button's height off the bottom. A translation, not
                 // layout: giving the Column the space would take it from the
                 // map, which is not what was asked for.
-                Transform.translate(
+                _ExitSlide(
+                  gone: _diving,
+                  up: false,
+                  child: Transform.translate(
                   offset: const Offset(0, -_ctaLift),
                   child: EnterFade(
                   delay: const Duration(milliseconds: 200),
@@ -143,15 +179,20 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 ),
+                ),
                 const SizedBox(height: AppGap.lg),
               ],
             );
           },
             ),
-            const Positioned(
+            Positioned(
               top: 4,
               right: 12,
-              child: ThemeToggleButton(),
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 200),
+                opacity: _diving ? 0 : 1,
+                child: const ThemeToggleButton(),
+              ),
             ),
           ],
         ),
@@ -251,6 +292,30 @@ class _Wordmark extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Phase 1 of the play transition: slides its child off the top ([up]) or the
+/// bottom while fading it out, on an ease-in curve so the exit gathers speed.
+/// Idle (gone == false) it is a plain pass-through, so the home layout and its
+/// enter animations are untouched until the player taps play.
+class _ExitSlide extends StatelessWidget {
+  const _ExitSlide(
+      {required this.gone, required this.up, required this.child});
+  final bool gone;
+  final bool up;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => AnimatedSlide(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInCubic,
+        offset: gone ? Offset(0, up ? -1.6 : 1.6) : Offset.zero,
+        child: AnimatedOpacity(
+          duration: const Duration(milliseconds: 230),
+          opacity: gone ? 0 : 1,
+          child: child,
+        ),
+      );
 }
 
 /// The home hero: the campaign's baked dot map, with the [target] country's

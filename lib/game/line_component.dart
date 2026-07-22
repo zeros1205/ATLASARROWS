@@ -233,14 +233,28 @@ class LineComponent extends PositionComponent
     return (p - (a + ab * t)).distance;
   }
 
+  /// Entrance fill (phase 4): once the dots have rained in, the arrows fade up
+  /// over them, each line on its own staggered slot of the [game.introArrows]
+  /// sweep. 1 outside the intro, so normal play is untouched.
+  double _introAlpha() {
+    final t = game.introArrows;
+    if (t >= 1) return 1;
+    final h = (line.id * 0.61803398875) % 1.0; // golden-ratio scatter per line
+    const window = 0.42;
+    return ((t - h * (1 - window)) / window).clamp(0.0, 1.0);
+  }
+
   @override
   void render(Canvas canvas) {
     final end = (_slide + _lineLen).clamp(0.0, _metric.length);
     if (_slide >= end) return;
+    final introA = _introAlpha();
+    if (introA <= 0) return;
     final visible = _metric.extractPath(_slide, end);
-    final color = _anim == _Anim.vaporizing
+    var color = _anim == _Anim.vaporizing
         ? _color.withValues(alpha: _fade)
         : _color;
+    if (introA < 1) color = color.withValues(alpha: color.a * introA);
 
     canvas.drawPath(
       visible,

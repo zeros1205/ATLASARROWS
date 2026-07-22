@@ -22,6 +22,7 @@ import '../../services/iap.dart';
 import '../../services/progress.dart';
 import '../../shared/motion.dart';
 import '../../shared/pressable.dart';
+import '../home/play_transition.dart';
 
 /// One stage of the campaign: a header (stage number centred, hearts right),
 /// a translucent place chip floating under it, the board, a bottom bar
@@ -29,8 +30,13 @@ import '../../shared/pressable.dart';
 /// Results come up as a bottom sheet with a top MREC banner; the heart
 /// economy grants a free refill then ad refills.
 class GameScreen extends StatefulWidget {
-  const GameScreen({super.key, required this.stage});
+  const GameScreen({super.key, required this.stage, this.dive});
   final int stage;
+
+  /// When present, the screen was opened by the home sky-dive: it plays the
+  /// entrance sequence (globe dive → board dots rain in → arrows fill → chrome
+  /// slides in) instead of appearing whole. Null on every other entry.
+  final DiveArgs? dive;
 
   @override
   State<GameScreen> createState() => _GameScreenState();
@@ -44,6 +50,12 @@ class _GameScreenState extends State<GameScreen> {
   late AtlasArrowsGame _game;
   final _hearts = ValueNotifier<int>(AtlasArrowsGame.maxHearts);
   _Result _result = _Result.none;
+
+  /// Home sky-dive entrance state. [_diving] holds the globe overlay on top of
+  /// the board; [_chromeIn] is the phase-5 flag that slides the top/bottom bars
+  /// in. Both stay false on every non-dive entry, leaving the screen unchanged.
+  bool _diving = false;
+  bool _chromeIn = false;
 
   // Feature flags — both surfaces are kept but held off for now; flip to true
   // to bring them back. Runtime fields (not const) so the gated code stays
@@ -167,6 +179,7 @@ class _GameScreenState extends State<GameScreen> {
   @override
   void initState() {
     super.initState();
+    _diving = widget.dive != null;
     _game = _buildGame(AppColors.light);
     _boardTc.addListener(_clampBoard);
     if (_coachEnabled && !Progress.instance.coachDone.value) {
@@ -188,7 +201,20 @@ class _GameScreenState extends State<GameScreen> {
         onFailed: () => setState(() => _result = _Result.failed),
         onEscaped: _onEscaped,
         onRemoveUsed: Progress.instance.useRemove,
+        introOnLoad: widget.dive != null,
+        // Phase 5: the arrows have started filling — bring the chrome in.
+        onIntroArrows: () {
+          if (mounted) setState(() => _chromeIn = true);
+        },
       );
+
+  /// The globe dive has touched down: drop the overlay and start the board's
+  /// own reveal (dots rain, then arrows fill).
+  void _onDiveDone() {
+    if (!mounted) return;
+    setState(() => _diving = false);
+    _game.beginIntro();
+  }
 
   /// The coach retires itself the first time the player frees a line on their
   /// own — the rule is learned by doing it, not by reading it twice.
@@ -378,6 +404,22 @@ class _GameScreenState extends State<GameScreen> {
   Widget build(BuildContext context) {
     final c = AppColors.of(context);
     _game.palette = c;
+    // Phase 5: on a dive entry the top/bottom bars start off-screen and slide
+    // in once [_chromeIn] flips (when the arrows begin). Off a dive they render
+    // in place, untouched.
+    final diving = widget.dive != null;
+    Widget chrome(Widget child, {required bool top}) => !diving
+        ? child
+        : AnimatedSlide(
+            duration: const Duration(milliseconds: 380),
+            curve: Curves.easeOutCubic,
+            offset: _chromeIn ? Offset.zero : Offset(0, top ? -1 : 1),
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 380),
+              opacity: _chromeIn ? 1 : 0,
+              child: child,
+            ),
+          );
     // The play area can only be measured once this frame is laid out; the
     // chrome around it changes with the result state and the ad slot.
     WidgetsBinding.instance.addPostFrameCallback((_) => _syncPlayRect());
@@ -390,7 +432,9 @@ class _GameScreenState extends State<GameScreen> {
       },
       child: Scaffold(
       backgroundColor: c.bg,
-      body: SafeArea(
+      body: Stack(
+        children: [
+        SafeArea(
         bottom: false,
         child: Stack(
           key: _bodyKey,
@@ -433,7 +477,9 @@ class _GameScreenState extends State<GameScreen> {
             ),
             Column(
               children: [
-                ColoredBox(
+                chrome(
+                  top: true,
+                  ColoredBox(
                   color: c.bg,
                   child: Column(
                     children: [
@@ -445,6 +491,7 @@ class _GameScreenState extends State<GameScreen> {
                       Container(height: 1, color: c.line),
                     ],
                   ),
+                ),
                 ),
                 Expanded(
                   child: Stack(
@@ -485,7 +532,9 @@ class _GameScreenState extends State<GameScreen> {
                         ),
                       // Floats rather than taking a band of the Column: it is
                       // translucent precisely so the board shows through it.
-                      if (_result != _Result.cleared)
+                      // On a dive entry it holds until the chrome arrives, so
+                      // it doesn't flash over the raining board.
+                      if (_result != _Result.cleared && (!diving || _chromeIn))
                         Positioned(
                           top: 8,
                           left: 0,
@@ -510,7 +559,9 @@ class _GameScreenState extends State<GameScreen> {
                     ],
                   ),
                 ),
-                ColoredBox(
+                chrome(
+                  top: false,
+                  ColoredBox(
                   color: c.bg,
                   child: _result == _Result.cleared
                       ? _ClearNextBar(onNext: _next)
@@ -524,6 +575,7 @@ class _GameScreenState extends State<GameScreen> {
                             const AdsBanner(),
                           ],
                         ),
+                ),
                 ),
               ],
             ),
@@ -565,6 +617,11 @@ class _GameScreenState extends State<GameScreen> {
               ),
           ],
         ),
+        ),
+        // Phase 2–3a: the sky-dive overlay sits over everything until it lands.
+        if (_diving && widget.dive != null)
+          DiveLayer(args: widget.dive!, onDone: _onDiveDone),
+        ],
       ),
       ),
     );
