@@ -1,4 +1,13 @@
 {
+  "hosting": {
+    "site": "atlasarrows-7a720",
+    "public": "site",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ]
+  },
   "storage": {
     "rules": "storage.rules"
   }
