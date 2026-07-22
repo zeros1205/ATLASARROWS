@@ -55,8 +55,6 @@ def gen_puzzle(mask_entry, seed):
             continue
         if best is None or len(ori) > len(best):
             best = ori
-        if len(best) >= 110:
-            break
     return grid, [rl.encode(l) for l in best] if best else None
 
 
