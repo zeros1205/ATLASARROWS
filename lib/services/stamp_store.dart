@@ -29,6 +29,12 @@ class StampStore {
   /// without fighting whatever is already cached on a device.
   static const _remoteDir = 'stamps';
 
+  /// Named explicitly because Storage was enabled after the app's Firebase
+  /// config was generated, so `FirebaseStorage.instance` has no default bucket
+  /// to fall back to. Kept here rather than in google-services.json to avoid a
+  /// config/secret round-trip.
+  static const _bucket = 'gs://atlasarrows-7a720.firebasestorage.app';
+
   int _version = 0;
   final _packs = <_Pack>[];
   final _packOfRank = <int, _Pack>{};
@@ -139,8 +145,8 @@ class StampStore {
   Future<bool> _fetch(_Pack pack, void Function(double)? onProgress) async {
     final tmp = File('${_dir!.path}/.${pack.file}.part');
     try {
-      final ref =
-          FirebaseStorage.instance.ref('$_remoteDir/v$_version/${pack.file}');
+      final ref = FirebaseStorage.instanceFor(bucket: _bucket)
+          .ref('$_remoteDir/v$_version/${pack.file}');
       final task = ref.writeToFile(tmp);
       if (onProgress != null) {
         task.snapshotEvents.listen((s) {
