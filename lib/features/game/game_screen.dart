@@ -1783,54 +1783,55 @@ class _ClearArrivalState extends State<_ClearArrival>
                       ),
                     ),
                   ),
-                  // Bottom half: the visa stamp thumps down dead centre; the
-                  // Continue button sits pinned to the bottom edge.
+                  // Bottom half: the visa stamp thumps down in the free space
+                  // above the Continue button, which is pinned to the bottom.
                   Expanded(
-                    child: Stack(
+                    child: Column(
                       children: [
-                        if (stampP > 0)
-                          Center(
-                            child: Transform.rotate(
-                              angle: -0.05,
-                              child: Opacity(
-                                opacity: (stampP * 2.5).clamp(0.0, 1.0),
-                                child: Transform.scale(
-                                  scale: 1.45 -
-                                      0.45 *
-                                          Curves.easeOutBack.transform(stampP),
-                                  child: _StampMark(
-                                      rank: widget.stampRank, size: 168),
-                                ),
-                              ),
-                            ),
-                          ),
-                        Align(
-                          alignment: Alignment.bottomCenter,
-                          child: Opacity(
-                            opacity: contT,
-                            child: Transform.translate(
-                              offset: Offset(0, 14 * (1 - contT)),
-                              child: Padding(
-                                padding:
-                                    const EdgeInsets.fromLTRB(20, 8, 20, 20),
-                                child: IgnorePointer(
-                                  ignoring: contT < 1,
-                                  child: Pressable(
-                                    onTap: widget.onContinue,
-                                    child: Container(
-                                      width: double.infinity,
-                                      padding: const EdgeInsets.symmetric(
-                                          vertical: kButtonPadV),
-                                      alignment: Alignment.center,
-                                      decoration: BoxDecoration(
-                                        color: c.accent,
-                                        borderRadius: BorderRadius.circular(
-                                            AppRadius.pill),
+                        Expanded(
+                          child: Center(
+                            child: stampP <= 0
+                                ? const SizedBox.shrink()
+                                : Transform.rotate(
+                                    angle: -0.05,
+                                    child: Opacity(
+                                      opacity: (stampP * 2.5).clamp(0.0, 1.0),
+                                      child: Transform.scale(
+                                        scale: 1.45 -
+                                            0.45 *
+                                                Curves.easeOutBack
+                                                    .transform(stampP),
+                                        child: _StampMark(
+                                            rank: widget.stampRank, size: 336),
                                       ),
-                                      child: Text(ko ? '계속하기' : 'Continue',
-                                          style: kButtonText.copyWith(
-                                              color: c.onAccent)),
                                     ),
+                                  ),
+                          ),
+                        ),
+                        Opacity(
+                          opacity: contT,
+                          child: Transform.translate(
+                            offset: Offset(0, 14 * (1 - contT)),
+                            child: Padding(
+                              padding:
+                                  const EdgeInsets.fromLTRB(20, 8, 20, 20),
+                              child: IgnorePointer(
+                                ignoring: contT < 1,
+                                child: Pressable(
+                                  onTap: widget.onContinue,
+                                  child: Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: kButtonPadV),
+                                    alignment: Alignment.center,
+                                    decoration: BoxDecoration(
+                                      color: c.accent,
+                                      borderRadius: BorderRadius.circular(
+                                          AppRadius.pill),
+                                    ),
+                                    child: Text(ko ? '계속하기' : 'Continue',
+                                        style: kButtonText.copyWith(
+                                            color: c.onAccent)),
                                   ),
                                 ),
                               ),
