@@ -117,11 +117,15 @@ Future<void> preloadFirstFrame(
   }
   onProgress(0.3);
 
-  // One continent's stamps, not all of them. This is the only step here that
-  // touches the network, so it owns the widest slice of the bar — and it is
-  // allowed to come back empty: the map draws rounds without their stamp until
-  // the pack lands, and StampStore retries the next time the player is here.
-  await _fetchStampsForCurrentRound((p) => onProgress(0.3 + p * 0.5));
+  // Every continent's stamps, downloaded here rather than shipped in the APK.
+  // Random play can jump to any continent, so fetching only the current one no
+  // longer covers it. This is the only network step here, so it owns the widest
+  // slice of the bar — and it is allowed to come back partial: a failed pack
+  // retries next launch and the app draws rounds without their stamp meanwhile.
+  if (StampStore.instance.isLoaded) {
+    await StampStore.instance
+        .ensureAllPacks(onProgress: (p) => onProgress(0.3 + p * 0.5));
+  }
   onProgress(0.8);
 
   if (!context.mounted) return;
@@ -137,15 +141,4 @@ Future<void> preloadFirstFrame(
     if (!context.mounted) return;
   }
   onProgress(1);
-}
-
-Future<void> _fetchStampsForCurrentRound(
-    void Function(double) onProgress) async {
-  final store = StampStore.instance;
-  final repo = CampaignRepository.instance;
-  if (!store.isLoaded || !repo.isLoaded) return;
-  // Rounds run 1..216 in bank order, so the round index is the rank.
-  final rank = repo.locate(Progress.instance.unlocked.value).$1 + 1;
-  if (store.hasPackFor(rank)) return;
-  await store.ensurePackFor(rank, onProgress: onProgress);
 }

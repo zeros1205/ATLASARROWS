@@ -271,6 +271,18 @@ class CampaignRepository {
 
   int firstStageOf(int countryIndex) => _firstStage[countryIndex];
 
+  /// A random global stage not in [exclude], for Random play. Null when every
+  /// stage is excluded (caller loops the exclusion set).
+  int? randomStage(Set<int> exclude, math.Random rng) {
+    if (_total == 0) return null;
+    final remaining = [
+      for (var i = 0; i < _total; i++)
+        if (!exclude.contains(i)) i,
+    ];
+    if (remaining.isEmpty) return null;
+    return remaining[rng.nextInt(remaining.length)];
+  }
+
   /// The stage descriptor at a global index, or null when out of range.
   CampaignStage? stageAt(int globalStage) {
     if (!isLoaded || globalStage < 0 || globalStage >= _total) return null;

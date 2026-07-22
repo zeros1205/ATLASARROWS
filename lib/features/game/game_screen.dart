@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show File;
 import 'dart:math' as math;
 
 // Flame and Flutter both export a Matrix4 (vector_math vs vector_math_64); we
@@ -8,6 +9,7 @@ import 'package:country_flags/country_flags.dart';
 import 'package:flame/game.dart' hide Matrix4;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show MatrixUtils;
+import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:in_app_purchase/in_app_purchase.dart';
 
 import '../../app/tokens/colors.dart';
@@ -15,28 +17,40 @@ import '../../app/tokens/dimens.dart';
 import '../../app/tokens/typography.dart';
 import '../../game/atlas_arrows_game.dart';
 import '../../models/campaign_repository.dart'
-    show CampaignCountry, CampaignRepository, CampaignStage, StageKind;
+    show CampaignCountry, CampaignRepository, StageKind;
 import '../../services/ads/ads.dart';
 import '../../services/game_services.dart';
 import '../../services/iap.dart';
 import '../../services/progress.dart';
+import '../../services/stamp_store.dart';
 import '../../shared/motion.dart';
 import '../../shared/pressable.dart';
 import '../home/play_transition.dart';
 
+/// How the campaign is traversed. World Tour walks the fixed order and advances
+/// the unlock frontier; Random serves any stage, avoiding ones already played.
+enum PlayMode { worldTour, random }
+
 /// One stage of the campaign: a header (stage number centred, hearts right),
 /// a translucent place chip floating under it, the board, a bottom bar
-/// (fit view / hint / remove / restart) and a banner.
-/// Results come up as a bottom sheet with a top MREC banner; the heart
-/// economy grants a free refill then ad refills.
+/// (fit view / hint / remove / restart) and a banner. On clear the chrome is
+/// hidden and an arrival card stamps the place in; the fail sheet is a bottom
+/// sheet with a top MREC banner. Heart economy grants a free refill then ads.
 class GameScreen extends StatefulWidget {
-  const GameScreen({super.key, required this.stage, this.dive});
+  const GameScreen(
+      {super.key,
+      required this.stage,
+      this.dive,
+      this.mode = PlayMode.worldTour});
   final int stage;
 
   /// When present, the screen was opened by the home sky-dive: it plays the
   /// entrance sequence (globe dive → board dots rain in → arrows fill → chrome
   /// slides in) instead of appearing whole. Null on every other entry.
   final DiveArgs? dive;
+
+  /// World Tour (fixed order) or Random (lucky-dip). Drives what "next" does.
+  final PlayMode mode;
 
   @override
   State<GameScreen> createState() => _GameScreenState();
@@ -46,6 +60,7 @@ enum _Result { none, cleared, failed }
 
 class _GameScreenState extends State<GameScreen> {
   final _repo = CampaignRepository.instance;
+  final _rng = math.Random();
   late int _stage = widget.stage;
   late AtlasArrowsGame _game;
   final _hearts = ValueNotifier<int>(AtlasArrowsGame.maxHearts);
@@ -272,18 +287,6 @@ class _GameScreenState extends State<GameScreen> {
     return _repo.countries[_loc.countryIndex].displayName;
   }
 
-  /// True when the current board is a travel interlude, not a place.
-  bool get _isPath => _repo.stageAt(_stage)?.kind == StageKind.path;
-
-  /// What this particular board depicts — a city, the country itself on the
-  /// round's last stage, or (on a travel leg) the country the round is heading
-  /// to. This is the label revealed on clear.
-  String get _placeName {
-    // A travel leg announces the round's destination country ("Next Atlas").
-    if (_isPath) return _countryName;
-    return _repo.stageAt(_stage)?.displayName ?? _countryName;
-  }
-
   /// 'STAGE 12' — or '스테이지 12' in Korean. Other locales keep the Latin word
   /// until real i18n lands; this is the one place a player reads a bare English
   /// noun on the play screen, so it is worth the special case.
@@ -292,9 +295,8 @@ class _GameScreenState extends State<GameScreen> {
     return ko ? '스테이지 ${_stage + 1}' : 'STAGE ${_stage + 1}';
   }
 
-  /// The city this board depicts, or '' on the country finale and on a travel
-  /// leg — in both cases the place chip carries the country name alone (a path
-  /// heads toward the round's country; the finale is the country).
+  /// The city this board depicts, or '' on the country finale — there the place
+  /// chip and arrival card carry the country name alone.
   String get _cityLabel {
     final st = _repo.stageAt(_stage);
     if (st == null || st.kind != StageKind.city) return '';
@@ -302,22 +304,19 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   /// The ISO 3166-1 alpha-2 code of the country this stage belongs to, used to
-  /// render its flag image in the header and on clear. A travel leg is not a
-  /// country, so it carries no flag.
-  String get _flagIso => _isPath || !_repo.isLoaded
-      ? ''
-      : _repo.countries[_loc.countryIndex].iso;
+  /// render its flag image in the header and on clear.
+  String get _flagIso =>
+      !_repo.isLoaded ? '' : _repo.countries[_loc.countryIndex].iso;
 
-  /// "3 / 12" — position inside the round. A global stage number would read as
-  /// "stage 641 of 775", which says nothing a player cares about.
-  String get _localStageLabel {
-    if (!_repo.isLoaded) return '${_stage + 1}';
-    final loc = _loc;
-    final total = _repo.countries[loc.countryIndex].stageCount;
-    return '${loc.local + 1} / $total';
-  }
+  /// The campaign rank of the current stage's country — keys the visa stamp.
+  int get _countryRank =>
+      !_repo.isLoaded ? 0 : _repo.countries[_loc.countryIndex].rank;
 
   void _next() {
+    if (widget.mode == PlayMode.random) {
+      _nextRandom();
+      return;
+    }
     Progress.instance.markCleared(_stage);
     final atCampaignEnd = _stage + 1 >= _repo.totalStages;
     // A country is finished when the next stage starts a new one (or the
@@ -340,6 +339,32 @@ class _GameScreenState extends State<GameScreen> {
       _stage++;
       _result = _Result.none;
       _showIntro = _introEnabled && crossedIntoNewCountry;
+    });
+    _game.loadLevel(_repo.levelAt(_stage));
+    _resetBoardView();
+  }
+
+  /// Random play: count the clear (without touching the World Tour frontier),
+  /// mark the stage served, and jump to a fresh random one. When every stage
+  /// has come up the served set loops so play never dead-ends.
+  void _nextRandom() {
+    Progress.instance.addClear();
+    Progress.instance.markPlayedRandom(_stage, _repo.totalStages);
+    _reportToGameServices(countryCompleted: false);
+    Ads.maybeShowInterstitial(
+      totalClears: Progress.instance.totalClears.value,
+      levelIndex: _stage,
+    );
+    final next = _repo.randomStage(Progress.instance.playedRandom, _rng) ??
+        _repo.randomStage(const {}, _rng);
+    if (next == null) {
+      Navigator.of(context).pop();
+      return;
+    }
+    setState(() {
+      _stage = next;
+      _result = _Result.none;
+      _showIntro = false;
     });
     _game.loadLevel(_repo.levelAt(_stage));
     _resetBoardView();
@@ -562,14 +587,6 @@ class _GameScreenState extends State<GameScreen> {
                             ),
                           ),
                         ),
-                      // On clear, the solved board gives way in place to the
-                      // territory silhouette: grey dots rise, then accent
-                      // sweeps out from the centre.
-                      if (_result == _Result.cleared &&
-                          _repo.stageAt(_stage) != null)
-                        Positioned.fill(
-                          child: _ClearReveal(stage: _repo.stageAt(_stage)!),
-                        ),
                     ],
                   ),
                 ),
@@ -577,18 +594,16 @@ class _GameScreenState extends State<GameScreen> {
                   top: false,
                   ColoredBox(
                   color: c.bg,
-                  child: _result == _Result.cleared
-                      ? _ClearNextBar(onNext: _next)
-                      : Column(
-                          children: [
-                            _BoosterBar(
-                              game: _game,
-                              onResetView: _resetBoardView,
-                              onRestart: _confirmRestart,
-                            ),
-                            const AdsBanner(),
-                          ],
-                        ),
+                  child: Column(
+                    children: [
+                      _BoosterBar(
+                        game: _game,
+                        onResetView: _resetBoardView,
+                        onRestart: _confirmRestart,
+                      ),
+                      const AdsBanner(),
+                    ],
+                  ),
                 ),
                 ),
               ],
@@ -614,14 +629,19 @@ class _GameScreenState extends State<GameScreen> {
             // (hearts refill) remains a modal surface over the board.
             if (_result == _Result.failed)
               _ResultSheet(
-                result: _result,
-                stage: _localStageLabel,
-                place: _placeName,
-                flagIso: _flagIso,
-                isPath: _isPath,
-                onNext: _next,
                 onRestart: _restart,
                 onRefill: _refill,
+              ),
+            // On clear the chrome is covered by a full-screen arrival card: the
+            // place's flag + name rise in, a visa stamp lands, then Continue.
+            if (_result == _Result.cleared)
+              _ClearArrival(
+                key: ValueKey(_stage),
+                city: _cityLabel,
+                country: _countryName,
+                flagIso: _flagIso,
+                stampRank: _countryRank,
+                onContinue: _next,
               ),
             if (_showIntro && _repo.isLoaded)
               _RoundIntro(
@@ -1326,23 +1346,15 @@ class _BoosterButton extends StatelessWidget {
 /// arrives instead of snapping: the scrim fades in and the sheet rises from
 /// the bottom on an ease-out curve. Collapses to a static frame under
 /// OS reduce-motion.
+/// The out-of-hearts sheet: a top MREC over a bottom card offering a refill
+/// (free coupon, then ads) or a restart. Clear no longer uses this — see
+/// [_ClearArrival].
 class _ResultSheet extends StatefulWidget {
   const _ResultSheet({
-    required this.result,
-    required this.stage,
-    required this.place,
-    required this.flagIso,
-    required this.isPath,
-    required this.onNext,
     required this.onRestart,
     required this.onRefill,
   });
-  final _Result result;
-  final String stage;
-  final String place;
-  final String flagIso;
-  final bool isPath;
-  final VoidCallback onNext, onRestart;
+  final VoidCallback onRestart;
   final void Function({required bool viaAd}) onRefill;
 
   @override
@@ -1379,7 +1391,6 @@ class _ResultSheetState extends State<_ResultSheet>
   @override
   Widget build(BuildContext context) {
     final c = AppColors.of(context);
-    final cleared = widget.result == _Result.cleared;
     final sheet = Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -1388,7 +1399,7 @@ class _ResultSheetState extends State<_ResultSheet>
             const BorderRadius.vertical(top: Radius.circular(AppRadius.xxl)),
       ),
       padding: const EdgeInsets.fromLTRB(24, 24, 24, 28),
-      child: cleared ? _clear(c) : _fail(c),
+      child: _fail(c),
     );
     return Positioned.fill(
       child: AnimatedBuilder(
@@ -1411,57 +1422,6 @@ class _ResultSheetState extends State<_ResultSheet>
       ),
     );
   }
-
-  Widget _clear(AppColors c) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(widget.stage,
-              style: AppText.caption.copyWith(color: c.inkFaint, letterSpacing: 3)),
-          const SizedBox(height: 10),
-          // A travel leg points ahead to the round's destination country
-          // ("Next Atlas" over the country name, no flag); a place board
-          // reveals the place name + flag it held back from the header.
-          if (widget.isPath) ...[
-            Text('NEXT ATLAS',
-                style: AppText.caption.copyWith(
-                    color: c.accent,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 3)),
-            const SizedBox(height: 6),
-            if (widget.place.isNotEmpty)
-              Text(widget.place,
-                  textAlign: TextAlign.center,
-                  style: AppText.title.copyWith(
-                      color: c.ink, fontWeight: FontWeight.w800, fontSize: 22)),
-          ] else ...[
-            if (widget.place.isNotEmpty)
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (widget.flagIso.isNotEmpty) ...[
-                    _FlagImg(iso: widget.flagIso, height: 22),
-                    const SizedBox(width: 10),
-                  ],
-                  Flexible(
-                    child: Text(widget.place,
-                        textAlign: TextAlign.center,
-                        style: AppText.title.copyWith(
-                            color: c.ink,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 22)),
-                  ),
-                ],
-              ),
-            const SizedBox(height: 4),
-            Text('클리어!',
-                style: AppText.headline.copyWith(
-                    color: c.accent, fontWeight: FontWeight.w900)),
-          ],
-          const SizedBox(height: 18),
-          _bigButton(c, '다음 스테이지', c.accent, c.onAccent, widget.onNext),
-        ],
-      );
 
   Widget _fail(AppColors c) => ValueListenableBuilder<int>(
         valueListenable: Progress.instance.refillCoupons,
@@ -1690,44 +1650,45 @@ class _ItemSheetState extends State<_ItemSheet> {
   }
 }
 
-/// The clear moment, in place of a bottom sheet: the solved board dissolves
-/// into the territory it depicted. Grey silhouette dots rise, then accent
-/// sweeps out from the centroid to the edges. Freezes to the finished frame
-/// under OS reduce-motion.
-class _ClearReveal extends StatefulWidget {
-  const _ClearReveal({required this.stage});
-  final CampaignStage stage;
+/// The clear moment, covering the chrome like a passport page: the place's
+/// flag and name rise in one by one, its visa stamp thumps down, then a
+/// Continue button. Freezes to the finished frame under OS reduce-motion.
+class _ClearArrival extends StatefulWidget {
+  const _ClearArrival({
+    super.key,
+    required this.city,
+    required this.country,
+    required this.flagIso,
+    required this.stampRank,
+    required this.onContinue,
+  });
+  final String city;
+  final String country;
+  final String flagIso;
+  final int stampRank;
+  final VoidCallback onContinue;
 
   @override
-  State<_ClearReveal> createState() => _ClearRevealState();
+  State<_ClearArrival> createState() => _ClearArrivalState();
 }
 
-class _ClearRevealState extends State<_ClearReveal>
+class _ClearArrivalState extends State<_ClearArrival>
     with SingleTickerProviderStateMixin {
   late final AnimationController _c = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 1700));
+      vsync: this, duration: const Duration(milliseconds: 2100));
+  bool _thumped = false;
 
-  late final List<(int, int)> _cells = widget.stage.mask.toList();
-  late final double _cr, _cc, _maxDist;
+  // The stamp's slot in the timeline; the impact haptic fires partway into it.
+  static const _stampAt = 0.50, _stampDur = 0.22;
 
   @override
   void initState() {
     super.initState();
-    var sr = 0.0, sc = 0.0;
-    for (final (r, cc) in _cells) {
-      sr += r;
-      sc += cc;
+    // Fetch this country's stamp art for next time if it isn't on disk yet.
+    if (StampStore.instance.fileFor(widget.stampRank) == null) {
+      StampStore.instance.ensurePackFor(widget.stampRank);
     }
-    final n = _cells.isEmpty ? 1 : _cells.length;
-    _cr = sr / n;
-    _cc = sc / n;
-    var md = 0.0;
-    for (final (r, cc) in _cells) {
-      final dr = r - _cr, dc = cc - _cc;
-      final d = math.sqrt(dr * dr + dc * dc);
-      if (d > md) md = d;
-    }
-    _maxDist = md <= 0 ? 1 : md;
+    _c.addListener(_maybeThump);
   }
 
   @override
@@ -1742,117 +1703,201 @@ class _ClearRevealState extends State<_ClearReveal>
     }
   }
 
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final c = AppColors.of(context);
-    return AnimatedBuilder(
-      animation: _c,
-      builder: (_, __) => CustomPaint(
-        size: Size.infinite,
-        painter: _RevealPainter(
-            widget.stage, _cells, _cr, _cc, _maxDist, c, _c.value),
-      ),
-    );
-  }
-}
-
-double _smoothstep(double x, double a, double b) {
-  final t = ((x - a) / (b - a)).clamp(0.0, 1.0);
-  return t * t * (3 - 2 * t);
-}
-
-/// Stable pseudo-random [0,1) per grid cell, so the reveal's grainy edge is
-/// jittered the same way on every frame (not shimmering).
-double _cellHash(int r, int c) {
-  var h = (r * 73856093) ^ (c * 19349663);
-  h &= 0x7fffffff;
-  return (h % 1000) / 1000.0;
-}
-
-class _RevealPainter extends CustomPainter {
-  _RevealPainter(
-      this.stage, this.cells, this.cr, this.cc, this.maxDist, this.c, this.t);
-  final CampaignStage stage;
-  final List<(int, int)> cells;
-  final double cr, cc, maxDist, t;
-  final AppColors c;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    // Opaque ground hides the emptied board underneath.
-    canvas.drawRect(Offset.zero & size, Paint()..color = c.bg);
-    final cols = stage.cols, rows = stage.rows;
-    final scale = math.min(size.width / cols, size.height / rows);
-    final dx = (size.width - cols * scale) / 2;
-    final dy = (size.height - rows * scale) / 2;
-    final r = scale * 0.44;
-
-    final grayA = (t / 0.20).clamp(0.0, 1.0); // silhouette fades in first
-    // Irregular wavefront: a low-frequency angular wobble bends the front into
-    // lobes, and a per-cell hash jitter grains the edge so it dissolves outward
-    // instead of sweeping as a clean ring. All in grid units.
-    const jitter = 1.4, edge = 1.8;
-    final reach = maxDist * 1.34 + jitter + edge;
-    final spread = _smoothstep(t, 0.16, 0.90) * reach;
-    final phaseA = (cells.length % 17) * 0.37;
-    final phaseB = (cells.length % 11) * 0.53;
-    final p = Paint();
-    for (final (rr, ccc) in cells) {
-      final x = dx + ccc * scale + scale / 2;
-      final y = dy + rr * scale + scale / 2;
-      final dr = rr - cr, dc = ccc - cc;
-      final dist = math.sqrt(dr * dr + dc * dc);
-      final ang = math.atan2(dr, dc);
-      final wob = 1 +
-          0.20 * math.sin(3 * ang + phaseA) +
-          0.12 * math.sin(5 * ang + phaseB);
-      final eff = dist * wob + (_cellHash(rr, ccc) - 0.5) * 2 * jitter;
-      final a = ((spread - eff) / edge).clamp(0.0, 1.0);
-      p.color = Color.lerp(c.inkFaint, c.accent, a)!.withValues(alpha: grayA);
-      canvas.drawCircle(Offset(x, y), r, p);
+  void _maybeThump() {
+    if (!_thumped && _c.value >= _stampAt + _stampDur * 0.5) {
+      _thumped = true;
+      if (Progress.instance.hapticsOn.value) HapticFeedback.mediumImpact();
     }
   }
 
   @override
-  bool shouldRepaint(_RevealPainter old) =>
-      old.t != t || old.c != c || !identical(old.cells, cells);
-}
+  void dispose() {
+    _c.removeListener(_maybeThump);
+    _c.dispose();
+    super.dispose();
+  }
 
-/// The single action after a clear: advance. It rises in after the reveal has
-/// swept, so the territory reads first and the button second.
-class _ClearNextBar extends StatelessWidget {
-  const _ClearNextBar({required this.onNext});
-  final VoidCallback onNext;
+  double _seg(double a, double b) =>
+      Curves.easeOut.transform(((_c.value - a) / (b - a)).clamp(0.0, 1.0));
 
   @override
   Widget build(BuildContext context) {
     final c = AppColors.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-      child: EnterFade(
-        delay: const Duration(milliseconds: 1450),
-        rise: 12,
-        child: Pressable(
-          onTap: onNext,
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: kButtonPadV),
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: c.accent,
-              borderRadius: BorderRadius.circular(AppRadius.pill),
-            ),
-            child: Text('다음 스테이지',
-                style: kButtonText.copyWith(color: c.onAccent)),
+    final ko = Localizations.localeOf(context).languageCode == 'ko';
+    final hasCity = widget.city.isNotEmpty;
+
+    return Positioned.fill(
+      child: ColoredBox(
+        color: c.bg,
+        // top inset is already handled by the play screen's SafeArea; keep the
+        // bottom one so Continue clears the gesture bar.
+        child: SafeArea(
+          top: false,
+          child: AnimatedBuilder(
+            animation: _c,
+            builder: (context, _) {
+              final flagT = _seg(0.0, 0.18);
+              final cityT = hasCity ? _seg(0.18, 0.34) : 1.0;
+              final countryT = _seg(hasCity ? 0.30 : 0.18, 0.46);
+              final stampP =
+                  ((_c.value - _stampAt) / _stampDur).clamp(0.0, 1.0);
+              final contT = _seg(0.78, 1.0);
+              return Column(
+                children: [
+                  // Top half: the place's flag over its city + country, centred.
+                  Expanded(
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Opacity(
+                            opacity: flagT.clamp(0.0, 1.0),
+                            child: Transform.scale(
+                              scale: 0.5 +
+                                  0.5 * Curves.easeOutBack.transform(flagT),
+                              child: _FlagImg(iso: widget.flagIso, height: 96),
+                            ),
+                          ),
+                          const SizedBox(height: 28),
+                          if (hasCity) ...[
+                            _rising(widget.city, cityT,
+                                AppText.display.copyWith(
+                                    color: c.ink,
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 40,
+                                    height: 1.05)),
+                            const SizedBox(height: 8),
+                            _rising(widget.country, countryT,
+                                AppText.title.copyWith(
+                                    color: c.inkSoft,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 22)),
+                          ] else
+                            _rising(widget.country, countryT,
+                                AppText.display.copyWith(
+                                    color: c.ink,
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 40,
+                                    height: 1.05)),
+                        ],
+                      ),
+                    ),
+                  ),
+                  // Bottom half: the visa stamp thumps down dead centre; the
+                  // Continue button sits pinned to the bottom edge.
+                  Expanded(
+                    child: Stack(
+                      children: [
+                        if (stampP > 0)
+                          Center(
+                            child: Transform.rotate(
+                              angle: -0.05,
+                              child: Opacity(
+                                opacity: (stampP * 2.5).clamp(0.0, 1.0),
+                                child: Transform.scale(
+                                  scale: 1.45 -
+                                      0.45 *
+                                          Curves.easeOutBack.transform(stampP),
+                                  child: _StampMark(
+                                      rank: widget.stampRank, size: 168),
+                                ),
+                              ),
+                            ),
+                          ),
+                        Align(
+                          alignment: Alignment.bottomCenter,
+                          child: Opacity(
+                            opacity: contT,
+                            child: Transform.translate(
+                              offset: Offset(0, 14 * (1 - contT)),
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.fromLTRB(20, 8, 20, 20),
+                                child: IgnorePointer(
+                                  ignoring: contT < 1,
+                                  child: Pressable(
+                                    onTap: widget.onContinue,
+                                    child: Container(
+                                      width: double.infinity,
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: kButtonPadV),
+                                      alignment: Alignment.center,
+                                      decoration: BoxDecoration(
+                                        color: c.accent,
+                                        borderRadius: BorderRadius.circular(
+                                            AppRadius.pill),
+                                      ),
+                                      child: Text(ko ? '계속하기' : 'Continue',
+                                          style: kButtonText.copyWith(
+                                              color: c.onAccent)),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ),
       ),
+    );
+  }
+
+  Widget _rising(String text, double t, TextStyle style) => Opacity(
+        opacity: t.clamp(0.0, 1.0),
+        child: Transform.translate(
+          offset: Offset(0, 14 * (1 - t)),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 28),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child:
+                  Text(text, textAlign: TextAlign.center, style: style),
+            ),
+          ),
+        ),
+      );
+}
+
+/// The country's visa stamp (date-less by design). Shows the fetched art when
+/// it is on disk; until then a plain "VISITED" ring stands in, and it swaps to
+/// the real stamp the moment its continent pack lands.
+class _StampMark extends StatelessWidget {
+  const _StampMark({required this.rank, required this.size});
+  final int rank;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = AppColors.of(context);
+    return ValueListenableBuilder<int>(
+      valueListenable: StampStore.instance.revision,
+      builder: (context, _, _) {
+        final File? file = StampStore.instance.fileFor(rank);
+        if (file != null) {
+          return Image.file(file, width: size, height: size, fit: BoxFit.contain);
+        }
+        return Container(
+          width: size * 0.82,
+          height: size * 0.82,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: c.accent.withValues(alpha: 0.85), width: 3),
+          ),
+          child: Text('VISITED',
+              style: AppText.label.copyWith(
+                  color: c.accent,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.5)),
+        );
+      },
     );
   }
 }
