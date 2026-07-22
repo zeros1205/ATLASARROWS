@@ -21,7 +21,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 PNG_DIR = os.path.join(HERE, "vehicle_png")
 OUT = os.path.join(HERE, "vehicle_masks.json")
 
-TARGET_CELLS = 1200  # ~110-130 arrows per board, comfortably over the 100 floor
+TARGET_CELLS = 840  # smaller grid -> larger on-screen scale, ~30% fewer arrows
 THR = 0.38           # block is a cell once this fraction of it is black
 
 
