@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "site": "atlasarrows",
+    "site": "atlasarrows-7a720",
     "public": "site",
     "ignore": [
       "firebase.json",
