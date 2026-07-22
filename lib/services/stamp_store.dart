@@ -110,6 +110,32 @@ class StampStore {
     return ok;
   }
 
+  /// Downloads every continent pack not already cached, with one aggregate
+  /// [onProgress] (0→1) weighted by pack size. Used at the loading screen so
+  /// the stamps are all in place before play — Random mode can jump to any
+  /// continent, so one-at-a-time on demand no longer covers it. Never throws;
+  /// packs that fail are simply retried the next launch.
+  Future<void> ensureAllPacks(
+      {void Function(double progress)? onProgress}) async {
+    final pending =
+        _packs.where((p) => !p.ranks.every(_onDisk.contains)).toList();
+    final total = pending.fold<int>(0, (a, p) => a + p.bytes);
+    if (total == 0) {
+      onProgress?.call(1);
+      return;
+    }
+    var done = 0;
+    for (final pack in pending) {
+      final job = pack.inFlight ??
+          _fetch(pack, (p) => onProgress?.call((done + p * pack.bytes) / total));
+      pack.inFlight = job;
+      await job;
+      pack.inFlight = null;
+      done += pack.bytes;
+      onProgress?.call(done / total);
+    }
+  }
+
   Future<bool> _fetch(_Pack pack, void Function(double)? onProgress) async {
     final tmp = File('${_dir!.path}/.${pack.file}.part');
     try {

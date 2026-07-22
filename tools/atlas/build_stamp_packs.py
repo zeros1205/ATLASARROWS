@@ -27,6 +27,7 @@ import pathlib
 import re
 import zipfile
 
+import numpy as np
 from PIL import Image
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -35,9 +36,15 @@ OUT = ROOT / "build" / "stamp_packs"
 MANIFEST = ROOT / "assets" / "campaign" / "stamp_manifest.json"
 CAMPAIGN = ROOT / "tools" / "atlas" / "campaign.json"
 
-VERSION = 1
+VERSION = 2  # v2: paper background dropped to transparent
 EDGE = 512
 QUALITY = 85
+
+# Alpha ramp for dropping the warm off-white paper. A pixel's luminance runs
+# from ~235 (bare paper) down to the ink; alpha rises from 0 at [PAPER] to 1 at
+# [INK], so only the stamp impression survives and its worn grain is kept.
+PAPER = 200.0
+INK = 110.0
 
 # Natural Earth parks open-ocean territories in a leftover "Seven seas" bucket.
 # It is not a continent; each one belongs to a real landmass. Kept in step with
@@ -72,7 +79,11 @@ def continents_by_rank() -> dict[int, str]:
 
 
 def encode(path: pathlib.Path) -> bytes:
-    im = Image.open(path).convert("RGB")
+    rgb = np.asarray(Image.open(path).convert("RGB")).astype(np.float32)
+    lum = 0.299 * rgb[..., 0] + 0.587 * rgb[..., 1] + 0.114 * rgb[..., 2]
+    alpha = np.clip((PAPER - lum) / (PAPER - INK), 0.0, 1.0) * 255.0
+    im = Image.fromarray(
+        np.dstack([rgb, alpha]).astype(np.uint8), "RGBA")
     if im.width != EDGE:
         im = im.resize((EDGE, EDGE), Image.LANCZOS)
     buf = io.BytesIO()

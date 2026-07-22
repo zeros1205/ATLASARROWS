@@ -18,8 +18,13 @@ class Progress {
 
   late SharedPreferences _prefs;
 
-  /// Highest level index the player may enter (0-based).
+  /// Highest level index the player may enter (0-based). World Tour only —
+  /// Random play never advances this.
   final ValueNotifier<int> unlocked = ValueNotifier(0);
+
+  /// Global stage indices already served in Random play, so the next pick can
+  /// avoid them. Reset (looped) once every stage has come up.
+  final Set<int> playedRandom = {};
   final ValueNotifier<int> hints = ValueNotifier(startingHints);
   final ValueNotifier<int> removes = ValueNotifier(startingRemoves);
   final ValueNotifier<int> refillCoupons =
@@ -59,15 +64,33 @@ class Progress {
     adsRemoved.value = _prefs.getBool('adsRemoved') ?? false;
     coachDone.value = _prefs.getBool('coachDone') ?? false;
     cheatOn.value = _prefs.getBool('cheatOn') ?? false;
+    playedRandom
+      ..clear()
+      ..addAll(
+          (_prefs.getStringList('playedRandom') ?? const []).map(int.parse));
   }
 
   void markCleared(int levelIndex) {
-    totalClears.value++;
-    _prefs.setInt('totalClears', totalClears.value);
+    addClear();
     if (levelIndex + 1 > unlocked.value) {
       unlocked.value = levelIndex + 1;
       _prefs.setInt('unlocked', unlocked.value);
     }
+  }
+
+  /// Counts a clear toward the lifetime total without touching World Tour
+  /// unlock progress — used by Random play.
+  void addClear() {
+    totalClears.value++;
+    _prefs.setInt('totalClears', totalClears.value);
+  }
+
+  /// Records a Random-play stage as served; loops the set once it is full.
+  void markPlayedRandom(int stage, int totalStages) {
+    playedRandom.add(stage);
+    if (playedRandom.length >= totalStages) playedRandom.clear();
+    _prefs.setStringList(
+        'playedRandom', playedRandom.map((e) => e.toString()).toList());
   }
 
   /// Consumes one hint; returns false when none are left.
