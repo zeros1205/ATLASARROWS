@@ -602,10 +602,16 @@ class _CountryBubble extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (country.iso.length == 2) ...[
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(3),
-                    child: CountryFlag.fromCountryCode(country.iso,
-                        theme: const ImageTheme(width: 24, height: 18)),
+                  Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(3),
+                      border: Border.all(color: c.line, width: 1),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(2),
+                      child: CountryFlag.fromCountryCode(country.iso,
+                          theme: const ImageTheme(width: 24, height: 18)),
+                    ),
                   ),
                   const SizedBox(width: 8),
                 ],

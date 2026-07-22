@@ -820,13 +820,24 @@ class _FlagImg extends StatelessWidget {
   final double height;
 
   @override
-  Widget build(BuildContext context) => ClipRRect(
+  Widget build(BuildContext context) {
+    final c = AppColors.of(context);
+    // 1px hairline so a flag with white at its edge (Japan, etc.) still reads
+    // as a distinct chip on the paper ground.
+    return Container(
+      decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(3),
+        border: Border.all(color: c.line, width: 1),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(2),
         child: CountryFlag.fromCountryCode(
           iso,
           theme: ImageTheme(width: height * 4 / 3, height: height),
         ),
-      );
+      ),
+    );
+  }
 }
 
 /// Back on the left; the stage number centred. A 44px spacer balances the back

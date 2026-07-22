@@ -42,6 +42,11 @@ class DiveArgs {
   }
 }
 
+/// The sky-dive's fall duration, and the fade-to-paper at the tail of it — the
+/// scene fades out over the last [_diveFadeMs] of the fall before the blank.
+const int _diveMs = 760;
+const int _diveFadeMs = 200;
+
 /// The route home's play button pushes: an opaque, instant swap to the game.
 /// It swaps with no transition of its own because [_DiveOverlay] (mounted by
 /// the game screen) reproduces the home map pixel-for-pixel on its first frame,
@@ -70,7 +75,7 @@ class _DiveOverlay extends StatefulWidget {
 class _DiveOverlayState extends State<_DiveOverlay>
     with SingleTickerProviderStateMixin {
   late final AnimationController _c =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 760));
+      AnimationController(vsync: this, duration: const Duration(milliseconds: _diveMs));
   bool _blank = false;
 
   @override
@@ -165,8 +170,11 @@ class _DivePainter extends CustomPainter {
       canvas.drawCircle(p, rHot, solid);
     }
 
-    // Paper wash over the last stretch, easing into the blank hold.
-    final wash = ((t - 0.82) / 0.18).clamp(0.0, 1.0);
+    // Fade the scene out to paper over the last [_diveFadeMs] of the fall, so
+    // it dissolves into the blank instead of cutting. Smooth in and out.
+    const washStart = (_diveMs - _diveFadeMs) / _diveMs;
+    final wash = Curves.easeInOut
+        .transform(((t - washStart) / (1 - washStart)).clamp(0.0, 1.0));
     if (wash > 0) {
       canvas.drawRect(bounds, Paint()..color = c.bg.withValues(alpha: wash));
     }
