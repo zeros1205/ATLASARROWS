@@ -14,8 +14,8 @@ from PIL import Image, ImageDraw, ImageFont
 FONT = "assets/fonts/Outfit-Bold.ttf"  # the Figma file's weight
 OUT = "assets/images/brand/atlas_arrows_wordmark.png"
 
-# Colours are the kit's published values, held until the app is given its own.
-ACCENT = (0x00, 0xA1, 0x9B)  # top line -- also the progress bar fill
+# Top line is the app accent (여기어때 YDS Cyan 800); slate is the kit value.
+ACCENT = (0x1D, 0x8B, 0xFF)  # top line -- also the progress bar fill
 SLATE = (0x3A, 0x4A, 0x55)  # bottom line -- also the CTA background
 
 # Rendered oversized, then downsampled: the tracking below is wide enough that

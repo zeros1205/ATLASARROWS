@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 /// Semantic color tokens for Atlas Arrows, resolved per theme via a
 /// [ThemeExtension]. Reach them with `AppColors.of(context)`.
 ///
-/// Identity: paper + ink. Off-white paper ground, teal-gray ink for the
-/// maze and headings, one mint accent for action, red for mistakes. The
-/// teal-gray (#3A4A55) and mint (#00A19B) are lifted from the Figma wordmark
-/// so the app matches its own store art. Two themes only — light and dark.
+/// Identity: paper + ink. White page ground, teal-gray ink for the
+/// maze and headings, one blue accent for action, red for mistakes. The
+/// teal-gray (#3A4A55) is lifted from the Figma wordmark; the accent is
+/// 여기어때 YDS Cyan 800 (#1D8BFF). Two themes only — light and dark.
 @immutable
 class AppColors extends ThemeExtension<AppColors> {
   const AppColors({
@@ -48,7 +48,7 @@ class AppColors extends ThemeExtension<AppColors> {
   final Color shadow;       // soft shadow color
 
   static const light = AppColors(
-    bg: Color(0xFFF7F6F2),          // off-white paper ground
+    bg: Color(0xFFFFFFFF),          // white page ground
     surface: Color(0xFFFFFFFF),
     surfaceMuted: Color(0xFFEDECE6),
     card: Color(0xFFFFFFFF),
@@ -57,8 +57,8 @@ class AppColors extends ThemeExtension<AppColors> {
     inkFaint: Color(0xFF97A2A7),
     line: Color(0xFFE7E5DE),
     dot: Color(0xFFE4E3DD),
-    accent: Color(0xFF00A19B),
-    accentSoft: Color(0x1F00A19B),
+    accent: Color(0xFF1D8BFF),      // 여기어때 YDS Cyan 800 (primary)
+    accentSoft: Color(0x1F1D8BFF),
     danger: Color(0xFFFF4D67),
     success: Color(0xFF27C356),
     amber: Color(0xFFFF9E2C),
@@ -77,8 +77,8 @@ class AppColors extends ThemeExtension<AppColors> {
     inkFaint: Color(0xFF7C7F8C),
     line: Color(0xFF2E3038),
     dot: Color(0xFF33353F),
-    accent: Color(0xFF22C7BE),
-    accentSoft: Color(0x2622C7BE),
+    accent: Color(0xFF4DA6FF),      // 여기어때 primary, lifted for dark ground
+    accentSoft: Color(0x264DA6FF),
     danger: Color(0xFFFF5D75),
     success: Color(0xFF3AD06A),
     amber: Color(0xFFFFAE47),
