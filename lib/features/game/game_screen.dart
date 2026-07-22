@@ -1742,6 +1742,13 @@ class _ClearArrivalState extends State<_ClearArrival>
               final stampP =
                   ((_c.value - _stampAt) / _stampDur).clamp(0.0, 1.0);
               final contT = _seg(0.78, 1.0);
+              // Stamp reads at 336 on a 390pt-wide reference phone; scale
+              // proportionally to screen width elsewhere so it can't outgrow
+              // the space this card actually has, clamped so it neither
+              // vanishes on tiny screens nor dominates on tablets.
+              final stampSize =
+                  (MediaQuery.sizeOf(context).width * 336 / 390)
+                      .clamp(200.0, 340.0);
               return Column(
                 children: [
                   // Top half: the place's flag over its city + country, centred.
@@ -1785,27 +1792,33 @@ class _ClearArrivalState extends State<_ClearArrival>
                   ),
                   // Bottom half: the visa stamp thumps down in the free space
                   // above the Continue button, which is pinned to the bottom.
+                  // Clipped to this half so the stamp's scale-up bounce can
+                  // never paint over the flag/city/country half above it.
                   Expanded(
                     child: Column(
                       children: [
                         Expanded(
-                          child: Center(
-                            child: stampP <= 0
-                                ? const SizedBox.shrink()
-                                : Transform.rotate(
-                                    angle: -0.05,
-                                    child: Opacity(
-                                      opacity: (stampP * 2.5).clamp(0.0, 1.0),
-                                      child: Transform.scale(
-                                        scale: 1.45 -
-                                            0.45 *
-                                                Curves.easeOutBack
-                                                    .transform(stampP),
-                                        child: _StampMark(
-                                            rank: widget.stampRank, size: 336),
+                          child: ClipRect(
+                            child: Center(
+                              child: stampP <= 0
+                                  ? const SizedBox.shrink()
+                                  : Transform.rotate(
+                                      angle: -0.05,
+                                      child: Opacity(
+                                        opacity:
+                                            (stampP * 2.5).clamp(0.0, 1.0),
+                                        child: Transform.scale(
+                                          scale: 1.45 -
+                                              0.45 *
+                                                  Curves.easeOutBack
+                                                      .transform(stampP),
+                                          child: _StampMark(
+                                              rank: widget.stampRank,
+                                              size: stampSize),
+                                        ),
                                       ),
                                     ),
-                                  ),
+                            ),
                           ),
                         ),
                         Opacity(
