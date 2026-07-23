@@ -71,25 +71,49 @@ final kBootConfig = LoganLandBootConfig(
 /// Each step swallows its own failure: a throw here leaves the player staring
 /// at the loading plate forever, and every one of these degrades to an empty
 /// default that later screens re-read when it arrives.
+///
+/// The world map and stamp packs live here — this phase owns 0→65% of the
+/// bar, the larger half, so the slow network step fills most of what the
+/// player watches instead of the bar racing to 65% on instant local reads
+/// and then crawling through the smaller remaining slice. Neither needs a
+/// BuildContext, so nothing here is stuck waiting for one; only the icon
+/// precache in preloadFirstFrame does.
 Future<void> bootServices(void Function(double) onProgress) async {
-  final steps = <(String, Future<void> Function())>[
+  final quickSteps = <(String, Future<void> Function())>[
     ('settings', AppSettings.instance.load),
     ('progress', Progress.instance.load),
     ('shapes', ShapeCatalog.load),
     ('campaign', CampaignRepository.instance.load),
-    // Manifest + a look at what is already cached. No network here — the
-    // download itself waits for the preload half, where a slow connection
-    // costs the player a progress bar rather than a launch.
-    ('stamps', StampStore.instance.load),
+    // Manifest + a look at what is already cached. No network in this one —
+    // the download itself is the next step below.
+    ('stamps manifest', StampStore.instance.load),
   ];
-  for (var i = 0; i < steps.length; i++) {
+  for (var i = 0; i < quickSteps.length; i++) {
     try {
-      await steps[i].$2();
+      await quickSteps[i].$2();
     } catch (e) {
-      debugPrint('boot: ${steps[i].$1} failed — $e');
+      debugPrint('boot: ${quickSteps[i].$1} failed — $e');
     }
-    onProgress((i + 1) / steps.length);
+    onProgress((i + 1) / quickSteps.length * 0.1);
   }
+
+  try {
+    await WorldMap.instance.load();
+  } catch (e) {
+    debugPrint('boot: world map failed — $e');
+  }
+  onProgress(0.25);
+
+  // Every continent's stamps, downloaded here rather than shipped in the APK.
+  // Random play can jump to any continent, so fetching only the current one no
+  // longer covers it. This is the slowest step, so it owns the widest slice of
+  // the bar — and it is allowed to come back partial: a failed pack retries
+  // next launch and the app draws rounds without their stamp meanwhile.
+  if (StampStore.instance.isLoaded) {
+    await StampStore.instance
+        .ensureAllPacks(onProgress: (p) => onProgress(0.25 + p * 0.75));
+  }
+  onProgress(1);
 }
 
 /// The store, ads, Firebase and the games sign-in. Started once the app is up
@@ -102,32 +126,13 @@ Future<void> initDeferredServices() async {
   unawaited(FirebaseService.init().then((_) => GameServices.init()));
 }
 
-/// The post-attach half of the bar (0.65 → 1). Only what the first screen
-/// actually shows: the world map behind the campaign tab, the stamps for
-/// wherever the player currently is, and the icons the shell and the board
-/// draw immediately.
+/// The post-attach half of the bar (0.65 → 1). The world map and stamp packs
+/// have already loaded in [bootServices] by this point — all that is left
+/// needs a BuildContext, which only exists once the app tree is attached.
 Future<void> preloadFirstFrame(
   BuildContext context, {
   required void Function(double) onProgress,
 }) async {
-  try {
-    await WorldMap.instance.load();
-  } catch (e) {
-    debugPrint('preload: world map failed — $e');
-  }
-  onProgress(0.3);
-
-  // Every continent's stamps, downloaded here rather than shipped in the APK.
-  // Random play can jump to any continent, so fetching only the current one no
-  // longer covers it. This is the only network step here, so it owns the widest
-  // slice of the bar — and it is allowed to come back partial: a failed pack
-  // retries next launch and the app draws rounds without their stamp meanwhile.
-  if (StampStore.instance.isLoaded) {
-    await StampStore.instance
-        .ensureAllPacks(onProgress: (p) => onProgress(0.3 + p * 0.5));
-  }
-  onProgress(0.8);
-
   if (!context.mounted) return;
   const icons = [
     'assets/images/icons/heart.png',
