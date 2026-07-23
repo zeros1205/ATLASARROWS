@@ -80,8 +80,8 @@ class CountryDetailScreen extends StatelessWidget {
                           accent: true,
                           onPlay: () => Navigator.of(context).push(
                               MaterialPageRoute<void>(
-                                  builder: (_) =>
-                                      GameScreen(stage: countryGlobal))),
+                                  builder: (_) => GameScreen(
+                                      stage: countryGlobal, entrance: true))),
                         );
                       }
                       final city = cities[i - 1];
@@ -89,8 +89,8 @@ class CountryDetailScreen extends StatelessWidget {
                         name: city.name,
                         onPlay: () => Navigator.of(context).push(
                             MaterialPageRoute<void>(
-                                builder: (_) =>
-                                    GameScreen(stage: city.global))),
+                                builder: (_) => GameScreen(
+                                    stage: city.global, entrance: true))),
                       );
                     },
                   ),

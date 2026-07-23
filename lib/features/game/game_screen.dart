@@ -41,6 +41,7 @@ class GameScreen extends StatefulWidget {
       {super.key,
       required this.stage,
       this.dive,
+      this.entrance = false,
       this.mode = PlayMode.worldTour});
   final int stage;
 
@@ -50,6 +51,12 @@ class GameScreen extends StatefulWidget {
   /// Random Play still plays the same sequence minus the dive itself; see
   /// [_GameScreenState._entranceSequence].
   final DiveArgs? dive;
+
+  /// Play the entrance sequence *without* the globe dive — the name card →
+  /// board reveal → chrome slide-in → quadrant zoom, starting straight at the
+  /// name card. Set by the map entry (country detail → country/city), which
+  /// wants the same arrival as Random Play but has no map dot to dive from.
+  final bool entrance;
 
   /// World Tour (fixed order) or Random (lucky-dip). Drives what "next" does,
   /// and — with [dive] — whether this entry plays the entrance sequence.
@@ -85,7 +92,7 @@ class _GameScreenState extends State<GameScreen>
   /// from, and Random Play has nowhere to dive from (no map dot to start at)
   /// but still gets the same card + reveal, just starting straight at phase 3.
   bool get _entranceSequence =>
-      widget.dive != null || widget.mode == PlayMode.random;
+      widget.dive != null || widget.entrance || widget.mode == PlayMode.random;
 
   // Feature flags — both surfaces are kept but held off for now; flip to true
   // to bring them back. Runtime fields (not const) so the gated code stays
