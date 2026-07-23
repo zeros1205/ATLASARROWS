@@ -121,10 +121,9 @@ class SettingsScreen extends StatelessWidget {
             shrinkWrap: true,
             children: [
               for (final loc in AppSettings.supportedLocales)
-                ListTile(
-                  title: Text(
-                      AppSettings.languageNames[loc.languageCode] ??
-                          loc.languageCode),
+                _LanguageRow(
+                  label: AppSettings.languageNames[loc.languageCode] ??
+                      loc.languageCode,
                   selected: settings.locale?.languageCode == loc.languageCode,
                   onTap: () {
                     settings.setLocale(loc);
@@ -259,6 +258,43 @@ class _NavRow extends StatelessWidget {
     );
     if (onTap == null) return Opacity(opacity: 0.65, child: row);
     return Pressable(scale: 0.985, onTap: onTap, child: row);
+  }
+}
+
+/// A row in the language-picker sheet. Uses [Pressable] instead of the stock
+/// `ListTile` ripple so the sheet matches the app's press feedback elsewhere.
+class _LanguageRow extends StatelessWidget {
+  const _LanguageRow(
+      {required this.label, required this.selected, required this.onTap});
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = AppColors.of(context);
+    return Pressable(
+      scale: 0.98,
+      onTap: onTap,
+      child: Container(
+        height: _rowHeight,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: AppText.label.copyWith(
+                  color: c.ink,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+                ),
+              ),
+            ),
+            if (selected) Icon(Icons.check, color: c.accent, size: 20),
+          ],
+        ),
+      ),
+    );
   }
 }
 

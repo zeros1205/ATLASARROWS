@@ -4,8 +4,10 @@ import 'package:flutter/services.dart';
 import '../app/tokens/dimens.dart';
 import '../services/progress.dart';
 
-/// The universal press signature: scale to 0.96 on press, release with an
-/// easeOutBack overshoot. A light haptic on tap. Degrades under reduce-motion.
+/// The universal press signature: scale down and dim slightly on press,
+/// release with an easeOutBack overshoot — the same dual shrink+dim feedback
+/// iOS gives its own cards and rows. A light haptic on tap. Degrades under
+/// reduce-motion.
 class Pressable extends StatefulWidget {
   const Pressable({
     super.key,
@@ -24,13 +26,16 @@ class Pressable extends StatefulWidget {
   State<Pressable> createState() => _PressableState();
 }
 
+/// Opacity a pressed [Pressable] dims to, at full press.
+const double _pressedOpacity = 0.88;
+
 class _PressableState extends State<Pressable>
     with SingleTickerProviderStateMixin {
+  // 0 = at rest, 1 = fully pressed.
   late final AnimationController _c = AnimationController(
     vsync: this,
     duration: AppDur.fast,
     reverseDuration: AppDur.normal,
-    value: 1,
   );
 
   @override
@@ -39,8 +44,8 @@ class _PressableState extends State<Pressable>
     super.dispose();
   }
 
-  void _down(_) => _c.animateTo(widget.scale, curve: Curves.easeOut);
-  void _up() => _c.animateTo(1, curve: AppCurve.overshoot);
+  void _down(_) => _c.animateTo(1, curve: Curves.easeOut);
+  void _up() => _c.animateTo(0, curve: AppCurve.overshoot);
 
   @override
   Widget build(BuildContext context) {
@@ -62,7 +67,18 @@ class _PressableState extends State<Pressable>
           : null,
       child: noMotion
           ? widget.child
-          : ScaleTransition(scale: _c, child: widget.child),
+          : AnimatedBuilder(
+              animation: _c,
+              builder: (context, child) => Transform.scale(
+                scale: 1 - _c.value * (1 - widget.scale),
+                child: Opacity(
+                  opacity:
+                      (1 - _c.value * (1 - _pressedOpacity)).clamp(0.0, 1.0),
+                  child: child,
+                ),
+              ),
+              child: widget.child,
+            ),
     );
   }
 }
