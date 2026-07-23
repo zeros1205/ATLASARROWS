@@ -56,7 +56,8 @@ class CountryDetailScreen extends StatelessWidget {
                   _Flag(iso: iso),
                 ],
                 const SizedBox(height: 12),
-                Text('면적  ${_fmtArea(country.areaKm2)}',
+                // Emoji label so the stat needs no translation.
+                Text('⬜  ${_fmtArea(country.areaKm2)}',
                     style: AppText.caption.copyWith(color: c.inkSoft)),
                 const SizedBox(height: 20),
                 Container(height: 1, color: c.line),
