@@ -6,7 +6,8 @@ from PIL import Image, ImageDraw
 
 # repo root, derived from this file's location (tools/atlas/ → ../..)
 HERE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-COLS = 168
+COLS = 238  # ~2x the dots vs the original 168; keep in sync with the shipped asset
+
 LON0, LON1 = -180.0, 180.0
 LAT0, LAT1 = -58.0, 90.0          # crop out Antarctica, keep the full north edge
 ROWS = round(COLS * (LAT1 - LAT0) / (LON1 - LON0))

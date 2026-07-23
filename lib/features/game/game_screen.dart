@@ -58,7 +58,8 @@ class GameScreen extends StatefulWidget {
 
 enum _Result { none, cleared, failed }
 
-class _GameScreenState extends State<GameScreen> {
+class _GameScreenState extends State<GameScreen>
+    with SingleTickerProviderStateMixin {
   final _repo = CampaignRepository.instance;
   final _rng = math.Random();
   late int _stage = widget.stage;
@@ -118,10 +119,16 @@ class _GameScreenState extends State<GameScreen> {
     final body = _bodyKey.currentContext?.findRenderObject() as RenderBox?;
     if (area == null || body == null || !area.hasSize || !body.hasSize) return;
     final rect = area.localToGlobal(Offset.zero, ancestor: body) & area.size;
-    if (rect == _playRect) return;
-    _playRect = rect;
-    _game.setPlayInsets(rect.top, body.size.height - rect.bottom);
-    _clampBoard();
+    if (rect != _playRect) {
+      _playRect = rect;
+      _game.setPlayInsets(rect.top, body.size.height - rect.bottom);
+      _clampBoard();
+    }
+    // Independent of whether the rect itself changed this frame — a fresh
+    // level load doesn't touch the chrome, so the rect is usually unchanged,
+    // but [_autoZoomPending] still needs consuming once the new board's rect
+    // exists.
+    _maybeStartAutoZoom();
   }
 
   Offset? _pointerDownAt;
@@ -163,6 +170,74 @@ class _GameScreenState extends State<GameScreen> {
 
   /// Back to the whole silhouette (the 화면맞춤 button, and every new board).
   void _resetBoardView() => _boardTc.value = Matrix4.identity();
+
+  // ── Auto-zoom entrance ──────────────────────────────────────────────────
+  // Every fresh board opens on the whole silhouette, then the camera itself
+  // dives into one of the four quadrants — the same falling-in feel as the
+  // home sky-dive, but this one lands the player already zoomed in on a
+  // corner of the puzzle instead of leaving them to pinch in themselves.
+
+  /// Armed on every level (re)load; consumed the first time [_syncPlayRect]
+  /// sees a real board rect afterwards, since the board's layout (and so its
+  /// [AtlasArrowsGame.boardRect]) isn't available until a frame after the
+  /// level loads.
+  ///
+  /// A dive entry starts this false: the board sits behind the globe-dive and
+  /// title-card overlays for a while, and arming it immediately would fly the
+  /// camera to its target unseen before the reveal even starts. [_buildGame]
+  /// arms it instead once the dots/arrows reveal finishes, so the player
+  /// actually sees the dive-in.
+  late bool _autoZoomPending = widget.dive == null;
+  AnimationController? _autoZoomCtrl;
+
+  void _maybeStartAutoZoom() {
+    if (!_autoZoomPending) return;
+    final r = _game.boardRect;
+    if (r == null || _playRect.isEmpty) return;
+    _autoZoomPending = false;
+    _autoZoomToQuadrant(r);
+  }
+
+  /// [AtlasArrowsGame.maxZoom] is the *deepest* zoom the player can pinch to —
+  /// landing the auto zoom there read as way too far in. Half of it matched a
+  /// reference screenshot at a comfortable "several cells at a glance" depth,
+  /// so that's the entrance target instead.
+  static const double _entranceZoomFactor = 0.5;
+
+  /// Flies the view from the fit-to-screen state into one of the board's four
+  /// quadrants, chosen at random, over 1.5s. The target is a fixed fraction of
+  /// [AtlasArrowsGame.maxZoom] — the same value every other zoom control
+  /// normalises by cell size — so the on-screen cell size, and so the arrow
+  /// stroke width, still lands the same regardless of how many rows/columns
+  /// this particular stage has; it's just shallower than the pinch limit.
+  void _autoZoomToQuadrant(Rect boardRect) {
+    final qx = _rng.nextBool() ? -1.0 : 1.0;
+    final qy = _rng.nextBool() ? -1.0 : 1.0;
+    final target = Offset(
+      boardRect.center.dx + qx * boardRect.width / 4,
+      boardRect.center.dy + qy * boardRect.height / 4,
+    );
+    final zoom = _game.maxZoom.value * _entranceZoomFactor;
+    final vc = _playRect.center;
+    final end = Matrix4.identity()
+      ..translate(vc.dx, vc.dy)
+      ..scale(zoom)
+      ..translate(-target.dx, -target.dy);
+
+    if (reduceMotion(context)) {
+      _boardTc.value = end;
+      return;
+    }
+
+    _autoZoomCtrl?.dispose();
+    final ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1500));
+    _autoZoomCtrl = ctrl;
+    final tween = Matrix4Tween(begin: _boardTc.value, end: end)
+        .animate(CurvedAnimation(parent: ctrl, curve: Curves.easeInCubic));
+    tween.addListener(() => _boardTc.value = tween.value);
+    ctrl.forward();
+  }
 
   /// Keep the board on screen: no edge of the *grid* may be dragged past the
   /// viewport's centre line, so at least half the puzzle always shows (and it
@@ -224,6 +299,13 @@ class _GameScreenState extends State<GameScreen> {
         // Phase 5: the arrows have started filling — bring the chrome in.
         onIntroArrows: () {
           if (mounted) setState(() => _chromeIn = true);
+        },
+        // The reveal has finished and the board is fully visible — only now
+        // is it worth flying the camera into a quadrant.
+        onIntroDone: () {
+          if (!mounted) return;
+          _autoZoomPending = true;
+          _maybeStartAutoZoom();
         },
       );
 
@@ -342,6 +424,7 @@ class _GameScreenState extends State<GameScreen> {
     });
     _game.loadLevel(_repo.levelAt(_stage));
     _resetBoardView();
+    _autoZoomPending = true;
   }
 
   /// Random play: count the clear (without touching the World Tour frontier),
@@ -368,12 +451,14 @@ class _GameScreenState extends State<GameScreen> {
     });
     _game.loadLevel(_repo.levelAt(_stage));
     _resetBoardView();
+    _autoZoomPending = true;
   }
 
   void _restart() {
     setState(() => _result = _Result.none);
     _game.restartLevel();
     _resetBoardView();
+    _autoZoomPending = true;
   }
 
   /// Restart throws away everything the player has freed so far and cannot be
@@ -434,6 +519,7 @@ class _GameScreenState extends State<GameScreen> {
   void dispose() {
     _coachTimer?.cancel();
     _hearts.dispose();
+    _autoZoomCtrl?.dispose();
     _boardTc.removeListener(_clampBoard);
     _boardTc.dispose();
     super.dispose();

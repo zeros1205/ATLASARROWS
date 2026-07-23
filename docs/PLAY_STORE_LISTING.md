@@ -12,37 +12,33 @@
 
 ---
 
-## 0. 지금 바로 확인할 것 — 개인정보처리방침 URL 활성화 ⚠️ 배포 실패 중
+## 0. 개인정보처리방침·이용약관 URL — ✅ 배포 완료 (라이브)
 
-`site/index.html`에 개인정보처리방침이 **이미 작성돼 있다**(영문, 2026-07-19).
-Firebase Hosting(`firebase-hosting.yml`, 수동 실행 전용)으로 배포하면 아래 URL이 생긴다:
+Firebase Hosting(`firebase-hosting.yml`, 수동 실행 전용)으로 배포돼 아래 URL이 **실제로 열린다**.
+정책은 홈페이지 앵커(`/#privacy`)가 아니라 **독립 페이지**로 분리했다(`site/privacy/index.html`·
+`site/terms/index.html`, 공용 스타일 `site/legal.css`) — 스토어 심사는 정책 그 자체인 페이지를 기대하기 때문.
 
-- 커스텀 도메인 연결 시: `https://atlasarrows.loganland.app/#privacy`
-- 기본 Firebase URL(도메인 연결 여부와 무관하게 항상 사용 가능): `https://atlasarrows-7a720.web.app/#privacy`
+| 페이지 | 공식 도메인(스토어 입력용) | 기본 Firebase URL |
+|---|---|---|
+| 개인정보처리방침 | `https://atlasarrows.loganland.app/privacy/` | `https://atlasarrows-7a720.web.app/privacy/` |
+| 이용약관 | `https://atlasarrows.loganland.app/terms/` | `https://atlasarrows-7a720.web.app/terms/` |
 
-**Play Console·App Store Connect 둘 다 이 URL이 실제로 열려야 심사를 통과시킨다.**
+- **스토어에는 공식 도메인을 넣는다**(브랜딩·영속성). 커스텀 도메인은 Cloudflare CNAME + Firebase 콘솔
+  커스텀 도메인 등록 + SSL 발급까지 완료돼 HTTPS로 열림을 확인했다. (`web.app`은 동일 내용의 기본 주소.)
+- 두 페이지는 모바일 반응형(`viewport` 메타 포함)·다크모드 대응. 이용약관에는 **준거법 대한민국**,
+  발행처 소재지(경기도, 대한민국)·글로벌 서비스가 명시돼 있다.
+- ⚠️ **이용약관은 초안**이므로 법무 검토를 권장한다. 한국 전자상거래법 표기(상호·사업자등록번호·
+  대표자·통신판매업 신고번호 등)를 넣으려면 값 확보 후 두 페이지에 추가하면 된다.
 
-**⚠️ 실제로 워크플로를 실행해 봤는데 403으로 실패했다** (PR #27 코멘트에 로그 남김):
-```
-Error: ... /sites/atlasarrows-7a720 had HTTP Error: 403, The caller does not have permission
-```
-원인 — `FIREBASE_SERVICE_ACCOUNT_BASE64`가 가리키는 `firebase-distributor` 서비스
-계정은 `docs/RELEASE.md`에 문서화된 대로 **App Distribution 권한만**(`roles/firebaseappdistro.admin`)
-갖고 있고 Hosting 배포 권한이 없다. 리포 코드로는 못 고치는 **GCP IAM 설정** 문제라
-다음을 콘솔/`gcloud`로 직접 실행해야 한다:
+**[해결됨] 과거 403 배포 실패** — `FIREBASE_SERVICE_ACCOUNT_BASE64`가 가리키는 `firebase-distributor`
+서비스 계정이 App Distribution 권한(`roles/firebaseappdistro.admin`)만 갖고 Hosting 권한이 없어 403이 났었다.
+아래 역할을 부여해 해결했다(콘솔 IAM에서 부여 시 반드시 `firebase-distributor` 행에 추가 — `firebase-adminsdk`와 혼동 주의):
 
 ```bash
 gcloud projects add-iam-policy-binding atlasarrows-7a720 \
   --member="serviceAccount:firebase-distributor@atlasarrows-7a720.iam.gserviceaccount.com" \
   --role="roles/firebasehosting.admin" --condition=None
 ```
-
-역할 추가 후에도 같은 403이 나면, Hosting 사이트 `atlasarrows-7a720` 자체가 Firebase
-콘솔에서 아직 초기화(Get Started)되지 않았을 가능성이 있으니 그것도 확인할 것.
-권한 정리 후 워크플로를 다시 실행하면 위 URL이 살아난다.
-
-사이트 문구 중 "snake-arrow" 표현 2곳을 이번에 발견해 규칙(CLAUDE.md의 스네이크 금지)에
-맞춰 "tap-and-escape"/"a line of cells"로 수정해 뒀다(이 작업의 일부로 같이 커밋).
 
 ---
 
@@ -103,9 +99,9 @@ gcloud projects add-iam-policy-binding atlasarrows-7a720 \
 | 항목 | 값 |
 |---|---|
 | 이메일(필수) | `support@loganland.app` — 프로모션 사이트에 이미 게시된 공식 지원 주소. **실제 수신함이 살아 있는지 먼저 확인할 것**(개인 메일 `jax1205@gmail.com`으로 포워딩 여부 등) |
-| 웹사이트(선택) | `https://atlasarrows.loganland.app` (배포 후) 또는 `https://atlasarrows-7a720.web.app` |
+| 웹사이트(선택) | `https://atlasarrows.loganland.app` (라이브) |
 | 전화번호 | 미기재(선택 항목) |
-| 개인정보처리방침 URL(필수) | 0번 항목 참고 |
+| 개인정보처리방침 URL(필수) | `https://atlasarrows.loganland.app/privacy/` (라이브 — 0번 항목 참고) |
 
 ---
 
@@ -183,8 +179,8 @@ gcloud projects add-iam-policy-binding atlasarrows-7a720 \
 
 ## 7. 확인/참고 필요 사항 (블로커 아님, 사용자 판단 필요)
 
-1. **개인정보처리방침 사이트 배포가 403으로 실패 중** — 0번 항목의 GCP IAM 권한 추가가
-   먼저 필요하다. 코드/문서 쪽에서 더 할 일은 없고, 사용자의 GCP 콘솔 작업만 남았다.
+1. ~~개인정보처리방침 사이트 배포가 403으로 실패 중~~ **[해결됨]** — `firebase-distributor`에
+   `roles/firebasehosting.admin` 부여로 배포 성공. `/privacy/`·`/terms/` 공식 도메인으로 라이브(0번 항목).
 2. **`support@loganland.app` 수신 확인** — 실제 도메인 메일함이 연결돼 있는지, 아니면
    개인 메일로 리다이렉트되는지 확인 필요. 안 살아있으면 Play Console 문의가 유실된다.
 3. **광고 개인정보 동의(UMP/EU 사용자 동의) 미구현** — `lib/services/ads/`에 구글 UMP SDK
