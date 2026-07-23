@@ -347,6 +347,14 @@ class _RadarWorldMapState extends State<_RadarWorldMap>
   List<int> _hot = const [];
   double _cr = 0, _cc = 0;
 
+  /// The single cell lit as the destination beacon: the country's own cell
+  /// nearest its centroid. Lighting the *whole* country made a small nation
+  /// read as two or three separate beacons (worst during the dive, which has
+  /// no sonar ring to unify them), so only this one pin gets the accent and
+  /// the rest of the country stays faint land. Held as its own one-element
+  /// list so [_DotsPainter]'s identity-based repaint guard still works.
+  List<int> _lit = const [];
+
   /// Columns to roll the whole map by so the target lands dead centre. Unlike
   /// the map tab (which scrolls to a fixed beacon) this map never scrolls, so
   /// centring a country that straddles the left/right seam — a Pacific nation
@@ -410,12 +418,28 @@ class _RadarWorldMapState extends State<_RadarWorldMap>
     }
     _hot = hot;
     _shift = 0;
+    _lit = const [];
     if (hot.isNotEmpty) {
       _cr = sr / hot.length;
       var meanCol = math.atan2(sy, sx) / (2 * math.pi) * _wm.cols;
       if (meanCol < 0) meanCol += _wm.cols;
       _shift = (_wm.cols / 2 - meanCol).round() % _wm.cols;
       _cc = (meanCol + _shift) % _wm.cols;
+      // Pick the beacon: the country cell closest to the centroid, measured in
+      // the shifted frame the map is actually drawn in (so a seam-straddling
+      // nation compares distances on the same, un-split landmass).
+      var beacon = hot.first;
+      var best = double.infinity;
+      for (final i in hot) {
+        final dr = i ~/ _wm.cols - _cr;
+        final dc = (i % _wm.cols + _shift) % _wm.cols - _cc;
+        final d = dr * dr + dc * dc;
+        if (d < best) {
+          best = d;
+          beacon = i;
+        }
+      }
+      _lit = [beacon];
     }
   }
 
@@ -432,7 +456,7 @@ class _RadarWorldMapState extends State<_RadarWorldMap>
         child: Stack(
           children: [
             Positioned.fill(
-              child: CustomPaint(painter: _DotsPainter(_wm, _hot, c, _shift)),
+              child: CustomPaint(painter: _DotsPainter(_wm, _lit, c, _shift)),
             ),
             if (_hot.isNotEmpty)
               Positioned.fill(
@@ -464,8 +488,10 @@ class _RadarWorldMapState extends State<_RadarWorldMap>
   );
 }
 
-/// Static layer: faint land dots, plus the target country's dots in accent
-/// (with a soft glow underlay). Repaints only on target / theme change.
+/// Static layer: faint land dots, plus the destination beacon cell in accent
+/// (with a soft glow underlay). [hot] carries just that one beacon cell now, so
+/// the accent marks a single pin rather than the whole country. Repaints only
+/// on target / theme change.
 class _DotsPainter extends CustomPainter {
   _DotsPainter(this.wm, this.hot, this.c, this.shift) : _hotSet = hot.toSet();
   final WorldMap wm;

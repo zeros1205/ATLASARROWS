@@ -19,7 +19,11 @@ class DiveArgs {
   /// Target centroid, in grid (row, col) — the marker the camera dives into.
   final double cr, cc;
 
-  /// Linear cell indices of the target country's dots (drawn lit).
+  /// Linear cell index (as a one-element list) of the destination beacon — the
+  /// single dot drawn lit and dived into. It is the country's own cell nearest
+  /// the centroid, not the whole country: lighting every cell made a small
+  /// nation read as two or three beacons during the fall (there is no sonar
+  /// ring here to unify them, unlike the home map).
   final List<int> hot;
 
   /// Builds the dive data for [target] (a campaign country index), or null when
@@ -28,17 +32,29 @@ class DiveArgs {
   static DiveArgs? of(Rect mapRect, int target) {
     final wm = WorldMap.instance;
     if (!wm.isLoaded || target < 0) return null;
-    final hot = <int>[];
+    final cells = <int>[];
     var sr = 0.0, sc = 0.0;
     for (var i = 0; i < wm.cells.length; i++) {
       if (wm.countryOfCell(wm.cells[i]) == target) {
-        hot.add(i);
+        cells.add(i);
         sr += i ~/ wm.cols;
         sc += i % wm.cols;
       }
     }
-    if (hot.isEmpty) return null;
-    return DiveArgs._(mapRect, sr / hot.length, sc / hot.length, hot);
+    if (cells.isEmpty) return null;
+    final cr = sr / cells.length, cc = sc / cells.length;
+    // The one beacon cell: closest to the centroid.
+    var beacon = cells.first;
+    var best = double.infinity;
+    for (final i in cells) {
+      final dr = i ~/ wm.cols - cr, dc = i % wm.cols - cc;
+      final d = dr * dr + dc * dc;
+      if (d < best) {
+        best = d;
+        beacon = i;
+      }
+    }
+    return DiveArgs._(mapRect, cr, cc, [beacon]);
   }
 }
 
