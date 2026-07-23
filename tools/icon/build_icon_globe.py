@@ -17,16 +17,14 @@ import os
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from PIL import Image, ImageDraw, ImageFont  # noqa: E402
-
-OUTFIT_XB = os.path.join(ROOT, "assets", "fonts", "Outfit-ExtraBold.ttf")
+from PIL import Image, ImageDraw  # noqa: E402
 
 # --- identity (same palette as build_icon.py) -----------------------------
-CREAM = (255, 255, 255, 255)   # white icon ground (#FFFFFF)
+CREAM = (0xF7, 0xF7, 0xF7, 255)  # icon ground #F7F7F7
 DOT   = (90, 90, 96, 255)      # dense dark halftone (the approved "best" background)
-MINT  = (0x0A, 0x5C, 0xFF, 255)  # vivid icon blue #0A5CFF — punchier than in-game #1D8BFF
-INK   = (35, 37, 46, 255)
-RED   = (255, 77, 103, 255)    # AppColors.light.danger #FF4D67 — the in-game blocked line
+MINT  = (0x23, 0x23, 0xFF, 255)  # icon-only blue #2323FF
+INK   = (0x25, 0x25, 0x25, 255)  # icon-only black #252525
+RED   = (0xCD, 0x1C, 0x18, 255)  # icon-only red #CD1C18
 
 
 def _load_world():
@@ -136,20 +134,6 @@ def _round_poly(verts, radii, steps=10):
     return out
 
 
-def _draw_title(dr, text, cx, cy, S, color):
-    """Centred, letter-spaced wordmark in Outfit ExtraBold. Anchored on the
-    vertical middle (anchor='lm') so `cy` is the text's centre line."""
-    size = int(S * 0.21)
-    font = ImageFont.truetype(OUTFIT_XB, size)
-    tracking = size * -0.05
-    widths = [dr.textlength(ch, font=font) for ch in text]
-    total = sum(widths) + tracking * (len(text) - 1)
-    x = cx - total / 2
-    for ch, w in zip(text, widths):
-        dr.text((x, cy), ch, font=font, fill=color, anchor="lm")
-        x += w + tracking
-
-
 def _arrow(dr, x_tail, x_tip, y, bar, head_l, head_h, color) -> None:
     rightward = x_tip > x_tail
     x_neck = x_tip - (head_l if rightward else -head_l)
@@ -180,8 +164,7 @@ LAND = (150, 148, 138, 255)   # solid continents: darker than the dot so the
 
 def render_globe(size, background, *, center_lat=12.0, center_lon=-30.0,
                  n_across=50, disk_w=1.6, squash=0.68, cx=0.5, cy=0.70,
-                 supersample=4, with_arrows=True, with_title=True,
-                 style="dots") -> Image.Image:
+                 supersample=4, with_arrows=True, style="dots") -> Image.Image:
     """The globe is drawn as a wide, vertically-squashed dome sitting low in the
     canvas, matching the reference: a curved-top world cap at the icon's bottom.
 
@@ -226,15 +209,19 @@ def render_globe(size, background, *, center_lat=12.0, center_lon=-30.0,
         # coordinates are fixed so the arrows keep their length.
         bar = S * 0.09315
         head_l, head_h = bar * 3.0, bar * 3.0
-        # tip aligned to the ink arrow's top edge (ink y 0.4323 - bar/2)
-        _arrow_vertical(arrow_dr, S * 0.81, S, S * 0.3857, bar, head_l, head_h, MINT)
-        _arrow(arrow_dr, 0, S * 0.6701, S * 0.4323, bar, head_l, head_h, INK)
-        _arrow(arrow_dr, S * 0.6213, S * 0.15, S * 0.76, bar, head_l, head_h, RED)
+        # tip stretched up to the 10%-of-canvas line (was aligned to the ink
+        # arrow's top edge; now reaches noticeably higher on its own).
+        _arrow_vertical(arrow_dr, S * 0.81, S, S * 0.10, bar, head_l, head_h, MINT)
+        # Three horizontal arrows (black, black, red), evenly spaced: red
+        # anchors the bottom (moved down 5%, 0.76 -> 0.81), the top black is a
+        # same-size twin of the original placed above it, and the gap between
+        # all three is equal ((0.81 - 0.16) / 2 = 0.325).
+        _arrow(arrow_dr, 0, S * 0.6701, S * 0.16, bar, head_l, head_h, INK)
+        _arrow(arrow_dr, 0, S * 0.6701, S * 0.485, bar, head_l, head_h, INK)
+        _arrow(arrow_dr, S * 0.6213, S * 0.10, S * 0.81, bar, head_l, head_h, RED)
 
     img.alpha_composite(dot_layer)
     img.alpha_composite(arrow_layer)
-    if with_title:
-        _draw_title(ImageDraw.Draw(img), "ATLAS", S * 0.5, S * 0.16, S, INK)
     return img.resize((size, size), Image.LANCZOS)
 
 
