@@ -218,7 +218,10 @@ def render_globe(size, background, *, center_lat=12.0, center_lon=-30.0,
         # all three is equal ((0.81 - 0.16) / 2 = 0.325).
         _arrow(arrow_dr, 0, S * 0.6701, S * 0.16, bar, head_l, head_h, INK)
         _arrow(arrow_dr, 0, S * 0.6701, S * 0.485, bar, head_l, head_h, INK)
-        _arrow(arrow_dr, S * 0.6213, S * 0.10, S * 0.81, bar, head_l, head_h, RED)
+        # tail (right edge, since this arrow points left) snapped to the black
+        # arrows' tip x (0.6701), whole arrow shifted right by the same delta
+        # so its length is unchanged.
+        _arrow(arrow_dr, S * 0.6701, S * 0.1488, S * 0.81, bar, head_l, head_h, RED)
 
     img.alpha_composite(dot_layer)
     img.alpha_composite(arrow_layer)
