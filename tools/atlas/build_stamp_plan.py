@@ -40,7 +40,10 @@ COLOURS = [
     ("teal", "dark teal", "#1F6F78"),
 ]
 
-CAPTIONS = ["VISITED", "EXPLORED", "UNLOCKED", "COMPLETED", "DISCOVERED"]
+# "UNLOCKED" was dropped — it reads gamey next to the passport-stamp fiction
+# (the others are travel verbs). Existing UNLOCKED stamps were regenerated as
+# VISITED; do not reintroduce it.
+CAPTIONS = ["VISITED", "EXPLORED", "COMPLETED", "DISCOVERED"]
 
 # Islands a country's outline is wrong without. Only entries the user has
 # called out get one — guessing at contested territory is not our call.
