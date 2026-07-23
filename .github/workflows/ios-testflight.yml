@@ -155,19 +155,6 @@ jobs:
           path: build/ios/ipa/*.ipa
           retention-days: 30
 
-      # TEMPORARY: one-off extraction of the SPM lockfile so it can be
-      # committed to the repo. Remove once Package.resolved is checked in —
-      # see the sentry_flutter/SentryBinaryImageCache break this was added
-      # to fix at the root instead of by pinning versions.
-      - name: Upload Package.resolved
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: package-resolved-${{ github.run_number }}
-          path: ios/Runner.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
-          retention-days: 7
-          if-no-files-found: warn
-
       - name: Upload to TestFlight
         if: steps.signing.outputs.ready == 'true' && inputs.build_only != true
         uses: apple-actions/upload-testflight-build@v3
