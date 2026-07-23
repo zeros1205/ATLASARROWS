@@ -44,12 +44,15 @@ class GameScreen extends StatefulWidget {
       this.mode = PlayMode.worldTour});
   final int stage;
 
-  /// When present, the screen was opened by the home sky-dive: it plays the
-  /// entrance sequence (globe dive → board dots rain in → arrows fill → chrome
-  /// slides in) instead of appearing whole. Null on every other entry.
+  /// When present, the screen was opened by the home sky-dive: the entrance
+  /// sequence (globe dive → name card → board dots rain in → arrows fill →
+  /// chrome slides in) starts with the dive. Null on every other entry — but
+  /// Random Play still plays the same sequence minus the dive itself; see
+  /// [_GameScreenState._entranceSequence].
   final DiveArgs? dive;
 
-  /// World Tour (fixed order) or Random (lucky-dip). Drives what "next" does.
+  /// World Tour (fixed order) or Random (lucky-dip). Drives what "next" does,
+  /// and — with [dive] — whether this entry plays the entrance sequence.
   final PlayMode mode;
 
   @override
@@ -76,6 +79,13 @@ class _GameScreenState extends State<GameScreen>
   /// The blank beat after touchdown (phase 3): the place's name + flag hold in
   /// the centre for a moment, then fade, before the board starts assembling.
   bool _titleCard = false;
+
+  /// True for any entry that should play the name-card → board-reveal →
+  /// chrome-slide-in sequence: a World Tour sky-dive has a [dive] to fly in
+  /// from, and Random Play has nowhere to dive from (no map dot to start at)
+  /// but still gets the same card + reveal, just starting straight at phase 3.
+  bool get _entranceSequence =>
+      widget.dive != null || widget.mode == PlayMode.random;
 
   // Feature flags — both surfaces are kept but held off for now; flip to true
   // to bring them back. Runtime fields (not const) so the gated code stays
@@ -182,12 +192,12 @@ class _GameScreenState extends State<GameScreen>
   /// [AtlasArrowsGame.boardRect]) isn't available until a frame after the
   /// level loads.
   ///
-  /// A dive entry starts this false: the board sits behind the globe-dive and
-  /// title-card overlays for a while, and arming it immediately would fly the
-  /// camera to its target unseen before the reveal even starts. [_buildGame]
-  /// arms it instead once the dots/arrows reveal finishes, so the player
-  /// actually sees the dive-in.
-  late bool _autoZoomPending = widget.dive == null;
+  /// An entrance-sequence entry (dive or random) starts this false: the board
+  /// sits behind the dive/title-card overlays for a while, and arming it
+  /// immediately would fly the camera to its target unseen before the reveal
+  /// even starts. [_buildGame] arms it instead once the dots/arrows reveal
+  /// finishes, so the player actually sees the dive-in.
+  late bool _autoZoomPending = !_entranceSequence;
   AnimationController? _autoZoomCtrl;
 
   void _maybeStartAutoZoom() {
@@ -274,6 +284,10 @@ class _GameScreenState extends State<GameScreen>
   void initState() {
     super.initState();
     _diving = widget.dive != null;
+    // Random Play has no map dot to dive from, but still gets the entrance
+    // sequence — it just starts straight at phase 3 (the name card) instead
+    // of behind the globe dive.
+    _titleCard = _entranceSequence && !_diving;
     _game = _buildGame(AppColors.light);
     _boardTc.addListener(_clampBoard);
     if (_coachEnabled && !Progress.instance.coachDone.value) {
@@ -295,7 +309,7 @@ class _GameScreenState extends State<GameScreen>
         onFailed: () => setState(() => _result = _Result.failed),
         onEscaped: _onEscaped,
         onRemoveUsed: Progress.instance.useRemove,
-        introOnLoad: widget.dive != null,
+        introOnLoad: _entranceSequence,
         // Phase 5: the arrows have started filling — bring the chrome in.
         onIntroArrows: () {
           if (mounted) setState(() => _chromeIn = true);
@@ -529,10 +543,10 @@ class _GameScreenState extends State<GameScreen>
   Widget build(BuildContext context) {
     final c = AppColors.of(context);
     _game.palette = c;
-    // Phase 5: on a dive entry the top/bottom bars start off-screen and slide
-    // in once [_chromeIn] flips (when the arrows begin). Off a dive they render
-    // in place, untouched.
-    final diving = widget.dive != null;
+    // Phase 5: on an entrance-sequence entry the top/bottom bars start
+    // off-screen and slide in once [_chromeIn] flips (when the arrows begin).
+    // On a plain entry they render in place, untouched.
+    final diving = _entranceSequence;
     Widget chrome(Widget child, {required bool top}) => !diving
         ? child
         : AnimatedSlide(
