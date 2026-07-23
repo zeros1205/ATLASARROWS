@@ -17,20 +17,18 @@ class AppSettings extends ChangeNotifier {
   ThemeMode get themeMode => _themeMode;
   Locale? get locale => _locale;
 
-  /// Ten service languages. Pretendard carries Latin, Cyrillic (Russian) and
-  /// Hangul; Japanese (kana/kanji) and Simplified Chinese (hanzi) fall through
-  /// to the platform CJK font, which Pretendard doesn't cover.
+  /// Seven service languages, chosen for this genre's highest-value markets
+  /// (Chinese, Russian and Italian were dropped). Pretendard carries Latin and
+  /// Hangul; Japanese kana/kanji falls through to the platform CJK font, which
+  /// Pretendard doesn't cover. Portuguese ships the Brazilian variant.
   static final supportedLocales = <Locale>[
     const Locale('en'),
     const Locale('de'),
     const Locale('fr'),
-    const Locale('it'),
     const Locale('ja'),
     const Locale('ko'),
     const Locale('pt'),
-    const Locale('ru'),
     const Locale('es'),
-    const Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
   ];
 
   /// Native language names (autonyms) for the language picker, keyed by
@@ -39,13 +37,10 @@ class AppSettings extends ChangeNotifier {
     'en': 'English',
     'de': 'Deutsch',
     'fr': 'Français',
-    'it': 'Italiano',
     'ja': '日本語',
     'ko': '한국어',
-    'pt': 'Português',
-    'ru': 'Русский',
+    'pt': 'Português (Brasil)',
     'es': 'Español',
-    'zh': '简体中文',
   };
 
   Future<void> load() async {
