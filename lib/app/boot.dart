@@ -79,6 +79,12 @@ final kBootConfig = LoganLandBootConfig(
 /// BuildContext, so nothing here is stuck waiting for one; only the icon
 /// precache in preloadFirstFrame does.
 Future<void> bootServices(void Function(double) onProgress) async {
+  // TEMPORARY: timing instrumentation to find the actual bottleneck instead
+  // of guessing. Remove once the slow step is identified and fixed.
+  final sw = Stopwatch()..start();
+  void mark(String label) =>
+      debugPrint('boot-timing: $label @ ${sw.elapsedMilliseconds}ms');
+
   final quickSteps = <(String, Future<void> Function())>[
     ('settings', AppSettings.instance.load),
     ('progress', Progress.instance.load),
@@ -94,6 +100,7 @@ Future<void> bootServices(void Function(double) onProgress) async {
     } catch (e) {
       debugPrint('boot: ${quickSteps[i].$1} failed — $e');
     }
+    mark(quickSteps[i].$1);
     onProgress((i + 1) / quickSteps.length * 0.1);
   }
 
@@ -102,6 +109,7 @@ Future<void> bootServices(void Function(double) onProgress) async {
   } catch (e) {
     debugPrint('boot: world map failed — $e');
   }
+  mark('world map');
   onProgress(0.25);
 
   // Every continent's stamps, downloaded here rather than shipped in the APK.
@@ -110,9 +118,12 @@ Future<void> bootServices(void Function(double) onProgress) async {
   // the bar — and it is allowed to come back partial: a failed pack retries
   // next launch and the app draws rounds without their stamp meanwhile.
   if (StampStore.instance.isLoaded) {
-    await StampStore.instance
-        .ensureAllPacks(onProgress: (p) => onProgress(0.25 + p * 0.75));
+    await StampStore.instance.ensureAllPacks(onProgress: (p) {
+      onProgress(0.25 + p * 0.75);
+      mark('stamps ${(p * 100).toStringAsFixed(0)}%');
+    });
   }
+  mark('stamps done');
   onProgress(1);
 }
 
@@ -133,6 +144,8 @@ Future<void> preloadFirstFrame(
   BuildContext context, {
   required void Function(double) onProgress,
 }) async {
+  // TEMPORARY: see the matching note in bootServices.
+  final sw = Stopwatch()..start();
   if (!context.mounted) return;
   const icons = [
     'assets/images/icons/heart.png',
@@ -145,5 +158,6 @@ Future<void> preloadFirstFrame(
     } catch (_) {/* a missing icon is not worth stalling the launch */}
     if (!context.mounted) return;
   }
+  debugPrint('boot-timing: icons done @ ${sw.elapsedMilliseconds}ms');
   onProgress(1);
 }
