@@ -157,6 +157,16 @@ def arrows(board):
     return len(board["lines"])
 
 
+# Country area (km²) comes from the campaign map build (campaign.json); the
+# board bank itself doesn't carry it, which is why bank.json used to ship
+# area_km2 as 0 for everyone.
+area_by_name = {}
+_camp_path = os.path.join(ROOT, "assets", "campaign", "campaign.json")
+if os.path.exists(_camp_path):
+    with open(_camp_path, encoding="utf-8") as f:
+        for _c in json.load(f)["countries"]:
+            area_by_name[_c["name"]] = _c.get("area_km2", 0)
+
 countries = []
 # The campaign order is already decided: `rank` runs 1..216, Vatican to Russia,
 # and it is baked into the boards themselves. This file does not get to
@@ -172,7 +182,7 @@ for cb in sorted(country_boards.values(), key=lambda b: b["rank"]):
         "ko": cb.get("ko", ""),
         "continent": continent_by_name.get(name, cb.get("continent", "")),
         "iso": iso_by_name.get(name, ""),
-        "area_km2": cb.get("area_km2", 0),
+        "area_km2": area_by_name.get(name, cb.get("area_km2", 0)),
         "stages": stages,
     })
 
