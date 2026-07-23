@@ -43,21 +43,25 @@ class SettingsScreen extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(18, 6, 18, 96),
                 children: [
                   _ToggleRow(
+                    icon: Icons.dark_mode_outlined,
                     label: l.settingsDarkMode,
                     value: settings.themeMode == ThemeMode.dark,
                     onChanged: settings.setDarkMode,
                   ),
                   _BoundToggleRow(
+                    icon: Icons.volume_up_outlined,
                     label: l.settingsSound,
                     source: progress.soundOn,
                     onChanged: progress.setSound,
                   ),
                   _BoundToggleRow(
+                    icon: Icons.vibration,
                     label: l.settingsHaptics,
                     source: progress.hapticsOn,
                     onChanged: progress.setHaptics,
                   ),
                   _NavRow(
+                    icon: Icons.translate,
                     label: l.settingsLanguage,
                     trailing: AppSettings.languageNames[
                             settings.locale?.languageCode ??
@@ -67,6 +71,7 @@ class SettingsScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: AppGap.lg),
                   _NavRow(
+                    icon: Icons.school_outlined,
                     label: l.settingsReplayTutorial,
                     trailing: '›',
                     onTap: () => _replayOnboarding(context),
@@ -74,6 +79,7 @@ class SettingsScreen extends StatelessWidget {
                   const SizedBox(height: AppGap.lg),
                   _RemoveAdsRow(),
                   _NavRow(
+                    icon: Icons.restore,
                     label: l.settingsRestorePurchases,
                     trailing: '›',
                     onTap: IapService.instance.restore,
@@ -148,13 +154,15 @@ class _RemoveAdsRow extends StatelessWidget {
       valueListenable: Progress.instance.adsRemoved,
       builder: (context, removed, _) {
         if (removed) {
-          return _NavRow(label: l.removeAds, trailing: l.owned);
+          return _NavRow(
+              icon: Icons.block, label: l.removeAds, trailing: l.owned);
         }
         return ValueListenableBuilder<List<ProductDetails>>(
           valueListenable: iap.products,
           builder: (context, _, _) {
             final product = iap.productFor(IapService.removeAdsProduct);
             return _NavRow(
+              icon: Icons.block,
               label: l.removeAds,
               trailing: product == null ? l.comingSoon : '${product.price} ›',
               onTap: product == null ? null : () => iap.buy(product),
@@ -169,7 +177,11 @@ class _RemoveAdsRow extends StatelessWidget {
 /// A toggle driven by a persistent [ValueNotifier] in [Progress].
 class _BoundToggleRow extends StatelessWidget {
   const _BoundToggleRow(
-      {required this.label, required this.source, required this.onChanged});
+      {required this.icon,
+      required this.label,
+      required this.source,
+      required this.onChanged});
+  final IconData icon;
   final String label;
   final ValueNotifier<bool> source;
   final ValueChanged<bool> onChanged;
@@ -177,14 +189,18 @@ class _BoundToggleRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ValueListenableBuilder<bool>(
         valueListenable: source,
-        builder: (context, value, _) =>
-            _ToggleRow(label: label, value: value, onChanged: onChanged),
+        builder: (context, value, _) => _ToggleRow(
+            icon: icon, label: label, value: value, onChanged: onChanged),
       );
 }
 
 class _ToggleRow extends StatelessWidget {
   const _ToggleRow(
-      {required this.label, required this.value, required this.onChanged});
+      {required this.icon,
+      required this.label,
+      required this.value,
+      required this.onChanged});
+  final IconData icon;
   final String label;
   final bool value;
   final ValueChanged<bool> onChanged;
@@ -196,7 +212,11 @@ class _ToggleRow extends StatelessWidget {
       c,
       child: Row(
         children: [
-          Expanded(child: Text(label, style: AppText.label.copyWith(color: c.ink))),
+          _RowIcon(icon, c),
+          Expanded(
+              child: Text(label,
+                  style: AppText.label
+                      .copyWith(color: c.ink, fontWeight: FontWeight.w500))),
           Switch(value: value, onChanged: onChanged, activeThumbColor: c.accent),
         ],
       ),
@@ -205,7 +225,12 @@ class _ToggleRow extends StatelessWidget {
 }
 
 class _NavRow extends StatelessWidget {
-  const _NavRow({required this.label, required this.trailing, this.onTap});
+  const _NavRow(
+      {required this.icon,
+      required this.label,
+      required this.trailing,
+      this.onTap});
+  final IconData icon;
   final String label, trailing;
   final VoidCallback? onTap;
 
@@ -216,7 +241,11 @@ class _NavRow extends StatelessWidget {
       c,
       child: Row(
         children: [
-          Expanded(child: Text(label, style: AppText.label.copyWith(color: c.ink))),
+          _RowIcon(icon, c),
+          Expanded(
+              child: Text(label,
+                  style: AppText.label
+                      .copyWith(color: c.ink, fontWeight: FontWeight.w500))),
           Text(trailing, style: AppText.label.copyWith(color: c.inkFaint)),
         ],
       ),
@@ -224,6 +253,19 @@ class _NavRow extends StatelessWidget {
     if (onTap == null) return Opacity(opacity: 0.65, child: row);
     return Pressable(scale: 0.985, onTap: onTap, child: row);
   }
+}
+
+/// The leading monochrome icon on a settings row.
+class _RowIcon extends StatelessWidget {
+  const _RowIcon(this.icon, this.c);
+  final IconData icon;
+  final AppColors c;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(right: 12),
+        child: Icon(icon, size: 20, color: c.inkSoft),
+      );
 }
 
 /// A row in the language-picker sheet. Uses [Pressable] instead of the stock

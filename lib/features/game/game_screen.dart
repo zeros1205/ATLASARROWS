@@ -1468,7 +1468,7 @@ class _UtilButton extends StatelessWidget {
       child: SizedBox(
         width: 60,
         height: 60,
-        child: Center(child: Icon(icon, size: 30, color: c.inkSoft)),
+        child: Center(child: Icon(icon, size: 45, color: c.inkSoft)),
       ),
     );
   }
@@ -1492,7 +1492,7 @@ class _BoosterButton extends StatelessWidget {
     return Pressable(
       onTap: onTap,
       child: Container(
-        width: 69,
+        width: 60,
         height: 60,
         decoration: BoxDecoration(
           color: c.surface,
@@ -1503,7 +1503,7 @@ class _BoosterButton extends StatelessWidget {
         child: Stack(
           clipBehavior: Clip.none,
           children: [
-            Center(child: Image.asset(icon, width: 32, height: 32)),
+            Center(child: Image.asset(icon, width: 48, height: 48)),
             // Sized off the digit inside it, not the other way round.
             Positioned(
               top: -9,

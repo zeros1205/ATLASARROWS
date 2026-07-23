@@ -47,7 +47,7 @@ abstract final class AppText {
 /// mixed in, which reads as sloppiness the moment two of them share a screen.
 const double kButtonPadV = 18;
 final TextStyle kButtonText =
-    AppText.headline.copyWith(fontWeight: FontWeight.w800);
+    AppText.headline.copyWith(fontWeight: FontWeight.w700);
 
 /// Pill buttons inside a compact popup (confirm dialogs, bottom sheets) — the
 /// full [kButtonPadV] height reads as oversized against the tighter copy a

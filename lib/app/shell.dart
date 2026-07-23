@@ -181,8 +181,11 @@ class _TabItem extends StatelessWidget {
               child: Text(tab.label,
                   maxLines: 1,
                   softWrap: false,
-                  style:
-                      AppText.caption.copyWith(color: color, letterSpacing: 0)),
+                  style: AppText.caption.copyWith(
+                      color: color,
+                      letterSpacing: 0,
+                      fontWeight: FontWeight.w400,
+                      fontSize: 13)),
             ),
           ],
         ),
