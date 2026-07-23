@@ -204,6 +204,12 @@ class _GameScreenState extends State<GameScreen>
   /// so that's the entrance target instead.
   static const double _entranceZoomFactor = 0.5;
 
+  /// Margin left on the two edges the chosen quadrant opens toward — as a
+  /// share of the play area. Not centred on the quadrant: a line escapes by
+  /// sliding off the board's edge, so the corner the quadrant points at needs
+  /// open space beyond it for that exit to actually be visible in frame.
+  static const double _entranceMargin = 0.20;
+
   /// Flies the view from the fit-to-screen state into one of the board's four
   /// quadrants, chosen at random, over 1.5s. The target is a fixed fraction of
   /// [AtlasArrowsGame.maxZoom] — the same value every other zoom control
@@ -213,16 +219,28 @@ class _GameScreenState extends State<GameScreen>
   void _autoZoomToQuadrant(Rect boardRect) {
     final qx = _rng.nextBool() ? -1.0 : 1.0;
     final qy = _rng.nextBool() ? -1.0 : 1.0;
-    final target = Offset(
-      boardRect.center.dx + qx * boardRect.width / 4,
-      boardRect.center.dy + qy * boardRect.height / 4,
+    // The board corner this quadrant opens toward: qx>0/qy<0 is the
+    // right/top corner (quadrant I), qx<0/qy<0 the left/top (II), qx<0/qy>0
+    // the left/bottom (III), qx>0/qy>0 the right/bottom (IV) — canvas y grows
+    // downward, so "top" is the smaller-y edge.
+    final corner = Offset(
+      qx > 0 ? boardRect.right : boardRect.left,
+      qy < 0 ? boardRect.top : boardRect.bottom,
+    );
+    // Where that corner should land on screen: inset by the margin from the
+    // same two edges it opens toward, leaving that fraction of the play area
+    // clear beyond it.
+    final vp = Offset(
+      _playRect.left +
+          _playRect.width * (qx > 0 ? 1 - _entranceMargin : _entranceMargin),
+      _playRect.top +
+          _playRect.height * (qy < 0 ? _entranceMargin : 1 - _entranceMargin),
     );
     final zoom = _game.maxZoom.value * _entranceZoomFactor;
-    final vc = _playRect.center;
     final end = Matrix4.identity()
-      ..translate(vc.dx, vc.dy)
+      ..translate(vp.dx, vp.dy)
       ..scale(zoom)
-      ..translate(-target.dx, -target.dy);
+      ..translate(-corner.dx, -corner.dy);
 
     if (reduceMotion(context)) {
       _boardTc.value = end;

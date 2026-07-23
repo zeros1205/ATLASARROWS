@@ -98,10 +98,14 @@ class LineComponent extends PositionComponent
     // small board removes it a few cells past the board edge, mid-view.
     _extendExitOffScreen();
     _anim = _Anim.escaping;
-    _speed = cell * 15;
+    _speed = cell * 15 * _escapeSpeedMul;
     _onGone = onGone;
     priority = 100;
   }
+
+  /// Escape glide is 1.5x its original pace end to end (start speed, ramp,
+  /// and cap all scaled together so the motion keeps the same shape).
+  static const double _escapeSpeedMul = 1.5;
 
   /// Rebuilds the path's straight exit ray so the line leaves the screen,
   /// using the board's fit transform and the current pan/zoom. Falls back to
@@ -168,7 +172,8 @@ class LineComponent extends PositionComponent
         // A gentle ramp to a capped glide speed. Uncapped acceleration made a
         // full-board exit at zoom-out flash past in a couple of frames (janky);
         // the cap holds it near ~1 cell/frame — a smooth slide at any zoom.
-        _speed = math.min(cell * 70, _speed + cell * 20 * dt);
+        _speed = math.min(
+            cell * 70 * _escapeSpeedMul, _speed + cell * 20 * _escapeSpeedMul * dt);
         _slide += _speed * dt;
         // Gone once the *head* reaches the end of the extended path — by then
         // the tail is off screen too. Waiting for the tail to travel the whole
