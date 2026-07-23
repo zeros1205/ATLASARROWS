@@ -300,6 +300,24 @@ class AtlasArrowsGame extends FlameGame {
     );
   }
 
+  /// Silhouette-cell counts per board quadrant, keyed by the (signX, signY) the
+  /// entrance dive uses: signX +1 = right half, -1 = left; signY -1 = top half
+  /// (smaller row), +1 = bottom. Lets the entrance zoom weight its target by
+  /// where the country actually is, so a diagonally-long silhouette never dives
+  /// into an empty off-diagonal corner. Empty until a board is laid out.
+  Map<(int, int), int> quadrantCellCounts() {
+    final board = _board;
+    if (board == null) return const {};
+    final level = board.level;
+    final cx = level.cols / 2, cy = level.rows / 2;
+    final counts = <(int, int), int>{};
+    for (final (r, c) in level.mask) {
+      final key = (c >= cx ? 1 : -1, r < cy ? -1 : 1);
+      counts.update(key, (v) => v + 1, ifAbsent: () => 1);
+    }
+    return counts;
+  }
+
   /// Fire the line under a point given in this game's canvas coordinates
   /// (GameWidget-local, i.e. after the pan/zoom transform has been undone but
   /// before the board's own centre-anchored fit scale). Tap detection lives in

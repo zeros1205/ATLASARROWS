@@ -220,15 +220,41 @@ class _GameScreenState extends State<GameScreen>
   /// open space beyond it for that exit to actually be visible in frame.
   static const double _entranceMargin = 0.20;
 
-  /// Flies the view from the fit-to-screen state into one of the board's four
-  /// quadrants, chosen at random, over 1.5s. The target is a fixed fraction of
+  /// Picks which board quadrant the entrance dive falls into, as the (qx, qy)
+  /// sign pair [_autoZoomToQuadrant] expects. A plain random pick flies the
+  /// camera into an empty corner whenever the silhouette is diagonally long
+  /// (content in quadrants II+IV leaves I+III blank), so the pick is weighted
+  /// by how many silhouette cells sit in each quadrant and drops the near-empty
+  /// ones. A compact board keeps all four quadrants, so the entrance still
+  /// varies; only the genuinely empty corners are excluded. Falls back to a
+  /// uniform random pick when the board exposes no cells.
+  (double, double) _pickEntranceQuadrant() {
+    final counts = _game.quadrantCellCounts();
+    final maxCount = counts.values.fold(0, math.max);
+    if (maxCount == 0) {
+      return (_rng.nextBool() ? -1.0 : 1.0, _rng.nextBool() ? -1.0 : 1.0);
+    }
+    final threshold = maxCount * 0.2;
+    final eligible =
+        counts.entries.where((e) => e.value >= threshold).toList();
+    final total = eligible.fold(0, (sum, e) => sum + e.value);
+    var pick = _rng.nextInt(total);
+    for (final e in eligible) {
+      pick -= e.value;
+      if (pick < 0) return (e.key.$1.toDouble(), e.key.$2.toDouble());
+    }
+    final last = eligible.last.key;
+    return (last.$1.toDouble(), last.$2.toDouble());
+  }
+
+  /// Flies the view from the fit-to-screen state into one of the board's
+  /// content-bearing quadrants, over 1.5s. The target is a fixed fraction of
   /// [AtlasArrowsGame.maxZoom] — the same value every other zoom control
   /// normalises by cell size — so the on-screen cell size, and so the arrow
   /// stroke width, still lands the same regardless of how many rows/columns
   /// this particular stage has; it's just shallower than the pinch limit.
   void _autoZoomToQuadrant(Rect boardRect) {
-    final qx = _rng.nextBool() ? -1.0 : 1.0;
-    final qy = _rng.nextBool() ? -1.0 : 1.0;
+    final (qx, qy) = _pickEntranceQuadrant();
     // The board corner this quadrant opens toward: qx>0/qy<0 is the
     // right/top corner (quadrant I), qx<0/qy<0 the left/top (II), qx<0/qy>0
     // the left/bottom (III), qx>0/qy>0 the right/bottom (IV) — canvas y grows
