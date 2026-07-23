@@ -5,13 +5,14 @@ import '../../app/tokens/colors.dart';
 import '../../app/tokens/dimens.dart';
 import '../../app/tokens/typography.dart';
 import '../../models/campaign_repository.dart';
+import '../../shared/motion.dart';
 import '../../shared/pressable.dart';
 import '../game/game_screen.dart';
 
 /// Full-screen country sheet, opened from a map marker's name bubble. Country
 /// name and flag pinned at the top, then a scrolling list: the country row
 /// (accent hairline) first, then every city — all with a play button and all
-/// open to play freely. Close with the X, top-right.
+/// open to play freely. Close with the circular chip at the bottom.
 class CountryDetailScreen extends StatelessWidget {
   const CountryDetailScreen({super.key, required this.countryIndex});
   final int countryIndex;
@@ -67,7 +68,8 @@ class CountryDetailScreen extends StatelessWidget {
                 Container(height: 1, color: c.line),
                 Expanded(
                   child: ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+                    // Extra bottom room so the last row clears the close chip.
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 96),
                     // The country row leads, then every city — all open to play.
                     itemCount: cities.length + 1,
                     separatorBuilder: (_, _) => const SizedBox(height: 10),
@@ -96,12 +98,11 @@ class CountryDetailScreen extends StatelessWidget {
               ],
             ),
             Positioned(
-              top: 4,
-              right: 4,
-              child: IconButton(
-                icon: const Icon(Icons.close),
-                color: c.inkSoft,
-                onPressed: () => Navigator.of(context).pop(),
+              left: 0,
+              right: 0,
+              bottom: 20,
+              child: Center(
+                child: _CloseChip(onClose: () => Navigator.of(context).pop()),
               ),
             ),
           ],
@@ -164,6 +165,64 @@ class _CityRow extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Bottom close control: a white circular chip with a hairline border that
+/// spins once on tap before dismissing the sheet. Skips the spin under OS
+/// reduce-motion.
+class _CloseChip extends StatefulWidget {
+  const _CloseChip({required this.onClose});
+  final VoidCallback onClose;
+
+  @override
+  State<_CloseChip> createState() => _CloseChipState();
+}
+
+class _CloseChipState extends State<_CloseChip>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _spin = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 340));
+  late final Animation<double> _turns =
+      CurvedAnimation(parent: _spin, curve: Curves.easeInOut);
+
+  @override
+  void dispose() {
+    _spin.dispose();
+    super.dispose();
+  }
+
+  void _tap() {
+    if (reduceMotion(context)) {
+      widget.onClose();
+      return;
+    }
+    _spin.forward(from: 0).whenComplete(widget.onClose);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = AppColors.of(context);
+    return Pressable(
+      onTap: _tap,
+      child: RotationTransition(
+        turns: _turns,
+        child: Container(
+          width: 52,
+          height: 52,
+          decoration: BoxDecoration(
+            color: c.surface,
+            shape: BoxShape.circle,
+            border: Border.all(color: c.line),
+            boxShadow: [
+              BoxShadow(color: c.shadow, blurRadius: 18, spreadRadius: -8,
+                  offset: const Offset(0, 6)),
+            ],
+          ),
+          child: Icon(Icons.close_rounded, size: 24, color: c.ink),
+        ),
       ),
     );
   }
