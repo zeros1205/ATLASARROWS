@@ -191,7 +191,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         const SizedBox(height: AppGap.md),
                         _SecondaryButton(
                           label: ko ? '랜덤 플레이' : 'Random',
-                          icon: Icons.shuffle,
                           onTap: () => play(mode: PlayMode.random),
                         ),
                       ],
@@ -584,10 +583,8 @@ class _PrimaryButton extends StatelessWidget {
 }
 
 class _SecondaryButton extends StatelessWidget {
-  const _SecondaryButton(
-      {required this.label, required this.icon, required this.onTap});
+  const _SecondaryButton({required this.label, required this.onTap});
   final String label;
-  final IconData icon;
   final VoidCallback onTap;
 
   @override
@@ -606,8 +603,6 @@ class _SecondaryButton extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 20, color: c.ink),
-            const SizedBox(width: 8),
             Text(label,
                 style: AppText.label
                     .copyWith(color: c.ink, fontWeight: FontWeight.w800)),
