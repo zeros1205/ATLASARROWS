@@ -90,7 +90,7 @@ static const bool androidConfigured = false;   // ← 설정 끝나면 true
    ```powershell
    keytool -list -v -keystore atlasarrows-release.jks -alias atlasarrows
    ```
-5. **업적 5개 · 리더보드 2개** — Play Games는 생성 API가 없어 **콘솔 Import**로 올린다:
+5. **업적 11개(대륙 6 + 일반 5) · 리더보드 2개** — Play Games는 생성 API가 없어 **콘솔 Import**로 올린다:
    - `python3 tools/game_services/gen_pgs_import.py` (또는 GitHub Actions의
      **Play Games · Import Bundle** 워크플로 실행 → 아티팩트 다운로드)로
      `AtlasArrowsAchievementsImport.zip` / `...LeaderboardsImport.zip` 생성
@@ -138,7 +138,7 @@ static const bool androidConfigured = false;   // ← 설정 끝나면 true
 | stages | 클리어한 총 스테이지 수 |
 | countries | 완주한 국가 수 |
 
-**업적**
+**업적 — 일반 5개**
 | 키 | 조건 |
 |---|---|
 | `first_clear` | 첫 스테이지 클리어 |
@@ -146,6 +146,25 @@ static const bool androidConfigured = false;   // ← 설정 끝나면 true
 | `stages_50` | 50 스테이지 |
 | `stages_250` | 250 스테이지 |
 | `flawless` | 하트를 하나도 잃지 않고 클리어 |
+
+**업적 — 대륙 완주 6개** (`_continentAchievements`, `bank.json`의 `continent` 문자열이 키)
+| 대륙 | 국가 수 |
+|---|---|
+| Europe | 50 |
+| Asia | 52 |
+| Africa | 55 |
+| North America | 31 |
+| South America | 13 |
+| Oceania | 15 |
+
+국가 수는 `tools/game_services/gen_pgs_import.py`의 업적 설명 문구에 박혀 있다 — 캠페인
+데이터가 바뀌면 그 스크립트도 같이 갱신해야 문구가 안 어긋난다.
+
+⚠️ **iOS ID는 이미 코드에 확정돼 있다** — `game_services.dart`의 `ios:` 필드
+(`atlsars.leaderboard.stages/countries`, `atlsars.achievement.first_clear` 등 11개)를
+**그대로** App Store Connect › Game Center에 입력하면 된다. 콘솔에서 새로 짓지 말 것.
+Android는 반대로 `CgkI_atlsars_*`가 전부 **플레이스홀더**라, 5번 절차대로 Play Console
+Import를 거쳐 받은 진짜 `CgkI…` 값으로 교체해야 한다.
 
 제출 시점은 `game_screen.dart`의 `_reportToGameServices()` — 스테이지 진행 시
 fire-and-forget으로 보낸다.
