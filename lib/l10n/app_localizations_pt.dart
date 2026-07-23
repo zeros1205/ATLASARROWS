@@ -148,6 +148,17 @@ class AppLocalizationsPt extends AppLocalizations {
       'Mande todas as setas para fora para concluir a fase e siga o mapa-múndi até o próximo país.';
 
   @override
+  String get onboardingItemsTitle => 'Dois itens para ajudar';
+
+  @override
+  String get onboardingItemHintDesc =>
+      'Mostra uma seta que você pode liberar agora — ela pisca em azul.';
+
+  @override
+  String get onboardingItemRemoveDesc =>
+      'Toque nele e depois em uma seta para removê-la.';
+
+  @override
   String get onboardingSkip => 'Pular';
 
   @override

@@ -1379,7 +1379,6 @@ class _BoosterBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context);
     return Padding(
       // Bottom padding is the gap to the ad banner: three times the top, so
       // the controls read as part of the board rather than as part of the ad.
@@ -1393,7 +1392,6 @@ class _BoosterBar extends StatelessWidget {
             child: Center(
               child: _UtilButton(
                 icon: Icons.center_focus_strong_outlined,
-                label: l.barFit,
                 onTap: onResetView,
               ),
             ),
@@ -1404,7 +1402,6 @@ class _BoosterBar extends StatelessWidget {
                 valueListenable: Progress.instance.hints,
                 builder: (context, n, _) => _BoosterButton(
                   icon: 'assets/images/icons/hint.png',
-                  label: l.barHint,
                   count: n,
                   onTap: () {
                     if (n <= 0) {
@@ -1426,7 +1423,6 @@ class _BoosterBar extends StatelessWidget {
                   valueListenable: Progress.instance.removes,
                   builder: (context, n, _) => _BoosterButton(
                     icon: 'assets/images/icons/remove.png',
-                    label: l.barRemove,
                     count: n,
                     armed: armed,
                     onTap: () {
@@ -1446,7 +1442,6 @@ class _BoosterBar extends StatelessWidget {
             child: Center(
               child: _UtilButton(
                 icon: Icons.refresh,
-                label: l.barRestart,
                 onTap: onRestart,
               ),
             ),
@@ -1457,13 +1452,12 @@ class _BoosterBar extends StatelessWidget {
   }
 }
 
-/// Same anatomy as a booster tile — icon over a caption, same height — but no
-/// frame and no counter, because these two cost nothing and never run out.
+/// Same size as a booster tile but no frame and no counter — a bare icon,
+/// because these two utilities cost nothing and never run out. Labels live in
+/// the tutorial now, not under every button.
 class _UtilButton extends StatelessWidget {
-  const _UtilButton(
-      {required this.icon, required this.label, required this.onTap});
+  const _UtilButton({required this.icon, required this.onTap});
   final IconData icon;
-  final String label;
   final VoidCallback onTap;
 
   @override
@@ -1474,26 +1468,7 @@ class _UtilButton extends StatelessWidget {
       child: SizedBox(
         width: 60,
         height: 60,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 27, color: c.inkSoft),
-            const SizedBox(height: 2),
-            // One line, scaled to fit — a translated label (e.g. German "fit
-            // view") is far wider than this compact tile and must not wrap.
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(label,
-                  maxLines: 1,
-                  softWrap: false,
-                  style: AppText.caption.copyWith(
-                      color: c.inkSoft,
-                      fontWeight: FontWeight.w500,
-                      letterSpacing: 0.5,
-                      fontSize: 16)),
-            ),
-          ],
-        ),
+        child: Center(child: Icon(icon, size: 30, color: c.inkSoft)),
       ),
     );
   }
@@ -1502,12 +1477,11 @@ class _UtilButton extends StatelessWidget {
 class _BoosterButton extends StatelessWidget {
   const _BoosterButton({
     required this.icon,
-    required this.label,
     required this.count,
     required this.onTap,
     this.armed = false,
   });
-  final String icon, label;
+  final String icon;
   final int count;
   final bool armed;
   final VoidCallback onTap;
@@ -1529,25 +1503,7 @@ class _BoosterButton extends StatelessWidget {
         child: Stack(
           clipBehavior: Clip.none,
           children: [
-            Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Image.asset(icon, width: 29, height: 29),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(label,
-                        maxLines: 1,
-                        softWrap: false,
-                        style: AppText.caption.copyWith(
-                            color: c.inkSoft,
-                            fontWeight: FontWeight.w500,
-                            letterSpacing: 0.5,
-                            fontSize: 16)),
-                  ),
-                ],
-              ),
-            ),
+            Center(child: Image.asset(icon, width: 32, height: 32)),
             // Sized off the digit inside it, not the other way round.
             Positioned(
               top: -9,

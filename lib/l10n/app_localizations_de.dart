@@ -148,6 +148,17 @@ class AppLocalizationsDe extends AppLocalizations {
       'Schick jeden Pfeil hinaus, um die Ebene zu schaffen, und folge dann der Weltkarte zum nächsten Land.';
 
   @override
+  String get onboardingItemsTitle => 'Zwei Items helfen dir';
+
+  @override
+  String get onboardingItemHintDesc =>
+      'Zeigt einen Pfeil, den du gerade freimachen kannst – er blinkt blau.';
+
+  @override
+  String get onboardingItemRemoveDesc =>
+      'Tippe darauf und dann auf einen Pfeil, um ihn zu entfernen.';
+
+  @override
   String get onboardingSkip => 'Überspringen';
 
   @override

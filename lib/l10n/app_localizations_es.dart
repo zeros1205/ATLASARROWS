@@ -148,6 +148,17 @@ class AppLocalizationsEs extends AppLocalizations {
       'Saca todas las flechas para completar la fase y luego sigue el mapa del mundo hasta el próximo país.';
 
   @override
+  String get onboardingItemsTitle => 'Dos objetos para ayudarte';
+
+  @override
+  String get onboardingItemHintDesc =>
+      'Muestra una flecha que puedes liberar ahora mismo: parpadea en azul.';
+
+  @override
+  String get onboardingItemRemoveDesc =>
+      'Tócalo y luego toca una flecha para eliminarla.';
+
+  @override
   String get onboardingSkip => 'Omitir';
 
   @override

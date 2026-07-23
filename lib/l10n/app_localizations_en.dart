@@ -148,6 +148,17 @@ class AppLocalizationsEn extends AppLocalizations {
       'Send every arrow out to finish the stage, then follow the world map to the next country.';
 
   @override
+  String get onboardingItemsTitle => 'Two items can help';
+
+  @override
+  String get onboardingItemHintDesc =>
+      'Shows an arrow you can free right now — it blinks blue.';
+
+  @override
+  String get onboardingItemRemoveDesc =>
+      'Tap it, then tap any arrow to clear it out of the way.';
+
+  @override
   String get onboardingSkip => 'Skip';
 
   @override

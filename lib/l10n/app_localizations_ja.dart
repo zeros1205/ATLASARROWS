@@ -144,6 +144,15 @@ class AppLocalizationsJa extends AppLocalizations {
       'すべての矢印を送り出してステージをクリアし、ワールドマップをたどって次の国へ進みましょう。';
 
   @override
+  String get onboardingItemsTitle => '2つのアイテムが助けてくれる';
+
+  @override
+  String get onboardingItemHintDesc => '今すぐ出せる矢印を青く点滅させて教えます。';
+
+  @override
+  String get onboardingItemRemoveDesc => 'タップしてから矢印をタップすると、その矢印を消せます。';
+
+  @override
   String get onboardingSkip => 'スキップ';
 
   @override

@@ -360,6 +360,24 @@ abstract class AppLocalizations {
   /// **'Send every arrow out to finish the stage, then follow the world map to the next country.'**
   String get onboardingClearBody;
 
+  /// No description provided for @onboardingItemsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Two items can help'**
+  String get onboardingItemsTitle;
+
+  /// No description provided for @onboardingItemHintDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Shows an arrow you can free right now — it blinks blue.'**
+  String get onboardingItemHintDesc;
+
+  /// No description provided for @onboardingItemRemoveDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap it, then tap any arrow to clear it out of the way.'**
+  String get onboardingItemRemoveDesc;
+
   /// No description provided for @onboardingSkip.
   ///
   /// In en, this message translates to:

@@ -148,6 +148,17 @@ class AppLocalizationsFr extends AppLocalizations {
       'Faites sortir toutes les flèches pour terminer le niveau, puis suivez la carte du monde jusqu\'au pays suivant.';
 
   @override
+  String get onboardingItemsTitle => 'Deux objets pour vous aider';
+
+  @override
+  String get onboardingItemHintDesc =>
+      'Indique une flèche que vous pouvez libérer tout de suite — elle clignote en bleu.';
+
+  @override
+  String get onboardingItemRemoveDesc =>
+      'Touchez-le, puis touchez une flèche pour la retirer.';
+
+  @override
   String get onboardingSkip => 'Passer';
 
   @override

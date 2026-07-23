@@ -145,6 +145,15 @@ class AppLocalizationsKo extends AppLocalizations {
       '모든 화살표를 내보내면 스테이지 완료. 세계지도를 따라 다음 나라로 나아가세요.';
 
   @override
+  String get onboardingItemsTitle => '막히면 아이템을 써요';
+
+  @override
+  String get onboardingItemHintDesc => '지금 뺄 수 있는 화살표를 파란색으로 깜빡여 알려줘요.';
+
+  @override
+  String get onboardingItemRemoveDesc => '누른 뒤 아무 화살표나 탭하면 그 화살표를 없애요.';
+
+  @override
   String get onboardingSkip => '건너뛰기';
 
   @override

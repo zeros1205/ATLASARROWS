@@ -9,9 +9,9 @@ import '../../shared/motion.dart';
 import '../../shared/pressable.dart';
 import 'onboarding_diagram.dart';
 
-/// First-run intro: three rule cards, then straight into play. Onboarding is
-/// the project's top priority surface — it is short, skippable, and every page
-/// shows the rule in motion rather than describing it in prose.
+/// First-run intro: two rule cards that show the rule in motion, then an items
+/// card for the two consumable controls (hint / remove), then straight into
+/// play. Onboarding is the project's top priority surface — short and skippable.
 ///
 /// Shown by [BootScreen] when `Progress.onboarded` is false, and replayable
 /// from Settings. [onDone] is called once the player finishes or skips.
@@ -25,11 +25,12 @@ class OnboardingScreen extends StatefulWidget {
 }
 
 class _OnboardingScreenState extends State<OnboardingScreen> {
+  // Two animated rule pages; a third, custom "items" page follows them.
   static const _rules = [
     OnboardingRule.escape,
     OnboardingRule.blocked,
-    OnboardingRule.clear,
   ];
+  int get _pageCount => _rules.length + 1;
 
   /// Localized title + body for a rule card.
   static (String, String) _copy(AppLocalizations l, OnboardingRule rule) =>
@@ -45,7 +46,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final _controller = PageController();
   int _index = 0;
 
-  bool get _isLast => _index == _rules.length - 1;
+  bool get _isLast => _index == _pageCount - 1;
 
   @override
   void dispose() {
@@ -97,39 +98,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             Expanded(
               child: PageView.builder(
                 controller: _controller,
-                itemCount: _rules.length,
+                itemCount: _pageCount,
                 onPageChanged: (i) => setState(() => _index = i),
-                itemBuilder: (context, i) {
-                  final rule = _rules[i];
-                  final (title, body) = _copy(l, rule);
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 32),
-                    child: Column(
-                      children: [
-                        const Spacer(),
-                        SizedBox(
-                          height: 220,
-                          width: 220,
-                          child: OnboardingDiagram(rule: rule),
-                        ),
-                        const SizedBox(height: AppGap.xxl),
-                        Text(title,
-                            textAlign: TextAlign.center,
-                            style: AppText.display.copyWith(
-                                color: c.ink, fontSize: 26, height: 1.2)),
-                        const SizedBox(height: AppGap.md),
-                        Text(body,
-                            textAlign: TextAlign.center,
-                            style: AppText.body.copyWith(
-                                color: c.inkSoft, height: 1.5)),
-                        const Spacer(flex: 2),
-                      ],
-                    ),
-                  );
-                },
+                itemBuilder: (context, i) => i < _rules.length
+                    ? _rulePage(c, l, _rules[i])
+                    : _itemsPage(c, l),
               ),
             ),
-            _Dots(count: _rules.length, index: _index, colors: c),
+            _Dots(count: _pageCount, index: _index, colors: c),
             const SizedBox(height: AppGap.lg),
             Padding(
               padding: const EdgeInsets.fromLTRB(32, 0, 32, 24),
@@ -153,6 +129,87 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       ),
     );
   }
+
+  /// An animated rule card: the diagram in motion over its title + body.
+  Widget _rulePage(AppColors c, AppLocalizations l, OnboardingRule rule) {
+    final (title, body) = _copy(l, rule);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 32),
+      child: Column(
+        children: [
+          const Spacer(),
+          SizedBox(
+              height: 220, width: 220, child: OnboardingDiagram(rule: rule)),
+          const SizedBox(height: AppGap.xxl),
+          Text(title,
+              textAlign: TextAlign.center,
+              style: AppText.display
+                  .copyWith(color: c.ink, fontSize: 26, height: 1.2)),
+          const SizedBox(height: AppGap.md),
+          Text(body,
+              textAlign: TextAlign.center,
+              style: AppText.body.copyWith(color: c.inkSoft, height: 1.5)),
+          const Spacer(flex: 2),
+        ],
+      ),
+    );
+  }
+
+  /// The items card: the two consumable controls (hint, remove) with what each
+  /// one does. The play screen shows them as bare icons, so this is where their
+  /// names and effects are taught.
+  Widget _itemsPage(AppColors c, AppLocalizations l) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 32),
+      child: Column(
+        children: [
+          const Spacer(),
+          Text(l.onboardingItemsTitle,
+              textAlign: TextAlign.center,
+              style: AppText.display
+                  .copyWith(color: c.ink, fontSize: 26, height: 1.2)),
+          const SizedBox(height: AppGap.xxl),
+          _itemRow(c, 'assets/images/icons/hint.png', l.barHint,
+              l.onboardingItemHintDesc),
+          const SizedBox(height: AppGap.lg),
+          _itemRow(c, 'assets/images/icons/remove.png', l.barRemove,
+              l.onboardingItemRemoveDesc),
+          const Spacer(flex: 2),
+        ],
+      ),
+    );
+  }
+
+  /// One item: its in-game icon in a tile like the play screen's, then its name
+  /// and what it does.
+  Widget _itemRow(AppColors c, String icon, String name, String desc) => Row(
+        children: [
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              color: c.surface,
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              border: Border.all(color: c.line, width: 1.5),
+            ),
+            child: Center(child: Image.asset(icon, width: 34, height: 34)),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name,
+                    style: AppText.headline
+                        .copyWith(color: c.ink, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 4),
+                Text(desc,
+                    style: AppText.body.copyWith(color: c.inkSoft, height: 1.4)),
+              ],
+            ),
+          ),
+        ],
+      );
 }
 
 class _Dots extends StatelessWidget {
