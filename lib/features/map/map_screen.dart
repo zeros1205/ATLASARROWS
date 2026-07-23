@@ -160,14 +160,32 @@ class _MapScreenState extends State<MapScreen>
   /// the player actually pressed.
   int _popupCopy = 1;
 
-  /// Scroll offset that puts grid column [col] in the middle of the viewport,
-  /// on the middle copy.
-  double _offsetFor(double col, double mapWidth, double viewport) =>
-      mapWidth + (col + 0.5) / _wm.cols * mapWidth - viewport / 2;
+  /// Scroll offset that puts grid column [col] in the middle of the viewport.
+  ///
+  /// Normalised onto the middle copy's band [0.5w, 1.5w] so the result never
+  /// trips [_wrapScroll] right after we jump to it — an un-normalised offset
+  /// could land outside the band and get wrapped back off-centre, and could cut
+  /// an in-flight [_goToCurrent] animation short. The copies are identical, so
+  /// shifting by whole copies keeps the beacon dead-centre.
+  double _offsetFor(double col, double mapWidth, double viewport) {
+    var o = mapWidth + (col + 0.5) / _wm.cols * mapWidth - viewport / 2;
+    while (o < mapWidth * 0.5) {
+      o += mapWidth;
+    }
+    while (o > mapWidth * 1.5) {
+      o -= mapWidth;
+    }
+    return o;
+  }
+
+  /// Set while a programmatic recentre animates, so the wrap doesn't jump the
+  /// scroll mid-flight and strand it away from the beacon.
+  bool _suppressWrap = false;
 
   /// Slides the offset back onto the middle copy whenever it drifts onto a
   /// neighbour. The copies are identical, so the jump is invisible.
   void _wrapScroll() {
+    if (_suppressWrap) return;
     final w = _copyW;
     if (w <= 0 || !_hc.hasClients) return;
     final o = _hc.offset;
@@ -186,12 +204,17 @@ class _MapScreenState extends State<MapScreen>
     _hc.jumpTo(_offsetFor(_hotC, mapWidth, viewport));
   }
 
-  /// The 'my location' button: glide back to the next-stage beacon.
+  /// The 'my location' button: glide back to the next-stage beacon. The wrap is
+  /// suppressed for the duration so it can't cut the glide short.
   void _goToCurrent(double mapWidth, double viewport) {
     _ensureHot();
     if (!_hasHot || !_hc.hasClients) return;
-    _hc.animateTo(_offsetFor(_hotC, mapWidth, viewport),
-        duration: const Duration(milliseconds: 420), curve: Curves.easeOutCubic);
+    _suppressWrap = true;
+    _hc
+        .animateTo(_offsetFor(_hotC, mapWidth, viewport),
+            duration: const Duration(milliseconds: 420),
+            curve: Curves.easeOutCubic)
+        .whenComplete(() => _suppressWrap = false);
   }
 
   // ── Country markers ─────────────────────────────────────────────────────
