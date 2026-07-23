@@ -263,13 +263,19 @@ class _GameScreenState extends State<GameScreen>
   /// this particular stage has; it's just shallower than the pinch limit.
   void _autoZoomToQuadrant(Rect boardRect) {
     final (qx, qy) = _pickEntranceQuadrant();
-    // The board corner this quadrant opens toward: qx>0/qy<0 is the
+    // Aim at a corner of the quadrant's actual silhouette cells, not the grid
+    // box: an irregular board (a city like Nairobi) leaves its grid-box corners
+    // empty, so the old grid-corner target flew the camera onto blank space.
+    // Falls back to the grid box only if the quadrant somehow exposes no cells.
+    final content =
+        _game.quadrantMaskRect(qx > 0 ? 1 : -1, qy < 0 ? -1 : 1) ?? boardRect;
+    // The content corner this quadrant opens toward: qx>0/qy<0 is the
     // right/top corner (quadrant I), qx<0/qy<0 the left/top (II), qx<0/qy>0
     // the left/bottom (III), qx>0/qy>0 the right/bottom (IV) — canvas y grows
     // downward, so "top" is the smaller-y edge.
     final corner = Offset(
-      qx > 0 ? boardRect.right : boardRect.left,
-      qy < 0 ? boardRect.top : boardRect.bottom,
+      qx > 0 ? content.right : content.left,
+      qy < 0 ? content.top : content.bottom,
     );
     // Where that corner should land on screen: inset by the margin from the
     // same two edges it opens toward, leaving that fraction of the play area
@@ -1346,9 +1352,8 @@ class _IntroTitleCardState extends State<_IntroTitleCard>
   }
 }
 
-/// Fit-view and restart flank the two boosters. Both booster tiles are the
-/// same width and both utility tiles are the same width, so the pair stays on
-/// the screen's centre line no matter what the counters read.
+/// The four play controls — fit-view, hint, remove, restart — spread evenly
+/// across the width, each centred in its own equal quarter.
 class _BoosterBar extends StatelessWidget {
   const _BoosterBar(
       {required this.game, required this.onResetView, required this.onRestart});
@@ -1375,60 +1380,72 @@ class _BoosterBar extends StatelessWidget {
       // Bottom padding is the gap to the ad banner: three times the top, so
       // the controls read as part of the board rather than as part of the ad.
       padding: const EdgeInsets.fromLTRB(20, 10, 20, 30),
+      // Four controls spread evenly across the width: each takes an equal
+      // quarter and centres its tile inside it, so they read as one balanced
+      // row regardless of the tiles' differing widths or the counters.
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          _UtilButton(
-            icon: Icons.center_focus_strong_outlined,
-            label: l.barFit,
-            onTap: onResetView,
-          ),
-          // The two consumables read as one group; the utilities do not sit
-          // inside it.
-          Row(mainAxisSize: MainAxisSize.min, children: [
-          ValueListenableBuilder<int>(
-            valueListenable: Progress.instance.hints,
-            builder: (context, n, _) => _BoosterButton(
-              icon: 'assets/images/icons/hint.png',
-              label: l.barHint,
-              count: n,
-              onTap: () {
-                if (n <= 0) {
-                  _openItemSheet(context, forHint: true);
-                  return;
-                }
-                // Only debit when a hint was actually shown.
-                if (game.showHint()) Progress.instance.useHint();
-              },
-            ),
-          ),
-          const SizedBox(width: 11),
-          ValueListenableBuilder<bool>(
-            valueListenable: game.removeArmed,
-            builder: (context, armed, _) =>
-                ValueListenableBuilder<int>(
-              valueListenable: Progress.instance.removes,
-              builder: (context, n, _) => _BoosterButton(
-                icon: 'assets/images/icons/remove.png',
-                label: l.barRemove,
-                count: n,
-                armed: armed,
-                onTap: () {
-                  if (n <= 0) {
-                    _openItemSheet(context, forHint: false);
-                    return;
-                  }
-                  // Arming is free; the strike itself debits via onRemoveUsed.
-                  game.armRemove();
-                },
+          Expanded(
+            child: Center(
+              child: _UtilButton(
+                icon: Icons.center_focus_strong_outlined,
+                label: l.barFit,
+                onTap: onResetView,
               ),
             ),
           ),
-          ]),
-          _UtilButton(
-            icon: Icons.refresh,
-            label: l.barRestart,
-            onTap: onRestart,
+          Expanded(
+            child: Center(
+              child: ValueListenableBuilder<int>(
+                valueListenable: Progress.instance.hints,
+                builder: (context, n, _) => _BoosterButton(
+                  icon: 'assets/images/icons/hint.png',
+                  label: l.barHint,
+                  count: n,
+                  onTap: () {
+                    if (n <= 0) {
+                      _openItemSheet(context, forHint: true);
+                      return;
+                    }
+                    // Only debit when a hint was actually shown.
+                    if (game.showHint()) Progress.instance.useHint();
+                  },
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: Center(
+              child: ValueListenableBuilder<bool>(
+                valueListenable: game.removeArmed,
+                builder: (context, armed, _) => ValueListenableBuilder<int>(
+                  valueListenable: Progress.instance.removes,
+                  builder: (context, n, _) => _BoosterButton(
+                    icon: 'assets/images/icons/remove.png',
+                    label: l.barRemove,
+                    count: n,
+                    armed: armed,
+                    onTap: () {
+                      if (n <= 0) {
+                        _openItemSheet(context, forHint: false);
+                        return;
+                      }
+                      // Arming is free; the strike itself debits via onRemoveUsed.
+                      game.armRemove();
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: Center(
+              child: _UtilButton(
+                icon: Icons.refresh,
+                label: l.barRestart,
+                onTap: onRestart,
+              ),
+            ),
           ),
         ],
       ),

@@ -407,6 +407,32 @@ class AtlasArrowsGame extends FlameGame {
     return counts;
   }
 
+  /// Bounding box, in canvas coordinates, of the silhouette cells that actually
+  /// sit in the quadrant keyed by [signX]/[signY] (same convention as
+  /// [quadrantCellCounts]). The entrance dive aims at a corner of THIS, not the
+  /// grid box: an irregular silhouette (a city like Nairobi) leaves its grid-box
+  /// corners empty, so diving to the grid corner lands the camera on blank
+  /// space. Null when the quadrant holds no cells.
+  Rect? quadrantMaskRect(int signX, int signY) {
+    final board = _board;
+    if (board == null) return null;
+    final level = board.level;
+    final cx = level.cols / 2, cy = level.rows / 2;
+    double? l, t, r, b;
+    for (final (row, col) in level.mask) {
+      if ((col >= cx ? 1 : -1) != signX || (row < cy ? -1 : 1) != signY) {
+        continue;
+      }
+      final o = _cellCanvas(row, col);
+      l = l == null ? o.dx : math.min(l, o.dx);
+      t = t == null ? o.dy : math.min(t, o.dy);
+      r = r == null ? o.dx : math.max(r, o.dx);
+      b = b == null ? o.dy : math.max(b, o.dy);
+    }
+    if (l == null) return null;
+    return Rect.fromLTRB(l, t!, r!, b!);
+  }
+
   /// Fire the line under a point given in this game's canvas coordinates
   /// (GameWidget-local, i.e. after the pan/zoom transform has been undone but
   /// before the board's own centre-anchored fit scale). Tap detection lives in
