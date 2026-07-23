@@ -1,15 +1,12 @@
 {
   "@@locale": "en",
-
   "tabHome": "Home",
   "tabMap": "Map",
   "tabShop": "Shop",
   "tabSettings": "Settings",
-
   "homeWorldTour": "World Tour",
   "homeWorldTourContinue": "Continue World Tour",
   "homeRandom": "Random",
-
   "settingsDarkMode": "Dark mode",
   "settingsSound": "Sound",
   "settingsHaptics": "Vibration",
@@ -19,7 +16,6 @@
   "removeAds": "Remove ads",
   "comingSoon": "Coming soon",
   "owned": "Owned",
-
   "shopSectionItems": "Items",
   "shopSectionAds": "Ads",
   "shopWatchAdForHint": "Watch an ad for +1 hint",
@@ -27,18 +23,24 @@
   "free": "Free",
   "hintsBundle": "{count} hints",
   "@hintsBundle": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "removesBundle": "{count} removes",
   "@removesBundle": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "inventoryHints": "Hints",
   "inventoryRemoves": "Removes",
-
   "toastHintGranted1": "You got 1 hint.",
   "toastNoAdAvailable": "No ad available right now. Please try again in a moment.",
-
   "iapPurchaseStartFailed": "Couldn't start the purchase.",
   "iapRestoreUnsupported": "Restoring isn't supported on this device.",
   "iapRestoreChecked": "Checked your purchases.",
@@ -46,16 +48,22 @@
   "iapPurchaseFailed": "Couldn't complete the purchase.",
   "iapHintsGranted": "You got {count} hints.",
   "@iapHintsGranted": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "iapRemovesGranted": "You got {count} removes.",
   "@iapRemovesGranted": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "iapAdsRemoved": "Ads removed.",
-
   "adPlaceholderMrec": "MREC banner ad",
-
   "onboardingEscapeTitle": "Tap an arrow",
   "onboardingEscapeBody": "A tapped arrow slides off the board in the direction its head points.",
   "onboardingBlockedTitle": "Blocked ahead? It bumps",
@@ -65,11 +73,8 @@
   "onboardingSkip": "Skip",
   "onboardingStart": "Start playing",
   "next": "Next",
-
   "mapLoadError": "Couldn't load the map.",
-
   "areaUnderOne": "Under 1 ㎢",
-
   "gameRestartTitle": "Restart?",
   "gameRestartBody": "Every arrow you've cleared so far goes back to its starting position.",
   "gameRestartConfirm": "Restart",
@@ -77,48 +82,62 @@
   "gameLeaveBody": "Your current board won't be saved.",
   "gameLeaveConfirm": "Leave",
   "cancel": "Cancel",
-
   "coachTapArrow": "Try tapping a glowing arrow",
   "coachPinchZoom": "Pinch with two fingers to zoom",
-
-  "barFit": "Fit view",
+  "barFit": "Fit",
   "barHint": "Hint",
   "barRemove": "Remove",
   "barRestart": "Restart",
-
   "heartsOutTitle": "Out of hearts",
   "heartsOutFree": "Keep playing.",
   "heartsOutAd": "Watch one ad to refill your hearts.",
   "refillCoupon": "Refill coupon ({count})",
   "@refillCoupon": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "refillViaAd": "Watch ad to refill",
-
   "itemSheetNoHints": "No hints left",
   "itemSheetNoRemoves": "No removes left",
   "itemSheetRefill": "Top up and keep solving.",
-
   "clearContinue": "Continue",
-
   "roundBadge": "ROUND {round}",
   "@roundBadge": {
-    "placeholders": { "round": { "type": "String" } }
+    "placeholders": {
+      "round": {
+        "type": "String"
+      }
+    }
   },
   "roundTeaches": "What you'll learn this round — {topic}",
   "@roundTeaches": {
-    "placeholders": { "topic": { "type": "String" } }
+    "placeholders": {
+      "topic": {
+        "type": "String"
+      }
+    }
   },
   "roundCitiesIntro": "Travel through {count} cities of {country}, then solve the whole country at the end.",
   "@roundCitiesIntro": {
     "placeholders": {
-      "country": { "type": "String" },
-      "count": { "type": "int" }
+      "country": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
     }
   },
   "roundSingleIntro": "Solve the whole territory of {country} in a single board.",
   "@roundSingleIntro": {
-    "placeholders": { "country": { "type": "String" } }
+    "placeholders": {
+      "country": {
+        "type": "String"
+      }
+    }
   },
   "roundStatStages": "Stages",
   "roundStatCities": "Cities",

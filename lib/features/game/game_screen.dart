@@ -1475,12 +1475,19 @@ class _UtilButton extends StatelessWidget {
           children: [
             Icon(icon, size: 27, color: c.inkSoft),
             const SizedBox(height: 2),
-            Text(label,
-                style: AppText.caption.copyWith(
-                    color: c.inkSoft,
-                    fontWeight: FontWeight.w500,
-                    letterSpacing: 0.5,
-                    fontSize: 16)),
+            // One line, scaled to fit — a translated label (e.g. German "fit
+            // view") is far wider than this compact tile and must not wrap.
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(label,
+                  maxLines: 1,
+                  softWrap: false,
+                  style: AppText.caption.copyWith(
+                      color: c.inkSoft,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 0.5,
+                      fontSize: 16)),
+            ),
           ],
         ),
       ),
@@ -1523,12 +1530,17 @@ class _BoosterButton extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Image.asset(icon, width: 29, height: 29),
-                  Text(label,
-                      style: AppText.caption.copyWith(
-                          color: c.inkSoft,
-                          fontWeight: FontWeight.w500,
-                          letterSpacing: 0.5,
-                          fontSize: 16)),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(label,
+                        maxLines: 1,
+                        softWrap: false,
+                        style: AppText.caption.copyWith(
+                            color: c.inkSoft,
+                            fontWeight: FontWeight.w500,
+                            letterSpacing: 0.5,
+                            fontSize: 16)),
+                  ),
                 ],
               ),
             ),

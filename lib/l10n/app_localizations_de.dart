@@ -191,7 +191,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get coachPinchZoom => 'Zieh mit zwei Fingern auf, um zu zoomen';
 
   @override
-  String get barFit => 'Ansicht anpassen';
+  String get barFit => 'Anpassen';
 
   @override
   String get barHint => 'Tipp';
@@ -200,7 +200,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get barRemove => 'Entfernen';
 
   @override
-  String get barRestart => 'Neu starten';
+  String get barRestart => 'Neustart';
 
   @override
   String get heartsOutTitle => 'Keine Herzen mehr';

@@ -191,7 +191,7 @@ class AppLocalizationsIt extends AppLocalizations {
   String get coachPinchZoom => 'Avvicina due dita per ingrandire';
 
   @override
-  String get barFit => 'Adatta vista';
+  String get barFit => 'Adatta';
 
   @override
   String get barHint => 'Suggerimento';

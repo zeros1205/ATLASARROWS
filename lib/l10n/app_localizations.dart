@@ -453,7 +453,7 @@ abstract class AppLocalizations {
   /// No description provided for @barFit.
   ///
   /// In en, this message translates to:
-  /// **'Fit view'**
+  /// **'Fit'**
   String get barFit;
 
   /// No description provided for @barHint.

@@ -173,8 +173,17 @@ class _TabItem extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(selected ? tab.active : tab.icon, size: 20, color: color),
-            Text(tab.label,
-                style: AppText.caption.copyWith(color: color, letterSpacing: 0)),
+            // Scale the label down to stay on one line instead of wrapping —
+            // some locales (e.g. German "Einstellungen") are far longer than
+            // the Korean/English the fixed pill width was sized for.
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(tab.label,
+                  maxLines: 1,
+                  softWrap: false,
+                  style:
+                      AppText.caption.copyWith(color: color, letterSpacing: 0)),
+            ),
           ],
         ),
       ),

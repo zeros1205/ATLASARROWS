@@ -191,7 +191,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get coachPinchZoom => 'Сведите два пальца, чтобы масштабировать';
 
   @override
-  String get barFit => 'По размеру';
+  String get barFit => 'Вписать';
 
   @override
   String get barHint => 'Подсказка';
