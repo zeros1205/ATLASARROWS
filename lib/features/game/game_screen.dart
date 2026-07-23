@@ -456,10 +456,13 @@ class _GameScreenState extends State<GameScreen>
     return (countryIndex: ci, local: local);
   }
 
+  /// Active UI language, for place-name selection.
+  String get _lang => Localizations.localeOf(context).languageCode;
+
   /// The country this stage belongs to.
   String get _countryName {
     if (!_repo.isLoaded) return '';
-    return _repo.countries[_loc.countryIndex].displayName;
+    return _repo.countries[_loc.countryIndex].nameFor(_lang);
   }
 
   /// The city this board depicts, or '' on the country finale — there the place
@@ -467,7 +470,7 @@ class _GameScreenState extends State<GameScreen>
   String get _cityLabel {
     final st = _repo.stageAt(_stage);
     if (st == null || st.kind != StageKind.city) return '';
-    return st.displayName;
+    return st.nameFor(_lang);
   }
 
   /// The ISO 3166-1 alpha-2 code of the country this stage belongs to, used to
@@ -910,6 +913,7 @@ class _RoundIntro extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = AppColors.of(context);
     final l = AppLocalizations.of(context);
+    final lang = Localizations.localeOf(context).languageCode;
     return Positioned.fill(
       child: Container(
         color: c.bg,
@@ -923,7 +927,7 @@ class _RoundIntro extends StatelessWidget {
                     style: AppText.label.copyWith(
                         color: c.accent, letterSpacing: 4)),
                 const SizedBox(height: 12),
-                Text(country.displayName,
+                Text(country.nameFor(lang),
                     style: AppText.display.copyWith(
                         color: c.ink, fontWeight: FontWeight.w700, height: 1.05)),
                 if (country.ko.isNotEmpty && country.name != country.ko)
@@ -944,8 +948,8 @@ class _RoundIntro extends StatelessWidget {
                           ? l.roundTeaches(country.teaches)
                           : country.cityCount > 0
                               ? l.roundCitiesIntro(
-                                  country.displayName, country.cityCount)
-                              : l.roundSingleIntro(country.displayName);
+                                  country.nameFor(lang), country.cityCount)
+                              : l.roundSingleIntro(country.nameFor(lang));
                       return Text(
                         blurb.isNotEmpty ? blurb : fallback,
                         style: AppText.body.copyWith(

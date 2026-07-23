@@ -683,7 +683,7 @@ class _CountryBubble extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                 ],
-                Text(country.displayName,
+                Text(country.nameFor(Localizations.localeOf(context).languageCode),
                     softWrap: false,
                     style: AppText.label.copyWith(color: c.ink)),
                 // Chevron: this bubble opens the country sheet.

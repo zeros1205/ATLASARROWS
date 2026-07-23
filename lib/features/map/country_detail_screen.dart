@@ -22,6 +22,7 @@ class CountryDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = AppColors.of(context);
     final l = AppLocalizations.of(context);
+    final lang = Localizations.localeOf(context).languageCode;
     final repo = CampaignRepository.instance;
     final country = repo.countries[countryIndex];
     final first = repo.firstStageOf(countryIndex);
@@ -32,7 +33,7 @@ class CountryDetailScreen extends StatelessWidget {
     final cities = <({String name, int global})>[
       for (var j = 0; j < country.stages.length; j++)
         if (country.stages[j].kind == StageKind.city)
-          (name: country.stages[j].displayName, global: first + j),
+          (name: country.stages[j].nameFor(lang), global: first + j),
     ];
     // The country silhouette board (the round's finale, always its last stage).
     final countryGlobal = first + country.stages.length - 1;
@@ -48,7 +49,7 @@ class CountryDetailScreen extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 56),
                   child: Text(
-                    country.displayName,
+                    country.nameFor(lang),
                     textAlign: TextAlign.center,
                     style: AppText.headline
                         .copyWith(color: c.ink, fontWeight: FontWeight.w800),
@@ -78,7 +79,7 @@ class CountryDetailScreen extends StatelessWidget {
                     itemBuilder: (context, i) {
                       if (i == 0) {
                         return _CityRow(
-                          name: country.displayName,
+                          name: country.nameFor(lang),
                           accent: true,
                           onPlay: () => Navigator.of(context).push(
                               MaterialPageRoute<void>(

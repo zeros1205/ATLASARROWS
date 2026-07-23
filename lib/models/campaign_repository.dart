@@ -61,7 +61,11 @@ class CampaignStage {
   /// Raw `"r,c:MOVES"` specs; parsed into a [Level] on first play.
   final List<String> lineSpecs;
 
-  String get displayName => ko.isNotEmpty ? ko : name;
+  /// The place name in the active UI language. Only Korean and English names
+  /// exist in the data, so Korean shows the Korean name and every other locale
+  /// falls back to the English/Latin name (the map-standard exonym) rather than
+  /// the old always-Korean behaviour.
+  String nameFor(String lang) => lang == 'ko' && ko.isNotEmpty ? ko : name;
 
   Set<(int, int)>? _mask;
 
@@ -122,7 +126,9 @@ class CampaignCountry {
   List<(double, double)> get pins => _pins ??=
       CampaignRepository._spreadPins(mask, rows, cols, stages.length);
 
-  String get displayName => ko.isNotEmpty ? ko : name;
+  /// The country name in the active UI language — Korean for `ko`, otherwise the
+  /// English/Latin name (see [CampaignStage.nameFor]).
+  String nameFor(String lang) => lang == 'ko' && ko.isNotEmpty ? ko : name;
 
   /// The country silhouette board — always the last stage.
   CampaignStage get finale => stages.last;
