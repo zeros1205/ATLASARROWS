@@ -9,9 +9,9 @@ import '../../shared/pressable.dart';
 import '../game/game_screen.dart';
 
 /// Full-screen country sheet, opened from a map marker's name bubble. Country
-/// name and flag pinned at the top, then a scrolling list of the round's cities,
-/// each with a play button — every city is open to play freely. Close with the
-/// X, top-right.
+/// name and flag pinned at the top, then a scrolling list: the country row
+/// (accent hairline) first, then every city — all with a play button and all
+/// open to play freely. Close with the X, top-right.
 class CountryDetailScreen extends StatelessWidget {
   const CountryDetailScreen({super.key, required this.countryIndex});
   final int countryIndex;
@@ -31,6 +31,8 @@ class CountryDetailScreen extends StatelessWidget {
         if (country.stages[j].kind == StageKind.city)
           (name: country.stages[j].displayName, global: first + j),
     ];
+    // The country silhouette board (the round's finale, always its last stage).
+    final countryGlobal = first + country.stages.length - 1;
 
     return Scaffold(
       backgroundColor: c.bg,
@@ -56,26 +58,32 @@ class CountryDetailScreen extends StatelessWidget {
                 const SizedBox(height: 24),
                 Container(height: 1, color: c.line),
                 Expanded(
-                  child: cities.isEmpty
-                      ? Center(
-                          child: Text('도시가 없는 라운드예요.',
-                              style: AppText.body.copyWith(color: c.inkFaint)))
-                      : ListView.separated(
-                          padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
-                          itemCount: cities.length,
-                          separatorBuilder: (_, _) => const SizedBox(height: 10),
-                          // Every city is open — pick any and play it.
-                          itemBuilder: (context, i) {
-                            final city = cities[i];
-                            return _CityRow(
-                              name: city.name,
-                              onPlay: () => Navigator.of(context).push(
-                                  MaterialPageRoute<void>(
-                                      builder: (_) =>
-                                          GameScreen(stage: city.global))),
-                            );
-                          },
-                        ),
+                  child: ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+                    // The country row leads, then every city — all open to play.
+                    itemCount: cities.length + 1,
+                    separatorBuilder: (_, _) => const SizedBox(height: 10),
+                    itemBuilder: (context, i) {
+                      if (i == 0) {
+                        return _CityRow(
+                          name: country.displayName,
+                          accent: true,
+                          onPlay: () => Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                  builder: (_) =>
+                                      GameScreen(stage: countryGlobal))),
+                        );
+                      }
+                      final city = cities[i - 1];
+                      return _CityRow(
+                        name: city.name,
+                        onPlay: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                                builder: (_) =>
+                                    GameScreen(stage: city.global))),
+                      );
+                    },
+                  ),
                 ),
               ],
             ),
@@ -95,11 +103,14 @@ class CountryDetailScreen extends StatelessWidget {
   }
 }
 
-/// One city: its name and a play button.
+/// One row: a name and a play button. [accent] gives the country row its 2px
+/// accent hairline to set it apart from the cities below.
 class _CityRow extends StatelessWidget {
-  const _CityRow({required this.name, required this.onPlay});
+  const _CityRow(
+      {required this.name, required this.onPlay, this.accent = false});
   final String name;
   final VoidCallback onPlay;
+  final bool accent;
 
   @override
   Widget build(BuildContext context) {
@@ -109,7 +120,8 @@ class _CityRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: c.surface,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: c.line),
+        border: Border.all(
+            color: accent ? c.accent : c.line, width: accent ? 2 : 1),
       ),
       child: Row(
         children: [
