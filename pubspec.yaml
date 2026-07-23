@@ -19,6 +19,7 @@ dependencies:
   games_services: ^5.1.0
   firebase_core: ^4.12.1
   firebase_auth: ^6.5.6
+  firebase_app_check: ^0.4.5+2
   # LOGAN LAND cold-start brand sequence.
   #
   # ⚠️ VENDORED COPY. The source of truth is zeros1205/loganland_flutter_kit at
@@ -42,7 +43,13 @@ dependencies:
   # (--dart-define=SENTRY_DSN); with no DSN it initializes as a no-op. A range
   # rather than a caret so pub can pick a build whose transitive deps
   # (package_info_plus, etc.) line up with the rest of the app.
-  sentry_flutter: ">=8.0.0 <10.0.0"
+  # >=9.25.0: iOS CI has no committed Package.resolved, so Swift Package
+  # Manager always fetches the newest sentry-cocoa. 8.14.2's bundled Swift
+  # plugin code called an API (SentryBinaryImageCache.image) that a recent
+  # sentry-cocoa release removed, breaking the Xcode archive step. Floating
+  # sentry-cocoa is still the same risk going forward — this pin only fixes
+  # today's mismatch, not the underlying lack of an SPM lockfile.
+  sentry_flutter: ">=9.25.0 <10.0.0"
 
 dev_dependencies:
   flutter_test:

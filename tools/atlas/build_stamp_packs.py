@@ -36,9 +36,9 @@ OUT = ROOT / "build" / "stamp_packs"
 MANIFEST = ROOT / "assets" / "campaign" / "stamp_manifest.json"
 CAMPAIGN = ROOT / "tools" / "atlas" / "campaign.json"
 
-VERSION = 2  # v2: paper background dropped to transparent
-EDGE = 512
-QUALITY = 85
+VERSION = 3  # v3: edge 512->384, quality 85->75 to shrink the boot download
+EDGE = 384
+QUALITY = 75
 
 # Alpha ramp for dropping the warm off-white paper. A pixel's luminance runs
 # from ~235 (bare paper) down to the ink; alpha rises from 0 at [PAPER] to 1 at

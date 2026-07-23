@@ -15,3 +15,10 @@ CODE_SIGN_STYLE = Manual
 DEVELOPMENT_TEAM = 9YM6784Y87
 PROVISIONING_PROFILE_SPECIFIER = com.loganland.atlasarrows AppStore
 CODE_SIGN_IDENTITY = Apple Distribution
+
+// App Check's App Attest provider needs this capability on the App ID and in
+// the entitlements the binary is signed with. App ID capability enabled and
+// the "com.loganland.atlasarrows AppStore" profile regenerated + re-uploaded
+// to IOS_PROVISIONING_PROFILE_BASE64 (2026-07-23) — first build afterward is
+// the actual proof codesign accepts it. See docs/RELEASE.md.
+CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements

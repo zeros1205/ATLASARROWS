@@ -121,6 +121,11 @@ class StampStore {
   /// the stamps are all in place before play — Random mode can jump to any
   /// continent, so one-at-a-time on demand no longer covers it. Never throws;
   /// packs that fail are simply retried the next launch.
+  ///
+  /// Fetched concurrently rather than one at a time: six small requests to
+  /// Storage overlap their connection setup and bandwidth instead of paying
+  /// that cost six times over, so wall-clock drops toward the slowest single
+  /// pack instead of the sum of all of them.
   Future<void> ensureAllPacks(
       {void Function(double progress)? onProgress}) async {
     final pending =
@@ -130,16 +135,27 @@ class StampStore {
       onProgress?.call(1);
       return;
     }
-    var done = 0;
-    for (final pack in pending) {
-      final job = pack.inFlight ??
-          _fetch(pack, (p) => onProgress?.call((done + p * pack.bytes) / total));
-      pack.inFlight = job;
-      await job;
-      pack.inFlight = null;
-      done += pack.bytes;
-      onProgress?.call(done / total);
+    final doneBytes = <_Pack, int>{for (final p in pending) p: 0};
+    void report() {
+      final sum = doneBytes.values.fold<int>(0, (a, b) => a + b);
+      onProgress?.call(sum / total);
     }
+
+    await Future.wait(pending.map((pack) async {
+      final job = pack.inFlight ??
+          _fetch(pack, (p) {
+            doneBytes[pack] = (p * pack.bytes).round();
+            report();
+          });
+      pack.inFlight = job;
+      try {
+        await job;
+      } finally {
+        pack.inFlight = null;
+        doneBytes[pack] = pack.bytes;
+        report();
+      }
+    }));
   }
 
   Future<bool> _fetch(_Pack pack, void Function(double)? onProgress) async {
