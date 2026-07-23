@@ -14,6 +14,7 @@ import '../../services/progress.dart';
 import '../../shared/meta_header.dart';
 import '../../shared/motion.dart';
 import '../../shared/pressable.dart';
+import 'country_detail_screen.dart';
 
 /// The map tab: a full-screen dotted world map. Land dots are coloured by
 /// campaign progress — the in-progress country in accent, cleared countries a
@@ -75,8 +76,22 @@ class _MapScreenState extends State<MapScreen>
   }
 
   void _onTabChanged() {
-    if (appTab.value != 1) return;
-    _recenter();
+    _updateRadar();
+    if (appTab.value == 1) _recenter();
+  }
+
+  /// The radar only sweeps while the map is the visible tab — the shell keeps
+  /// this screen mounted in an IndexedStack, so without this the animation would
+  /// burn a frame every tick on home/shop/settings too. Also honours OS
+  /// reduce-motion.
+  void _updateRadar() {
+    if (!mounted) return;
+    final shouldRun = appTab.value == 1 && !reduceMotion(context);
+    if (shouldRun) {
+      if (!_radar.isAnimating) _radar.repeat();
+    } else if (_radar.isAnimating) {
+      _radar.stop();
+    }
   }
 
   Future<void> _load() async {
@@ -87,12 +102,7 @@ class _MapScreenState extends State<MapScreen>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Honour OS reduce-motion: hold the rings static instead of sweeping.
-    if (reduceMotion(context)) {
-      _radar.stop();
-    } else if (!_radar.isAnimating) {
-      _radar.repeat();
-    }
+    _updateRadar();
   }
 
   @override
@@ -276,9 +286,19 @@ class _MapScreenState extends State<MapScreen>
       _popup = best;
       _popupCopy = copy;
     });
-    _popupTimer = Timer(const Duration(milliseconds: 1200), () {
+    // The bubble is tappable now, so hold it long enough to reach for the
+    // chevron before it clears itself.
+    _popupTimer = Timer(const Duration(milliseconds: 2600), () {
       if (mounted) setState(() => _popup = null);
     });
+  }
+
+  /// Opens the country sheet from a tapped name bubble.
+  void _openCountry(int ci) {
+    _popupTimer?.cancel();
+    setState(() => _popup = null);
+    Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => CountryDetailScreen(countryIndex: ci)));
   }
 
   static const double _tapRadius = 22;
@@ -395,7 +415,11 @@ class _MapScreenState extends State<MapScreen>
                                               Positioned(
                                                 top: _padV,
                                                 left: 0,
-                                                child: Row(
+                                                // Own layer: the per-frame pulse
+                                                // must not re-raster the static
+                                                // dots beneath it.
+                                                child: RepaintBoundary(
+                                                  child: Row(
                                                   children: [
                                                     for (var i = 0;
                                                         i < _copies;
@@ -431,12 +455,14 @@ class _MapScreenState extends State<MapScreen>
                                                               ),
                                                             ),
                                                   ],
-                                                ),
+                                                )),
                                               ),
                                             if (_popup != null)
                                               _CountryBubble(
                                                 country: _repo
                                                     .countries[_popup!.ci],
+                                                onTap: () =>
+                                                    _openCountry(_popup!.ci),
                                                 at: Offset(
                                                     _popupCopy * w +
                                                         (_popup!.c + 0.5) *
@@ -601,12 +627,15 @@ class _MarkerPainter extends CustomPainter {
       old.c != c || !identical(old.markers, markers);
 }
 
-/// Flag + name in a rounded plate, pointing at the marker that opened it.
-/// Positioned by its bottom edge so it always sits above the pin.
+/// Flag + name + chevron in a rounded plate, pointing at the marker that opened
+/// it. Tapping it opens the country sheet. Positioned by its bottom edge so it
+/// always sits above the pin.
 class _CountryBubble extends StatelessWidget {
-  const _CountryBubble({required this.country, required this.at});
+  const _CountryBubble(
+      {required this.country, required this.at, required this.onTap});
   final CampaignCountry country;
   final Offset at;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -622,9 +651,10 @@ class _CountryBubble extends StatelessWidget {
       top: at.dy - 12,
       child: FractionalTranslation(
         translation: const Offset(-0.5, -1),
-        child: IgnorePointer(
+        child: Pressable(
+          onTap: onTap,
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            padding: const EdgeInsets.fromLTRB(12, 7, 8, 7),
             decoration: BoxDecoration(
               color: c.surface,
               borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -654,6 +684,8 @@ class _CountryBubble extends StatelessWidget {
                 Text(country.displayName,
                     softWrap: false,
                     style: AppText.label.copyWith(color: c.ink)),
+                // Chevron: this bubble opens the country sheet.
+                Icon(Icons.chevron_right_rounded, size: 20, color: c.inkFaint),
               ],
             ),
           ),
