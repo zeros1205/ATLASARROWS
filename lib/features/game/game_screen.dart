@@ -434,14 +434,6 @@ class _GameScreenState extends State<GameScreen>
     return _repo.countries[_loc.countryIndex].displayName;
   }
 
-  /// 'STAGE 12' — or '스테이지 12' in Korean. Other locales keep the Latin word
-  /// until real i18n lands; this is the one place a player reads a bare English
-  /// noun on the play screen, so it is worth the special case.
-  String _stageLabel(BuildContext context) {
-    final ko = Localizations.localeOf(context).languageCode == 'ko';
-    return ko ? '스테이지 ${_stage + 1}' : 'STAGE ${_stage + 1}';
-  }
-
   /// The city this board depicts, or '' on the country finale — there the place
   /// chip and arrival card carry the country name alone.
   String get _cityLabel {
@@ -674,8 +666,9 @@ class _GameScreenState extends State<GameScreen>
                   child: Column(
                     children: [
                       _Header(
-                        stageLabel: _stageLabel(context),
-                        hearts: _hearts,
+                        city: _cityLabel,
+                        country: _countryName,
+                        flagIso: _flagIso,
                         onBack: _maybeLeave,
                       ),
                       Container(height: 1, color: c.line),
@@ -720,10 +713,12 @@ class _GameScreenState extends State<GameScreen>
                                   ),
                                 ),
                         ),
-                      // Floats rather than taking a band of the Column: it is
-                      // translucent precisely so the board shows through it.
-                      // On a dive entry it holds until the chrome arrives, so
-                      // it doesn't flash over the raining board.
+                      // Floats rather than taking a band of the Column: the
+                      // translucent plate lets the board show through. The
+                      // header now carries the place name + flag, so this spot
+                      // holds the hearts. On a dive entry it holds until the
+                      // chrome arrives, so it doesn't flash over the raining
+                      // board.
                       if (_result != _Result.cleared && (!diving || _chromeIn))
                         Positioned(
                           top: 8,
@@ -731,10 +726,7 @@ class _GameScreenState extends State<GameScreen>
                           right: 0,
                           child: IgnorePointer(
                             child: Center(
-                              child: _PlaceChip(
-                                  city: _cityLabel,
-                                  country: _countryName,
-                                  flagIso: _flagIso),
+                              child: _HeartsPlate(hearts: _hearts),
                             ),
                           ),
                         ),
@@ -1011,34 +1003,39 @@ class _FlagImg extends StatelessWidget {
   }
 }
 
-/// Back on the left; the stage number centred. A 44px spacer balances the back
-/// button so the label sits at the true centre of the header.
+/// Back on the left; the place name centred (city over its country when the
+/// board is a city, the country alone on a finale); the country flag on the
+/// right where the hearts used to sit. Two lines make it taller than a bare
+/// stage number, which is why the hearts moved down onto the board.
+///
+/// A Stack, not a Row: the name has to sit on the screen's centre line, and in
+/// a Row the back button and the flag would have to weigh the same for that to
+/// hold — they don't.
 class _Header extends StatelessWidget {
   const _Header({
-    required this.stageLabel,
-    required this.hearts,
+    required this.city,
+    required this.country,
+    required this.flagIso,
     required this.onBack,
   });
 
-  final String stageLabel;
-  final ValueNotifier<int> hearts;
+  final String city, country, flagIso;
   final VoidCallback onBack;
 
   @override
   Widget build(BuildContext context) {
     final c = AppColors.of(context);
-    // A Stack, not a Row: the stage label has to sit on the screen's centre
-    // line, and in a Row the back button and the hearts would have to weigh
-    // exactly the same for that to hold. They don't, and the hearts change
-    // width as they are spent.
     return SizedBox(
-      height: 60,
+      height: city.isEmpty ? 60 : 76,
       child: Stack(
         children: [
           Center(
-            child: Text(stageLabel,
-                style: AppText.headline
-                    .copyWith(color: c.ink, fontWeight: FontWeight.w700)),
+            child: Padding(
+              // Clear the back button and the flag so a long name never runs
+              // under them.
+              padding: const EdgeInsets.symmetric(horizontal: 58),
+              child: _PlaceName(city: city, country: country),
+            ),
           ),
           Align(
             alignment: Alignment.centerLeft,
@@ -1051,15 +1048,52 @@ class _Header extends StatelessWidget {
               ),
             ),
           ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: Padding(
-              padding: const EdgeInsets.only(right: 14),
-              child: _Hearts(hearts: hearts),
+          if (flagIso.length == 2)
+            Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: const EdgeInsets.only(right: 14),
+                child: _FlagImg(iso: flagIso, height: 26),
+              ),
             ),
-          ),
         ],
       ),
+    );
+  }
+}
+
+/// The centred place name. A city board reads city-over-country: the city in
+/// the old stage-label style, the country under it at 90% and one weight
+/// lighter, 5px apart. A finale board shows the country name alone.
+class _PlaceName extends StatelessWidget {
+  const _PlaceName({required this.city, required this.country});
+  final String city, country;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = AppColors.of(context);
+    final nameStyle = AppText.headline
+        .copyWith(color: c.ink, fontWeight: FontWeight.w700, height: 1.0);
+    if (city.isEmpty) {
+      return Text(country,
+          style: nameStyle, maxLines: 1, overflow: TextOverflow.ellipsis);
+    }
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(city,
+            style: nameStyle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis),
+        const SizedBox(height: 5),
+        Text(country,
+            style: nameStyle.copyWith(
+                color: c.inkSoft,
+                fontWeight: FontWeight.w600,
+                fontSize: (AppText.headline.fontSize ?? 18) * 0.9),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis),
+      ],
     );
   }
 }
@@ -1167,20 +1201,16 @@ class _Hearts extends StatelessWidget {
   ];
 }
 
-/// City · country · flag, floating just under the header on a translucent
-/// plate so the board reads through it. It names where the board is without
-/// spending a band of the play area on it.
-class _PlaceChip extends StatelessWidget {
-  const _PlaceChip(
-      {required this.city, required this.country, required this.flagIso});
-  final String city, country, flagIso;
+/// The hearts, floating just under the header on a translucent plate so the
+/// board reads through it. They used to sit in the header, but the place name
+/// and flag took that room, so they moved onto the board here.
+class _HeartsPlate extends StatelessWidget {
+  const _HeartsPlate({required this.hearts});
+  final ValueNotifier<int> hearts;
 
   @override
   Widget build(BuildContext context) {
     final c = AppColors.of(context);
-    final text = [if (city.isNotEmpty) city, if (country.isNotEmpty) country]
-        .join(' · ');
-    if (text.isEmpty && flagIso.length != 2) return const SizedBox.shrink();
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
@@ -1188,17 +1218,7 @@ class _PlaceChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.pill),
         border: Border.all(color: c.line.withValues(alpha: 0.6)),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (text.isNotEmpty)
-            Text(text, style: AppText.label.copyWith(color: c.inkSoft)),
-          if (flagIso.length == 2) ...[
-            const SizedBox(width: 8),
-            _FlagImg(iso: flagIso, height: 16),
-          ],
-        ],
-      ),
+      child: _Hearts(hearts: hearts),
     );
   }
 }
@@ -1350,7 +1370,7 @@ class _BoosterBar extends StatelessWidget {
               },
             ),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 11),
           ValueListenableBuilder<bool>(
             valueListenable: game.removeArmed,
             builder: (context, armed, _) =>
@@ -1399,19 +1419,19 @@ class _UtilButton extends StatelessWidget {
     return Pressable(
       onTap: onTap,
       child: SizedBox(
-        width: 75,
-        height: 75,
+        width: 60,
+        height: 60,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 34, color: c.inkSoft),
-            const SizedBox(height: 3),
+            Icon(icon, size: 27, color: c.inkSoft),
+            const SizedBox(height: 2),
             Text(label,
                 style: AppText.caption.copyWith(
                     color: c.inkSoft,
                     fontWeight: FontWeight.w500,
                     letterSpacing: 0.5,
-                    fontSize: 20)),
+                    fontSize: 16)),
           ],
         ),
       ),
@@ -1438,8 +1458,8 @@ class _BoosterButton extends StatelessWidget {
     return Pressable(
       onTap: onTap,
       child: Container(
-        width: 86,
-        height: 75,
+        width: 69,
+        height: 60,
         decoration: BoxDecoration(
           color: c.surface,
           borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -1453,25 +1473,25 @@ class _BoosterButton extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Image.asset(icon, width: 36, height: 36),
+                  Image.asset(icon, width: 29, height: 29),
                   Text(label,
                       style: AppText.caption.copyWith(
                           color: c.inkSoft,
                           fontWeight: FontWeight.w500,
                           letterSpacing: 0.5,
-                          fontSize: 20)),
+                          fontSize: 16)),
                 ],
               ),
             ),
-            // Sized off the 16pt digit inside it, not the other way round.
+            // Sized off the digit inside it, not the other way round.
             Positioned(
-              top: -11,
-              right: -11,
+              top: -9,
+              right: -9,
               child: Container(
-                constraints: const BoxConstraints(minWidth: 30),
-                height: 30,
+                constraints: const BoxConstraints(minWidth: 24),
+                height: 24,
                 alignment: Alignment.center,
-                padding: const EdgeInsets.symmetric(horizontal: 7),
+                padding: const EdgeInsets.symmetric(horizontal: 6),
                 decoration: BoxDecoration(
                   // Two different jobs, so two different weights: a stock count
                   // is metadata and stays quiet, while '+' is an offer to buy
