@@ -55,7 +55,10 @@ class CountryDetailScreen extends StatelessWidget {
                   const SizedBox(height: 16),
                   _Flag(iso: iso),
                 ],
-                const SizedBox(height: 24),
+                const SizedBox(height: 12),
+                Text('면적  ${_fmtArea(country.areaKm2)}',
+                    style: AppText.caption.copyWith(color: c.inkSoft)),
+                const SizedBox(height: 20),
                 Container(height: 1, color: c.line),
                 Expanded(
                   child: ListView.separated(
@@ -103,6 +106,18 @@ class CountryDetailScreen extends StatelessWidget {
   }
 }
 
+/// "9,833,517㎢" — thousands-grouped, with a floor for sub-1km² micro-states.
+String _fmtArea(int km2) {
+  if (km2 < 1) return '1㎢ 미만';
+  final s = km2.toString();
+  final b = StringBuffer();
+  for (var i = 0; i < s.length; i++) {
+    if (i > 0 && (s.length - i) % 3 == 0) b.write(',');
+    b.write(s[i]);
+  }
+  return '$b㎢';
+}
+
 /// One row: a name and a play button. [accent] gives the country row its 2px
 /// accent hairline to set it apart from the cities below.
 class _CityRow extends StatelessWidget {
@@ -129,7 +144,7 @@ class _CityRow extends StatelessWidget {
             child: Text(
               name,
               style: AppText.label
-                  .copyWith(color: c.ink, fontWeight: FontWeight.w700),
+                  .copyWith(color: c.ink, fontWeight: FontWeight.w600),
             ),
           ),
           const SizedBox(width: 12),
