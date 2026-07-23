@@ -22,9 +22,10 @@ import '../../shared/pressable.dart';
 /// zooms in to 2x, where the extra height can be panned too. Pinching back to 1x
 /// or the my-location button restore the default, centred on the next-stage
 /// beacon.
-/// The header and the shell's tab bar float over it. Each country carries a
-/// pin; tapping one names it. Bare land is not tappable — it used to open the
-/// round intro, which no player could have guessed was there.
+/// The dot band runs from just below the title header down to the top line of
+/// the shell's floating tab bar. Each country carries a pin; tapping one names
+/// it. Bare land is not tappable — it used to open the round intro, which no
+/// player could have guessed was there.
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
 
@@ -156,10 +157,6 @@ class _MapScreenState extends State<MapScreen>
     return (_wm.dotsOf(ci) * local / total).round();
   }
 
-  /// Breathing room above and below the map. There is no horizontal inset any
-  /// more: with the map looping there is no edge for one to sit against.
-  static const double _padV = 30;
-
   /// How many copies of the world sit side by side. Three is the minimum that
   /// lets the offset be wrapped onto the middle one from either direction.
   static const int _copies = 3;
@@ -247,8 +244,9 @@ class _MapScreenState extends State<MapScreen>
   }
 
   void _onTapUp(TapUpDetails d, double w, double h) {
-    // The map is drawn _padV below the content top; ignore taps in the padding.
-    final localY = d.localPosition.dy - _padV;
+    // The map is drawn from the content top; ignore taps below it (the empty
+    // band behind the tab bar).
+    final localY = d.localPosition.dy;
     if (localY < 0 || localY > h) return;
     final cw = w / _wm.cols, ch = h / _wm.rows;
     // The world repeats; fold the tap onto one copy, remembering which.
@@ -282,13 +280,13 @@ class _MapScreenState extends State<MapScreen>
   @override
   Widget build(BuildContext context) {
     final col = AppColors.of(context);
-    // StackFit.expand ties the map to the full screen. Without it the Stack
-    // would shrink-wrap its only non-positioned child — the min-height header —
-    // and the map would collapse to a thin band at the top.
-    return Stack(
-      fit: StackFit.expand,
+    // Header on top, map below it. The map area then runs from the header's
+    // bottom edge (this column's split) down to the top line of the floating
+    // tab bar — no measuring, the Expanded gives exactly that band.
+    return Column(
       children: [
-        Positioned.fill(
+        SafeArea(bottom: false, child: const MetaHeader('맵')),
+        Expanded(
           child: !_ready
               ? Center(child: CircularProgressIndicator(color: col.accent))
               : !_wm.isLoaded
@@ -297,19 +295,14 @@ class _MapScreenState extends State<MapScreen>
                           style: TextStyle(color: col.inkFaint)))
                   : LayoutBuilder(
                       builder: (context, cons) {
-                        // Fill the screen height less the inset; the width
-                        // follows the map's aspect ratio, so it overflows
-                        // sideways and the only gesture left is a horizontal
-                        // scroll.
                         // The tab bar floats over this screen (extendBody), so
-                        // the map insets past it — plus _padV again, so the
-                        // south pole clears the bar by the same margin it has
-                        // at the top rather than sitting flush against it.
-                        final padBottom = _padV +
-                            kTabBarSlot +
+                        // the map's content is the full area height but its dots
+                        // stop [botInset] short — the tab bar's top line — rather
+                        // than running behind the bar.
+                        final botInset = kTabBarSlot +
                             MediaQuery.viewPaddingOf(context).bottom;
                         final vpH = cons.maxHeight;
-                        final h = math.max(vpH - _padV - padBottom, 1.0);
+                        final h = math.max(vpH - botInset, 1.0);
                         final w = h * _wm.cols / _wm.rows;
                         _viewportW = cons.maxWidth;
                         _viewportH = vpH;
@@ -322,172 +315,130 @@ class _MapScreenState extends State<MapScreen>
                           }
                         });
                         final reduce = reduceMotion(context);
-                        return ValueListenableBuilder<int>(
-                          valueListenable: Progress.instance.unlocked,
-                          builder: (context, _, _) {
-                            _ensureHot();
-                            // Pan (with the endless-loop wrap) + pinch-zoom to 2x.
-                            // The content is the full viewport height with the map
-                            // drawn _padV down, so scale 1 has no vertical slack
-                            // (left/right only); zoomed in, the extra height can be
-                            // panned. Double-tap or the my-location button restore
-                            // the 1x default.
-                            return InteractiveViewer(
-                              transformationController: _tc,
-                              constrained: false,
-                              minScale: 1,
-                              maxScale: 2,
-                              // Infinite margin = the viewer never clamps; we
-                              // bound pan ourselves in [_wrapMatrix] (endless
-                              // horizontal loop, vertical held to the viewport).
-                              boundaryMargin: const EdgeInsets.all(double.infinity),
-                              child: SizedBox(
-                                width: w * _copies,
-                                height: vpH,
-                                child: GestureDetector(
-                                  behavior: HitTestBehavior.opaque,
-                                  onTapUp: (d) => _onTapUp(d, w, h),
-                                  child: Stack(
-                                    children: [
-                                      // Three copies of the world side by side,
-                                      // the pan wrapped back onto the middle one so
-                                      // the Pacific can be read whole.
-                                      Positioned(
-                                        top: _padV,
-                                        left: 0,
-                                        child: Row(
+                        return Stack(
+                          children: [
+                            Positioned.fill(
+                              child: ValueListenableBuilder<int>(
+                                valueListenable: Progress.instance.unlocked,
+                                builder: (context, _, _) {
+                                  _ensureHot();
+                                  // Pan (endless-loop wrap) + pinch-zoom to 2x.
+                                  // Content is the full area height with the map
+                                  // at the top, so scale 1 has no vertical slack
+                                  // (left/right only); zoomed in, the extra
+                                  // height can be panned.
+                                  return InteractiveViewer(
+                                    transformationController: _tc,
+                                    constrained: false,
+                                    minScale: 1,
+                                    maxScale: 2,
+                                    // Infinite margin = the viewer never clamps;
+                                    // we bound pan ourselves in [_wrapMatrix].
+                                    boundaryMargin:
+                                        const EdgeInsets.all(double.infinity),
+                                    child: SizedBox(
+                                      width: w * _copies,
+                                      height: vpH,
+                                      child: GestureDetector(
+                                        behavior: HitTestBehavior.opaque,
+                                        onTapUp: (d) => _onTapUp(d, w, h),
+                                        child: Stack(
                                           children: [
-                                            for (var i = 0; i < _copies; i++)
-                                              CustomPaint(
-                                                size: Size(w, h),
-                                                painter: _WorldPainter(
-                                                    _wm,
-                                                    _currentCountry,
-                                                    _currentFilled,
-                                                    col),
+                                            // Three copies side by side, the pan
+                                            // wrapped onto the middle one so the
+                                            // Pacific can be read whole.
+                                            Row(
+                                              children: [
+                                                for (var i = 0; i < _copies; i++)
+                                                  CustomPaint(
+                                                    size: Size(w, h),
+                                                    painter: _WorldPainter(
+                                                        _wm,
+                                                        _currentCountry,
+                                                        _currentFilled,
+                                                        col),
+                                                  ),
+                                              ],
+                                            ),
+                                            // Markers, then the beacon on top.
+                                            Row(
+                                              children: [
+                                                for (var i = 0; i < _copies; i++)
+                                                  CustomPaint(
+                                                    size: Size(w, h),
+                                                    painter: _MarkerPainter(
+                                                        _wm, _markers, col),
+                                                  ),
+                                              ],
+                                            ),
+                                            if (_hasHot)
+                                              Row(
+                                                children: [
+                                                  for (var i = 0;
+                                                      i < _copies;
+                                                      i++)
+                                                    reduce
+                                                        ? CustomPaint(
+                                                            size: Size(w, h),
+                                                            painter:
+                                                                _RadarMapPainter(
+                                                                    _wm,
+                                                                    _hotR,
+                                                                    _hotC,
+                                                                    col,
+                                                                    0,
+                                                                    reduce: true))
+                                                        : AnimatedBuilder(
+                                                            animation: _radar,
+                                                            builder: (_, __) =>
+                                                                CustomPaint(
+                                                              size: Size(w, h),
+                                                              painter:
+                                                                  _RadarMapPainter(
+                                                                      _wm,
+                                                                      _hotR,
+                                                                      _hotC,
+                                                                      col,
+                                                                      _radar
+                                                                          .value,
+                                                                      reduce:
+                                                                          false),
+                                                            ),
+                                                          ),
+                                                ],
+                                              ),
+                                            if (_popup != null)
+                                              _CountryBubble(
+                                                country: _repo
+                                                    .countries[_popup!.ci],
+                                                at: Offset(
+                                                    _popupCopy * w +
+                                                        (_popup!.c + 0.5) *
+                                                            w /
+                                                            _wm.cols,
+                                                    (_popup!.r + 0.5) *
+                                                        h /
+                                                        _wm.rows),
                                               ),
                                           ],
                                         ),
                                       ),
-                                      // Markers first, then the beacon on top.
-                                      Positioned(
-                                        top: _padV,
-                                        left: 0,
-                                        child: Row(
-                                          children: [
-                                            for (var i = 0; i < _copies; i++)
-                                              CustomPaint(
-                                                size: Size(w, h),
-                                                painter: _MarkerPainter(
-                                                    _wm, _markers, col),
-                                              ),
-                                          ],
-                                        ),
-                                      ),
-                                      if (_hasHot)
-                                        Positioned(
-                                          top: _padV,
-                                          left: 0,
-                                          child: Row(
-                                            children: [
-                                              for (var i = 0; i < _copies; i++)
-                                                reduce
-                                                    ? CustomPaint(
-                                                        size: Size(w, h),
-                                                        painter:
-                                                            _RadarMapPainter(_wm,
-                                                                _hotR, _hotC, col,
-                                                                0,
-                                                                reduce: true))
-                                                    : AnimatedBuilder(
-                                                        animation: _radar,
-                                                        builder: (_, __) =>
-                                                            CustomPaint(
-                                                          size: Size(w, h),
-                                                          painter:
-                                                              _RadarMapPainter(
-                                                                  _wm,
-                                                                  _hotR,
-                                                                  _hotC,
-                                                                  col,
-                                                                  _radar.value,
-                                                                  reduce: false),
-                                                        ),
-                                                      ),
-                                            ],
-                                          ),
-                                        ),
-                                      if (_popup != null)
-                                        _CountryBubble(
-                                          country: _repo.countries[_popup!.ci],
-                                          at: Offset(
-                                              _popupCopy * w +
-                                                  (_popup!.c + 0.5) * w / _wm.cols,
-                                              _padV +
-                                                  (_popup!.r + 0.5) *
-                                                      h /
-                                                      _wm.rows),
-                                        ),
-                                    ],
-                                  ),
-                                ),
+                                    ),
+                                  );
+                                },
                               ),
-                            );
-                          },
+                            ),
+                            // Back to the next stage, the way a maps app
+                            // recentres on you. Just above the floating tab bar.
+                            Positioned(
+                              right: 16,
+                              bottom: botInset + 12,
+                              child: _MyLocationButton(onTap: _recenter),
+                            ),
+                          ],
                         );
                       },
                     ),
-        ),
-        // Back to the next stage, the way a maps app recentres on you. Sits
-        // clear of the floating tab bar.
-        if (_ready && _wm.isLoaded)
-          Positioned(
-            right: 16,
-            bottom: 96,
-            // Restore the default view: 1x, beacon centred.
-            child: _MyLocationButton(onTap: _recenter),
-          ),
-        // Header floats over the map with a transparent background. Pinned to
-        // the top (not stretched) so StackFit.expand doesn't force it full-height.
-        Positioned(
-          top: 0,
-          left: 0,
-          right: 0,
-          child: SafeArea(
-            bottom: false,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const MetaHeader('맵'),
-                // The campaign runs smallest territory first, so the opening
-                // rounds colour a handful of dots that are easy to miss on a
-                // world map. A plain count makes the progress legible until the
-                // countries get big enough to see.
-                ValueListenableBuilder<int>(
-                  valueListenable: Progress.instance.unlocked,
-                  builder: (context, _, _) => Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    // A chip, not bare text: the line sits over the dot map,
-                    // and dots running through the glyphs made it unreadable.
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: col.surface.withValues(alpha: 0.78),
-                        borderRadius: BorderRadius.circular(AppRadius.pill),
-                      ),
-                      child: Text(
-                        _repo.isLoaded
-                            ? '$_currentCountry개국 완료 · ${_repo.countries.length}개국 중'
-                            : '',
-                        style: AppText.caption.copyWith(color: col.inkSoft),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
         ),
       ],
     );
