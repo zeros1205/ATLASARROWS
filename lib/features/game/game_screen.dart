@@ -198,11 +198,18 @@ class _GameScreenState extends State<GameScreen>
     _autoZoomToQuadrant(r);
   }
 
+  /// [AtlasArrowsGame.maxZoom] is the *deepest* zoom the player can pinch to —
+  /// landing the auto zoom there read as way too far in. Half of it matched a
+  /// reference screenshot at a comfortable "several cells at a glance" depth,
+  /// so that's the entrance target instead.
+  static const double _entranceZoomFactor = 0.5;
+
   /// Flies the view from the fit-to-screen state into one of the board's four
-  /// quadrants, chosen at random, over 1.5s. The target keeps the same
-  /// [AtlasArrowsGame.maxZoom] every other zoom control uses, so the on-screen
-  /// cell size — and so the arrow stroke width — lands the same regardless of
-  /// how many rows/columns this particular stage has.
+  /// quadrants, chosen at random, over 1.5s. The target is a fixed fraction of
+  /// [AtlasArrowsGame.maxZoom] — the same value every other zoom control
+  /// normalises by cell size — so the on-screen cell size, and so the arrow
+  /// stroke width, still lands the same regardless of how many rows/columns
+  /// this particular stage has; it's just shallower than the pinch limit.
   void _autoZoomToQuadrant(Rect boardRect) {
     final qx = _rng.nextBool() ? -1.0 : 1.0;
     final qy = _rng.nextBool() ? -1.0 : 1.0;
@@ -210,7 +217,7 @@ class _GameScreenState extends State<GameScreen>
       boardRect.center.dx + qx * boardRect.width / 4,
       boardRect.center.dy + qy * boardRect.height / 4,
     );
-    final zoom = _game.maxZoom.value;
+    final zoom = _game.maxZoom.value * _entranceZoomFactor;
     final vc = _playRect.center;
     final end = Matrix4.identity()
       ..translate(vc.dx, vc.dy)
