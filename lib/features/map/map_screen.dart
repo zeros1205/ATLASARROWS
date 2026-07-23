@@ -157,6 +157,12 @@ class _MapScreenState extends State<MapScreen>
     return (_wm.dotsOf(ci) * local / total).round();
   }
 
+  /// Symmetric breathing room inside the map band, above and below the dots, so
+  /// the northern edge (Greenland) and the southern edge don't sit flush against
+  /// the header or the tab bar. The whole latitude range is always fitted into
+  /// the remaining height, so nothing is cropped or squashed — only smaller.
+  static const double _padV = 22;
+
   /// How many copies of the world sit side by side. Three is the minimum that
   /// lets the offset be wrapped onto the middle one from either direction.
   static const int _copies = 3;
@@ -244,9 +250,9 @@ class _MapScreenState extends State<MapScreen>
   }
 
   void _onTapUp(TapUpDetails d, double w, double h) {
-    // The map is drawn from the content top; ignore taps below it (the empty
-    // band behind the tab bar).
-    final localY = d.localPosition.dy;
+    // The map is drawn _padV below the content top; ignore taps in that margin
+    // or in the empty band below (behind the tab bar).
+    final localY = d.localPosition.dy - _padV;
     if (localY < 0 || localY > h) return;
     final cw = w / _wm.cols, ch = h / _wm.rows;
     // The world repeats; fold the tap onto one copy, remembering which.
@@ -297,12 +303,13 @@ class _MapScreenState extends State<MapScreen>
                       builder: (context, cons) {
                         // The tab bar floats over this screen (extendBody), so
                         // the map's content is the full area height but its dots
-                        // stop [botInset] short — the tab bar's top line — rather
-                        // than running behind the bar.
+                        // stop [botInset] short — the tab bar's top line. A _padV
+                        // margin is left above and below the dots (below the
+                        // header, above the bar) for visual stability.
                         final botInset = kTabBarSlot +
                             MediaQuery.viewPaddingOf(context).bottom;
                         final vpH = cons.maxHeight;
-                        final h = math.max(vpH - botInset, 1.0);
+                        final h = math.max(vpH - botInset - 2 * _padV, 1.0);
                         final w = h * _wm.cols / _wm.rows;
                         _viewportW = cons.maxWidth;
                         _viewportH = vpH;
@@ -346,52 +353,55 @@ class _MapScreenState extends State<MapScreen>
                                           children: [
                                             // Three copies side by side, the pan
                                             // wrapped onto the middle one so the
-                                            // Pacific can be read whole.
-                                            Row(
-                                              children: [
-                                                for (var i = 0; i < _copies; i++)
-                                                  CustomPaint(
-                                                    size: Size(w, h),
-                                                    painter: _WorldPainter(
-                                                        _wm,
-                                                        _currentCountry,
-                                                        _currentFilled,
-                                                        col),
-                                                  ),
-                                              ],
-                                            ),
-                                            // Markers, then the beacon on top.
-                                            Row(
-                                              children: [
-                                                for (var i = 0; i < _copies; i++)
-                                                  CustomPaint(
-                                                    size: Size(w, h),
-                                                    painter: _MarkerPainter(
-                                                        _wm, _markers, col),
-                                                  ),
-                                              ],
-                                            ),
-                                            if (_hasHot)
-                                              Row(
+                                            // Pacific can be read whole. Inset by
+                                            // _padV so the dots keep a top margin.
+                                            Positioned(
+                                              top: _padV,
+                                              left: 0,
+                                              child: Row(
                                                 children: [
                                                   for (var i = 0;
                                                       i < _copies;
                                                       i++)
-                                                    reduce
-                                                        ? CustomPaint(
-                                                            size: Size(w, h),
-                                                            painter:
-                                                                _RadarMapPainter(
-                                                                    _wm,
-                                                                    _hotR,
-                                                                    _hotC,
-                                                                    col,
-                                                                    0,
-                                                                    reduce: true))
-                                                        : AnimatedBuilder(
-                                                            animation: _radar,
-                                                            builder: (_, __) =>
-                                                                CustomPaint(
+                                                    CustomPaint(
+                                                      size: Size(w, h),
+                                                      painter: _WorldPainter(
+                                                          _wm,
+                                                          _currentCountry,
+                                                          _currentFilled,
+                                                          col),
+                                                    ),
+                                                ],
+                                              ),
+                                            ),
+                                            // Markers, then the beacon on top.
+                                            Positioned(
+                                              top: _padV,
+                                              left: 0,
+                                              child: Row(
+                                                children: [
+                                                  for (var i = 0;
+                                                      i < _copies;
+                                                      i++)
+                                                    CustomPaint(
+                                                      size: Size(w, h),
+                                                      painter: _MarkerPainter(
+                                                          _wm, _markers, col),
+                                                    ),
+                                                ],
+                                              ),
+                                            ),
+                                            if (_hasHot)
+                                              Positioned(
+                                                top: _padV,
+                                                left: 0,
+                                                child: Row(
+                                                  children: [
+                                                    for (var i = 0;
+                                                        i < _copies;
+                                                        i++)
+                                                      reduce
+                                                          ? CustomPaint(
                                                               size: Size(w, h),
                                                               painter:
                                                                   _RadarMapPainter(
@@ -399,13 +409,29 @@ class _MapScreenState extends State<MapScreen>
                                                                       _hotR,
                                                                       _hotC,
                                                                       col,
-                                                                      _radar
-                                                                          .value,
+                                                                      0,
                                                                       reduce:
-                                                                          false),
+                                                                          true))
+                                                          : AnimatedBuilder(
+                                                              animation: _radar,
+                                                              builder: (_, __) =>
+                                                                  CustomPaint(
+                                                                size:
+                                                                    Size(w, h),
+                                                                painter:
+                                                                    _RadarMapPainter(
+                                                                        _wm,
+                                                                        _hotR,
+                                                                        _hotC,
+                                                                        col,
+                                                                        _radar
+                                                                            .value,
+                                                                        reduce:
+                                                                            false),
+                                                              ),
                                                             ),
-                                                          ),
-                                                ],
+                                                  ],
+                                                ),
                                               ),
                                             if (_popup != null)
                                               _CountryBubble(
@@ -416,9 +442,10 @@ class _MapScreenState extends State<MapScreen>
                                                         (_popup!.c + 0.5) *
                                                             w /
                                                             _wm.cols,
-                                                    (_popup!.r + 0.5) *
-                                                        h /
-                                                        _wm.rows),
+                                                    _padV +
+                                                        (_popup!.r + 0.5) *
+                                                            h /
+                                                            _wm.rows),
                                               ),
                                           ],
                                         ),
