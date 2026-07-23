@@ -483,7 +483,7 @@ class _DotsPainter extends CustomPainter {
     final rBase = f.scale * 0.30, rHot = f.scale * 0.44;
     // The land reads as texture, not decoration — the old inkFaint at 0.45
     // washed out to near-paper and the map barely registered.
-    final faint = Paint()..color = c.inkSoft.withValues(alpha: 0.7);
+    final faint = Paint()..color = c.inkSoft.withValues(alpha: 0.82);
     for (var i = 0; i < wm.cells.length; i++) {
       if (wm.cells[i] < 0 || _hotSet.contains(i)) continue;
       final row = i ~/ wm.cols, col = (i % wm.cols + shift) % wm.cols;

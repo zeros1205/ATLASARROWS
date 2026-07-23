@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 /// Semantic color tokens for Atlas Arrows, resolved per theme via a
 /// [ThemeExtension]. Reach them with `AppColors.of(context)`.
 ///
-/// Identity: paper + ink. White page ground, teal-gray ink for the
+/// Identity: paper + ink. Snow-flake off-white page ground, teal-gray ink for the
 /// maze and headings, one blue accent for action, red for mistakes. The
 /// teal-gray (#3A4A55) is lifted from the Figma wordmark; the accent is
 /// 여기어때 YDS Cyan 800 (#1D8BFF). Two themes only — light and dark.
@@ -48,7 +48,7 @@ class AppColors extends ThemeExtension<AppColors> {
   final Color shadow;       // soft shadow color
 
   static const light = AppColors(
-    bg: Color(0xFFFFFFFF),          // white page ground
+    bg: Color(0xFFF7F7F7),          // snow-flake page ground
     surface: Color(0xFFFFFFFF),
     surfaceMuted: Color(0xFFEDECE6),
     card: Color(0xFFFFFFFF),

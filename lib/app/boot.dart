@@ -39,10 +39,10 @@ class AppBrand {
 /// is LOGAN LAND's, and stays at the kit defaults on purpose.
 final kBootConfig = LoganLandBootConfig(
   wordmarkAsset: AppBrand.wordmark,
-  // Match the home screen's white page ground (AppColors.light.bg) instead of
-  // the kit's cream plate — the app wanted the loading screen to hand off to
-  // home on the same colour rather than a cream→white step.
-  plateColor: const Color(0xFFFFFFFF),
+  // Match the home screen's snow-flake page ground (AppColors.light.bg) instead
+  // of the kit's cream plate — the app wanted the loading screen to hand off to
+  // home on the same colour rather than a cream→off-white step.
+  plateColor: const Color(0xFFF7F7F7),
   // The kit's warm-grey track (#6E6961) separates from a teal fill by hue
   // rather than lightness — 1.70:1, which the kit itself flags. Its remedy is
   // to lighten the track, but that is aimed at apps whose accent is near

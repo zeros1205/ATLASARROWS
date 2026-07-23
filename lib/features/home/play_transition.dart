@@ -151,7 +151,7 @@ class _DivePainter extends CustomPainter {
     Offset screen(Offset h) => marker + (h - marker) * z;
 
     final hot = args.hot.toSet();
-    final faint = Paint()..color = c.inkSoft.withValues(alpha: 0.7);
+    final faint = Paint()..color = c.inkSoft.withValues(alpha: 0.82);
     final solid = Paint()..color = c.accent;
     final bounds = Offset.zero & size;
     final rFaint = f.scale * 0.30 * z, rHot = f.scale * 0.44 * z;
