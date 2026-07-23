@@ -284,18 +284,38 @@ class _GameScreenState extends State<GameScreen>
       ..translate(vp.dx, vp.dy)
       ..scale(zoom)
       ..translate(-corner.dx, -corner.dy);
+    _animateBoardTo(end, ms: 1500, curve: Curves.easeInCubic);
+  }
 
+  /// Pans (keeping the current zoom) so an off-screen hinted line lands in the
+  /// centre of the play area. [rect] is the line's footprint in the game's
+  /// canvas coordinates; the clamp keeps the board on screen afterwards. Fired
+  /// only when a hint would otherwise blink on a line the player can't see.
+  void _revealForHint(Rect rect) {
+    if (_playRect.isEmpty) return;
+    final s = _boardTc.value.getMaxScaleOnAxis();
+    final target = rect.center;
+    final vp = _playRect.center;
+    final end = Matrix4.identity()
+      ..translate(vp.dx, vp.dy)
+      ..scale(s)
+      ..translate(-target.dx, -target.dy);
+    _animateBoardTo(end, ms: 450, curve: Curves.easeInOutCubic);
+  }
+
+  /// Runs the shared board-transform tween used by the entrance zoom and the
+  /// hint pan. Snaps instead under OS reduce-motion.
+  void _animateBoardTo(Matrix4 end, {required int ms, required Curve curve}) {
     if (reduceMotion(context)) {
       _boardTc.value = end;
       return;
     }
-
     _autoZoomCtrl?.dispose();
     final ctrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1500));
+        vsync: this, duration: Duration(milliseconds: ms));
     _autoZoomCtrl = ctrl;
     final tween = Matrix4Tween(begin: _boardTc.value, end: end)
-        .animate(CurvedAnimation(parent: ctrl, curve: Curves.easeInCubic));
+        .animate(CurvedAnimation(parent: ctrl, curve: curve));
     tween.addListener(() => _boardTc.value = tween.value);
     ctrl.forward();
   }
@@ -360,6 +380,7 @@ class _GameScreenState extends State<GameScreen>
         onFailed: () => setState(() => _result = _Result.failed),
         onEscaped: _onEscaped,
         onRemoveUsed: Progress.instance.useRemove,
+        onHintOffView: _revealForHint,
         introOnLoad: _entranceSequence,
         // Phase 5: the arrows have started filling — bring the chrome in.
         onIntroArrows: () {

@@ -30,6 +30,7 @@ class AtlasArrowsGame extends FlameGame {
     this.onRemoveUsed,
     this.onIntroArrows,
     this.onIntroDone,
+    this.onHintOffView,
     this.introOnLoad = false,
   });
 
@@ -58,6 +59,12 @@ class AtlasArrowsGame extends FlameGame {
   final VoidCallback? onIntroArrows;
   final VoidCallback? onIntroDone;
 
+  /// Fired when a hint lands on a line the player can't currently see (the whole
+  /// escapable line sits outside the zoomed-in viewport). Carries the line's
+  /// footprint in this game's canvas coordinates so the screen can pan the view
+  /// onto it. Not fired when the hinted line is already on screen.
+  final void Function(Rect lineCanvasRect)? onHintOffView;
+
   /// When true, the first level plays the entrance intro (dots rain in, then
   /// arrows fill) instead of appearing whole. Later levels always appear whole.
   final bool introOnLoad;
@@ -78,6 +85,10 @@ class AtlasArrowsGame extends FlameGame {
   late BoardLogic logic;
   late Level _current;
   BoardComponent? _board;
+
+  /// The line currently blinking as a hint, held until the player's next tap
+  /// (see [showHint] / [clearHint]).
+  LineComponent? _hintedLine;
   bool _inputLocked = false;
   int _combo = 0;
   DateTime _lastEscapeAt = DateTime.fromMillisecondsSinceEpoch(0);
@@ -109,6 +120,7 @@ class AtlasArrowsGame extends FlameGame {
     Sfx.pickStageVoice();
     removeArmed.value = false;
     logic = BoardLogic.fromLevel(level);
+    _hintedLine = null; // the old board (and its hinted line) is about to go
     _board?.removeFromParent();
     final board = BoardComponent(level: level)..anchor = Anchor.center;
     _board = board;
@@ -142,20 +154,97 @@ class AtlasArrowsGame extends FlameGame {
     onHeartsChanged?.call(hearts);
   }
 
-  /// Highlights one currently-escapable line (hint item). Returns false when
-  /// none exists or input is locked.
+  /// Highlights one currently-escapable line (hint item) and keeps it blinking
+  /// blue until the player's next tap. Prefers a line the player can already
+  /// see: a plain "first escapable" pick often lands off the zoomed-in viewport,
+  /// which is useless. When every escapable line is off screen it picks the one
+  /// nearest the viewport and fires [onHintOffView] so the screen can pan onto
+  /// it. Returns false when none exists or input is locked.
   bool showHint() {
     if (_inputLocked) return false;
+    final board = _board;
+    if (board == null) return false;
+    final escapable = <LineComponent>[];
     for (final id in logic.lines.keys) {
-      if (logic.tap(id) is MoveEscaped) {
-        final lc = _board?.lineById(id);
-        if (lc != null && !lc.animating) {
-          lc.flashHint();
-          return true;
-        }
+      if (logic.tap(id) is! MoveEscaped) continue;
+      final lc = board.lineById(id);
+      if (lc != null && !lc.animating) escapable.add(lc);
+    }
+    if (escapable.isEmpty) return false;
+
+    final view = visibleRect;
+    LineComponent? pick;
+    for (final lc in escapable) {
+      if (_lineInView(lc, view)) {
+        pick = lc;
+        break;
       }
     }
+    final offView = pick == null;
+    pick ??= _nearestToView(escapable, view);
+
+    clearHint();
+    _hintedLine = pick;
+    pick.holdHint();
+    if (offView) onHintOffView?.call(_lineCanvasRect(pick));
+    return true;
+  }
+
+  /// Stops the held hint blink. Called on the player's next tap and on level
+  /// (re)load.
+  void clearHint() {
+    _hintedLine?.clearHint();
+    _hintedLine = null;
+  }
+
+  /// Canvas-space centre of a board cell, i.e. where it sits before the Flutter
+  /// pan/zoom — the same space as [visibleRect].
+  Offset _cellCanvas(int row, int col) {
+    final b = _board!;
+    return Offset(
+      b.position.x + ((col + 0.5) * BoardComponent.cell - b.size.x / 2) * _fitScale,
+      b.position.y + ((row + 0.5) * BoardComponent.cell - b.size.y / 2) * _fitScale,
+    );
+  }
+
+  /// Whether any of [lc]'s cells sits comfortably inside [view] (inset by half a
+  /// cell so a line clinging to the very edge doesn't count as shown).
+  bool _lineInView(LineComponent lc, Rect view) {
+    final inset = view.deflate(BoardComponent.cell * _fitScale * 0.5);
+    for (final (r, c) in lc.line.cells) {
+      if (inset.contains(_cellCanvas(r, c))) return true;
+    }
     return false;
+  }
+
+  /// The escapable line whose centroid is closest to the viewport centre — the
+  /// least-jarring one to pan to when none is on screen.
+  LineComponent _nearestToView(List<LineComponent> lines, Rect view) {
+    final vc = view.center;
+    var best = lines.first;
+    var bestD = double.infinity;
+    for (final lc in lines) {
+      final ctr = _lineCanvasRect(lc).center;
+      final d = (ctr - vc).distanceSquared;
+      if (d < bestD) {
+        bestD = d;
+        best = lc;
+      }
+    }
+    return best;
+  }
+
+  /// [lc]'s footprint in canvas coordinates, for the screen's pan-onto-hint.
+  Rect _lineCanvasRect(LineComponent lc) {
+    var l = double.infinity, t = double.infinity, r = -double.infinity, b = -double.infinity;
+    for (final (row, col) in lc.line.cells) {
+      final o = _cellCanvas(row, col);
+      l = math.min(l, o.dx);
+      t = math.min(t, o.dy);
+      r = math.max(r, o.dx);
+      b = math.max(b, o.dy);
+    }
+    return Rect.fromLTRB(l, t, r, b);
   }
 
   void armRemove() {
@@ -343,6 +432,8 @@ class AtlasArrowsGame extends FlameGame {
   }
 
   void handleTap(LineComponent lineComponent) {
+    // Any arrow tap is "the next action" that ends a held hint blink.
+    clearHint();
     if (_inputLocked || lineComponent.animating) return;
     if (removeArmed.value) {
       _removeStrike(lineComponent);

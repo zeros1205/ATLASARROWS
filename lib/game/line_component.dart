@@ -39,22 +39,28 @@ class LineComponent extends PositionComponent
   bool get animating => _anim != _Anim.idle;
 
   double _flash = 0;
-  double _hint = 0;
+  bool _hintHeld = false;
+  double _hintClock = 0;
   double _fade = 1;
 
   /// Briefly tints this line red — used on the blocker so the player sees
   /// what stopped their arrow.
   void flashRed() => _flash = 0.4;
 
-  /// Blinks this line blue — the hint highlight for a free line.
-  void flashHint() => _hint = 1.6;
+  /// Blinks this line blue and keeps blinking — the hint highlight for a free
+  /// line, held until [clearHint] (the player's next arrow tap).
+  void holdHint() => _hintHeld = true;
+  void clearHint() {
+    _hintHeld = false;
+    _hintClock = 0;
+  }
 
   Color get _color {
     final p = game.palette;
     return switch (_anim) {
       _Anim.idle => _flash > 0
           ? p.danger
-          : _hint > 0 && (_hint * 4).floor().isOdd
+          : _hintHeld && (_hintClock * 3).floor().isOdd
               ? p.accent
               : p.ink,
       _Anim.escaping => p.accent,
@@ -164,7 +170,7 @@ class LineComponent extends PositionComponent
   void update(double dt) {
     super.update(dt);
     if (_flash > 0) _flash -= dt;
-    if (_hint > 0) _hint -= dt;
+    if (_hintHeld) _hintClock += dt;
     switch (_anim) {
       case _Anim.idle:
         break;
