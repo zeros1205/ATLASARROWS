@@ -19,6 +19,7 @@ dependencies:
   games_services: ^5.1.0
   firebase_core: ^4.12.1
   firebase_auth: ^6.5.6
+  firebase_app_check: ^0.4.5+2
   # LOGAN LAND cold-start brand sequence.
   #
   # ⚠️ VENDORED COPY. The source of truth is zeros1205/loganland_flutter_kit at
