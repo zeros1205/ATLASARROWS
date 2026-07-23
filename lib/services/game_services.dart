@@ -104,24 +104,22 @@ abstract final class GameServices {
     ),
   };
 
-  /// Attempts a silent sign-in during boot. Called from the boot sequence and
-  /// allowed to fail — a declined or unavailable sign-in must not delay the
-  /// player or surface an error.
+  /// Reads the sign-in state during boot — it never triggers an interactive
+  /// sign-in. Play Games v2 (Android) and Game Center (iOS) sign the player in
+  /// automatically at process start and show their own small "welcome" banner
+  /// at the top; that is the only sign-in surface the player should ever see on
+  /// launch.
   ///
-  /// Checks [GameAuth.isSignedIn] first rather than calling [GameAuth.signIn]
-  /// unconditionally: an already-authenticated player gets the platform's own
-  /// silent restore (Play Games shows its small "signed in" banner at the top
-  /// on its own) instead of the interactive account-picker sheet, which
-  /// [GameAuth.signIn] pops up every time regardless of whether the player
-  /// was already signed in.
+  /// We must NOT call [GameAuth.signIn] here. On Android [GameAuth.isSignedIn]
+  /// commonly reports false at cold start because the automatic v2 sign-in
+  /// hasn't finished yet — so the old "if not signed in, sign in" path popped
+  /// the interactive account-picker bottom sheet on *every* launch, on top of
+  /// the automatic banner. Reading the flag and leaving it at that removes the
+  /// sheet; the flag only gates the best-effort leaderboard/achievement
+  /// submissions, which are allowed to be skipped for a session.
   static Future<void> init() async {
     if (!supported) return;
     try {
-      if (await GameAuth.isSignedIn) {
-        signedIn.value = true;
-        return;
-      }
-      await GameAuth.signIn();
       signedIn.value = await GameAuth.isSignedIn;
     } catch (_) {
       signedIn.value = false;
