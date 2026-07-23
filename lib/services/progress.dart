@@ -44,6 +44,11 @@ class Progress {
   /// first-stage coach overlay.
   final ValueNotifier<bool> coachDone = ValueNotifier(false);
 
+  /// False until the item speech-bubbles (hint on the 1st freed arrow, remove on
+  /// the 2nd) have been shown once. Keeps that first-run coaching from repeating
+  /// every board.
+  final ValueNotifier<bool> itemHintsSeen = ValueNotifier(false);
+
   /// Developer cheat: puts a "clear this stage" button on the play screen.
   /// Armed by tapping LOGAN ten times in Settings, disarmed by tapping LAND
   /// ten times. Persisted so a test session survives a restart — nothing shows
@@ -63,6 +68,7 @@ class Progress {
     onboarded.value = _prefs.getBool('onboarded') ?? false;
     adsRemoved.value = _prefs.getBool('adsRemoved') ?? false;
     coachDone.value = _prefs.getBool('coachDone') ?? false;
+    itemHintsSeen.value = _prefs.getBool('itemHintsSeen') ?? false;
     cheatOn.value = _prefs.getBool('cheatOn') ?? false;
     playedRandom
       ..clear()
@@ -141,6 +147,11 @@ class Progress {
     _prefs.setBool('coachDone', done);
   }
 
+  void setItemHintsSeen(bool seen) {
+    itemHintsSeen.value = seen;
+    _prefs.setBool('itemHintsSeen', seen);
+  }
+
   void useRefillCoupon() {
     if (refillCoupons.value <= 0) return;
     refillCoupons.value--;
@@ -162,5 +173,6 @@ class Progress {
   void replayOnboarding() {
     setOnboarded(false);
     setCoachDone(false);
+    setItemHintsSeen(false);
   }
 }

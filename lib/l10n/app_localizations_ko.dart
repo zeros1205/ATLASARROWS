@@ -196,6 +196,12 @@ class AppLocalizationsKo extends AppLocalizations {
   String get coachPinchZoom => '두 손가락으로 확대해 보세요';
 
   @override
+  String get coachHintBubble => '막힘 없는 화살을 찾아드려요.';
+
+  @override
+  String get coachRemoveBubble => '제거할 화살을 탭하세요';
+
+  @override
   String get barFit => '화면맞춤';
 
   @override

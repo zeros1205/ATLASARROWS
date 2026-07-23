@@ -59,6 +59,8 @@
   "cancel": "キャンセル",
   "coachTapArrow": "光っている矢印をタップしてみよう",
   "coachPinchZoom": "2本指でつまんでズーム",
+  "coachHintBubble": "出せる矢印を見つけます。",
+  "coachRemoveBubble": "消す矢印をタップ。",
   "barFit": "全体表示",
   "barHint": "ヒント",
   "barRemove": "リムーブ",

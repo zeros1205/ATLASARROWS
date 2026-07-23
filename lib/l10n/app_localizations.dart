@@ -462,6 +462,18 @@ abstract class AppLocalizations {
   /// **'Pinch with two fingers to zoom'**
   String get coachPinchZoom;
 
+  /// No description provided for @coachHintBubble.
+  ///
+  /// In en, this message translates to:
+  /// **'We\'ll find an arrow you can free.'**
+  String get coachHintBubble;
+
+  /// No description provided for @coachRemoveBubble.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the arrow to remove.'**
+  String get coachRemoveBubble;
+
   /// No description provided for @barFit.
   ///
   /// In en, this message translates to:

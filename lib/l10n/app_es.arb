@@ -59,6 +59,8 @@
   "cancel": "Cancelar",
   "coachTapArrow": "Prueba a tocar una flecha brillante",
   "coachPinchZoom": "Pellizca con dos dedos para ampliar",
+  "coachHintBubble": "Te buscamos una flecha que puedas liberar.",
+  "coachRemoveBubble": "Toca la flecha para eliminar.",
   "barFit": "Ajustar",
   "barHint": "Pista",
   "barRemove": "Eliminar",

@@ -87,6 +87,8 @@
   "cancel": "Cancel",
   "coachTapArrow": "Try tapping a glowing arrow",
   "coachPinchZoom": "Pinch with two fingers to zoom",
+  "coachHintBubble": "We'll find an arrow you can free.",
+  "coachRemoveBubble": "Tap the arrow to remove.",
   "barFit": "Fit",
   "barHint": "Hint",
   "barRemove": "Remove",

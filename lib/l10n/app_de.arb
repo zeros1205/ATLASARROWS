@@ -59,6 +59,8 @@
   "cancel": "Abbrechen",
   "coachTapArrow": "Tippe auf einen leuchtenden Pfeil",
   "coachPinchZoom": "Zieh mit zwei Fingern auf, um zu zoomen",
+  "coachHintBubble": "Wir finden einen Pfeil, den du freimachen kannst.",
+  "coachRemoveBubble": "Tippe auf den Pfeil zum Entfernen.",
   "barFit": "Anpassen",
   "barHint": "Tipp",
   "barRemove": "Entfernen",

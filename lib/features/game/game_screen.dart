@@ -69,6 +69,9 @@ class GameScreen extends StatefulWidget {
 
 enum _Result { none, cleared, failed }
 
+/// Which item speech-bubble is currently up over the booster bar.
+enum _Coach { none, hint, remove }
+
 class _GameScreenState extends State<GameScreen>
     with SingleTickerProviderStateMixin {
   final _repo = CampaignRepository.instance;
@@ -421,11 +424,33 @@ class _GameScreenState extends State<GameScreen>
   }
 
   /// The coach retires itself the first time the player frees a line on their
-  /// own — the rule is learned by doing it, not by reading it twice.
+  /// own — the rule is learned by doing it, not by reading it twice. The item
+  /// speech-bubbles ride the same signal: the 1st freed arrow points at hint,
+  /// the 2nd at remove, once ever (see [Progress.itemHintsSeen]).
   void _onEscaped() {
     if (!Progress.instance.coachDone.value) {
       Progress.instance.setCoachDone(true);
     }
+    if (Progress.instance.itemHintsSeen.value) return;
+    _freedWhileLearning++;
+    if (_freedWhileLearning == 1) {
+      _showCoachBubble(_Coach.hint);
+    } else if (_freedWhileLearning == 2) {
+      _showCoachBubble(_Coach.remove);
+      Progress.instance.setItemHintsSeen(true);
+    }
+  }
+
+  int _freedWhileLearning = 0;
+  _Coach _coach = _Coach.none;
+  Timer? _coachBubbleTimer;
+
+  void _showCoachBubble(_Coach which) {
+    _coachBubbleTimer?.cancel();
+    setState(() => _coach = which);
+    _coachBubbleTimer = Timer(const Duration(milliseconds: 3500), () {
+      if (mounted) setState(() => _coach = _Coach.none);
+    });
   }
 
   /// Pushes the clear to Play Games / Game Center. Fire-and-forget: the call
@@ -612,6 +637,7 @@ class _GameScreenState extends State<GameScreen>
   @override
   void dispose() {
     _coachTimer?.cancel();
+    _coachBubbleTimer?.cancel();
     _hearts.dispose();
     _autoZoomCtrl?.dispose();
     _boardTc.removeListener(_clampBoard);
@@ -778,6 +804,7 @@ class _GameScreenState extends State<GameScreen>
                     children: [
                       _BoosterBar(
                         game: _game,
+                        coach: _coach,
                         onResetView: _resetBoardView,
                         onRestart: _confirmRestart,
                       ),
@@ -1360,8 +1387,12 @@ class _IntroTitleCardState extends State<_IntroTitleCard>
 /// across the width, each centred in its own equal quarter.
 class _BoosterBar extends StatelessWidget {
   const _BoosterBar(
-      {required this.game, required this.onResetView, required this.onRestart});
+      {required this.game,
+      required this.coach,
+      required this.onResetView,
+      required this.onRestart});
   final AtlasArrowsGame game;
+  final _Coach coach;
   final VoidCallback onResetView, onRestart;
 
   /// Running dry mid-board is the moment a top-up is most relevant, but sending
@@ -1379,10 +1410,11 @@ class _BoosterBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Padding(
-      // Bottom padding is the gap to the ad banner: three times the top, so
-      // the controls read as part of the board rather than as part of the ad.
-      padding: const EdgeInsets.fromLTRB(20, 10, 20, 30),
+      // Bottom padding is the gap to the ad banner. Trimmed 40% (30→18) to hand
+      // that space back to the puzzle board above.
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 18),
       // Four controls spread evenly across the width: each takes an equal
       // quarter and centres its tile inside it, so they read as one balanced
       // row regardless of the tiles' differing widths or the counters.
@@ -1398,19 +1430,22 @@ class _BoosterBar extends StatelessWidget {
           ),
           Expanded(
             child: Center(
-              child: ValueListenableBuilder<int>(
-                valueListenable: Progress.instance.hints,
-                builder: (context, n, _) => _BoosterButton(
-                  icon: 'assets/images/icons/hint.png',
-                  count: n,
-                  onTap: () {
-                    if (n <= 0) {
-                      _openItemSheet(context, forHint: true);
-                      return;
-                    }
-                    // Only debit when a hint was actually shown.
-                    if (game.showHint()) Progress.instance.useHint();
-                  },
+              child: _CoachSlot(
+                bubble: coach == _Coach.hint ? l.coachHintBubble : null,
+                child: ValueListenableBuilder<int>(
+                  valueListenable: Progress.instance.hints,
+                  builder: (context, n, _) => _BoosterButton(
+                    icon: 'assets/images/icons/hint.png',
+                    count: n,
+                    onTap: () {
+                      if (n <= 0) {
+                        _openItemSheet(context, forHint: true);
+                        return;
+                      }
+                      // Only debit when a hint was actually shown.
+                      if (game.showHint()) Progress.instance.useHint();
+                    },
+                  ),
                 ),
               ),
             ),
@@ -1419,20 +1454,28 @@ class _BoosterBar extends StatelessWidget {
             child: Center(
               child: ValueListenableBuilder<bool>(
                 valueListenable: game.removeArmed,
-                builder: (context, armed, _) => ValueListenableBuilder<int>(
-                  valueListenable: Progress.instance.removes,
-                  builder: (context, n, _) => _BoosterButton(
-                    icon: 'assets/images/icons/remove.png',
-                    count: n,
-                    armed: armed,
-                    onTap: () {
-                      if (n <= 0) {
-                        _openItemSheet(context, forHint: false);
-                        return;
-                      }
-                      // Arming is free; the strike itself debits via onRemoveUsed.
-                      game.armRemove();
-                    },
+                builder: (context, armed, _) => _CoachSlot(
+                  // Armed remove can't fire on its own — the bubble tells the
+                  // player to tap an arrow, and the ring pulses like a beacon.
+                  bubble: armed || coach == _Coach.remove
+                      ? l.coachRemoveBubble
+                      : null,
+                  pulse: armed,
+                  child: ValueListenableBuilder<int>(
+                    valueListenable: Progress.instance.removes,
+                    builder: (context, n, _) => _BoosterButton(
+                      icon: 'assets/images/icons/remove.png',
+                      count: n,
+                      armed: armed,
+                      onTap: () {
+                        if (n <= 0) {
+                          _openItemSheet(context, forHint: false);
+                          return;
+                        }
+                        // Arming is free; the strike itself debits via onRemoveUsed.
+                        game.armRemove();
+                      },
+                    ),
                   ),
                 ),
               ),
@@ -1532,6 +1575,156 @@ class _BoosterButton extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Wraps a booster control with the optional coach affordances that float over
+/// it: a pulsing beacon ring behind it (armed remove) and a speech bubble above
+/// it. Both overflow the tile, so the stack does not clip.
+class _CoachSlot extends StatelessWidget {
+  const _CoachSlot({this.bubble, this.pulse = false, required this.child});
+  final String? bubble;
+  final bool pulse;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.center,
+      children: [
+        if (pulse) const Positioned.fill(child: _PulseRing()),
+        child,
+        if (bubble != null)
+          Positioned(
+            bottom: 64,
+            left: 0,
+            right: 0,
+            child: OverflowBox(
+              maxWidth: double.infinity,
+              child: _CoachBubble(bubble!),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// A speech bubble with a downward tail, pointing at the control beneath it.
+class _CoachBubble extends StatelessWidget {
+  const _CoachBubble(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = AppColors.of(context);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          decoration: BoxDecoration(
+            color: c.accent,
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            boxShadow: [
+              BoxShadow(
+                  color: c.shadow, blurRadius: 12, offset: const Offset(0, 4)),
+            ],
+          ),
+          child: Text(text,
+              softWrap: false,
+              style: AppText.caption
+                  .copyWith(color: c.onAccent, fontWeight: FontWeight.w600)),
+        ),
+        CustomPaint(size: const Size(14, 7), painter: _BubbleTail(c.accent)),
+      ],
+    );
+  }
+}
+
+class _BubbleTail extends CustomPainter {
+  _BubbleTail(this.color);
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final p = Path()
+      ..moveTo(0, 0)
+      ..lineTo(size.width, 0)
+      ..lineTo(size.width / 2, size.height)
+      ..close();
+    canvas.drawPath(p, Paint()..color = color);
+  }
+
+  @override
+  bool shouldRepaint(_BubbleTail old) => old.color != color;
+}
+
+/// Sonar-style rings expanding out of the armed remove button, so it reads as
+/// "waiting for your tap". Holds a static ring under OS reduce-motion.
+class _PulseRing extends StatefulWidget {
+  const _PulseRing();
+
+  @override
+  State<_PulseRing> createState() => _PulseRingState();
+}
+
+class _PulseRingState extends State<_PulseRing>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c =
+      AnimationController(vsync: this, duration: const Duration(milliseconds: 1400));
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (reduceMotion(context)) {
+      _c.stop();
+    } else if (!_c.isAnimating) {
+      _c.repeat();
+    }
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = AppColors.of(context);
+    return IgnorePointer(
+      child: AnimatedBuilder(
+        animation: _c,
+        builder: (_, __) => CustomPaint(painter: _PulsePainter(_c.value, c.accent)),
+      ),
+    );
+  }
+}
+
+class _PulsePainter extends CustomPainter {
+  _PulsePainter(this.t, this.color);
+  final double t;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    for (var k = 0; k < 2; k++) {
+      final ph = (t + k / 2) % 1;
+      final grow = 16 * ph;
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+            rect.inflate(grow), Radius.circular(AppRadius.lg + grow)),
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2
+          ..color = color.withValues(alpha: (1 - ph) * 0.55),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_PulsePainter old) => old.t != t || old.color != color;
 }
 
 /// The clear / fail sheet. It is the most-repeated modal in the game, so it

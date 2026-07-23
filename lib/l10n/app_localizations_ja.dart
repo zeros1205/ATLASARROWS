@@ -195,6 +195,12 @@ class AppLocalizationsJa extends AppLocalizations {
   String get coachPinchZoom => '2本指でつまんでズーム';
 
   @override
+  String get coachHintBubble => '出せる矢印を見つけます。';
+
+  @override
+  String get coachRemoveBubble => '消す矢印をタップ。';
+
+  @override
   String get barFit => '全体表示';
 
   @override

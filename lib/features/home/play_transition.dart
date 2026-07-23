@@ -16,7 +16,10 @@ class DiveArgs {
   /// Global rectangle the home world map occupied at the moment of the tap.
   final Rect mapRect;
 
-  /// Target centroid, in grid (row, col) — the marker the camera dives into.
+  /// The beacon cell's grid (row, col) — the exact lit dot the camera dives
+  /// into. Was the centroid, but for a small country the rounded centroid could
+  /// land on a neighbouring *unlit* (grey) cell, so the fall targeted a grey dot
+  /// next to the blue beacon instead of the beacon itself.
   final double cr, cc;
 
   /// Linear cell index (as a one-element list) of the destination beacon — the
@@ -54,7 +57,10 @@ class DiveArgs {
         beacon = i;
       }
     }
-    return DiveArgs._(mapRect, cr, cc, [beacon]);
+    // Dive into the beacon cell itself, not the centroid — otherwise the
+    // camera can fall toward a grey cell next to the lit blue dot.
+    return DiveArgs._(mapRect, (beacon ~/ wm.cols).toDouble(),
+        (beacon % wm.cols).toDouble(), [beacon]);
   }
 }
 

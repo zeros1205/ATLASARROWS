@@ -59,6 +59,8 @@
   "cancel": "Annuler",
   "coachTapArrow": "Essayez de toucher une flèche qui brille",
   "coachPinchZoom": "Pincez avec deux doigts pour zoomer",
+  "coachHintBubble": "On vous trouve une flèche à libérer.",
+  "coachRemoveBubble": "Touchez la flèche à retirer.",
   "barFit": "Ajuster",
   "barHint": "Indice",
   "barRemove": "Retirer",

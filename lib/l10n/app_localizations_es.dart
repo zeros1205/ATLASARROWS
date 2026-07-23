@@ -202,6 +202,12 @@ class AppLocalizationsEs extends AppLocalizations {
   String get coachPinchZoom => 'Pellizca con dos dedos para ampliar';
 
   @override
+  String get coachHintBubble => 'Te buscamos una flecha que puedas liberar.';
+
+  @override
+  String get coachRemoveBubble => 'Toca la flecha para eliminar.';
+
+  @override
   String get barFit => 'Ajustar';
 
   @override

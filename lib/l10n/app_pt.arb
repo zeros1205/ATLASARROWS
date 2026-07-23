@@ -59,6 +59,8 @@
   "cancel": "Cancelar",
   "coachTapArrow": "Tente tocar em uma seta brilhante",
   "coachPinchZoom": "Use dois dedos para dar zoom",
+  "coachHintBubble": "Encontramos uma seta que dá para liberar.",
+  "coachRemoveBubble": "Toque na seta para remover.",
   "barFit": "Ajustar",
   "barHint": "Dica",
   "barRemove": "Remover",

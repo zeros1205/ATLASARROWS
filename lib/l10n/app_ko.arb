@@ -59,6 +59,8 @@
   "cancel": "취소",
   "coachTapArrow": "빛나는 화살표를 탭해 보세요",
   "coachPinchZoom": "두 손가락으로 확대해 보세요",
+  "coachHintBubble": "막힘 없는 화살을 찾아드려요.",
+  "coachRemoveBubble": "제거할 화살을 탭하세요",
   "barFit": "화면맞춤",
   "barHint": "힌트",
   "barRemove": "제거",
