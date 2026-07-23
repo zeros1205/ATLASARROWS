@@ -1,23 +1,26 @@
 import 'package:flutter/widgets.dart';
 
-/// Locale-aware type. Korean uses Paperlogy, other locales use Outfit,
-/// Pretendard is the glyph fallback for both. A 6-step scale keeps every
-/// screen on the same rhythm — use these, not ad-hoc sizes.
+/// One type family for the whole UI: Pretendard, across every locale. It
+/// carries Latin, Cyrillic and full Hangul; Japanese kana/kanji and Chinese
+/// hanzi it lacks fall through to the platform CJK font. A 6-step scale keeps
+/// every screen on the same rhythm — use these, not ad-hoc sizes.
+///
+/// The only text NOT on this family is the ATLAS/ARROWS wordmark, which pins
+/// itself to Outfit (see home_screen's `_Wordmark`).
 ///
 /// ⛔ 16 is the floor, everywhere. [label] and [caption] are no longer smaller
 /// than [body] — they differ in weight and tracking only. Do not reintroduce a
 /// `fontSize:` under 16 in a copyWith; that is what this scale exists to stop.
 abstract final class AppText {
-  /// Latin display face; Hangul falls back to Paperlogy via [fallback].
-  static const _latin = 'Outfit';
-  static const _hangul = 'Paperlogy';
-  static const fallback = <String>[_hangul, 'Pretendard'];
+  static const _fam = 'Pretendard';
 
-  /// Chooses the primary family for the active locale.
-  static String familyFor(Locale? locale) =>
-      locale?.languageCode == 'ko' ? _hangul : _latin;
+  /// Only Regular (400) and Bold (700) Pretendard weights are bundled, so any
+  /// requested weight resolves to the nearer of the two.
+  static const fallback = <String>[];
 
-  static const _fam = _latin; // pre-boot default; overridden per-locale in theme
+  /// The primary family is Pretendard regardless of locale; kept as a function
+  /// so the theme's per-locale wiring has nothing to special-case.
+  static String familyFor(Locale? locale) => _fam;
 
   static const display = TextStyle(
     fontFamily: _fam, fontFamilyFallback: fallback,

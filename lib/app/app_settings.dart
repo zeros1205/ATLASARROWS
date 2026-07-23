@@ -17,9 +17,9 @@ class AppSettings extends ChangeNotifier {
   ThemeMode get themeMode => _themeMode;
   Locale? get locale => _locale;
 
-  /// Ten service languages. Latin (Outfit) + Hangul (Paperlogy) cover most;
-  /// Japanese (kana/kanji) and Simplified Chinese (hanzi) need a CJK font
-  /// (Noto Sans CJK covers both), and Russian needs Cyrillic glyph coverage.
+  /// Ten service languages. Pretendard carries Latin, Cyrillic (Russian) and
+  /// Hangul; Japanese (kana/kanji) and Simplified Chinese (hanzi) fall through
+  /// to the platform CJK font, which Pretendard doesn't cover.
   static final supportedLocales = <Locale>[
     const Locale('en'),
     const Locale('de'),

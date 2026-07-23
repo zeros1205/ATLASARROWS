@@ -267,6 +267,9 @@ class _Wordmark extends StatelessWidget {
 
   Widget _line(String text, Color fill, double tracking) {
     final base = AppText.display.copyWith(
+        // The wordmark is the one bit of type off the app's Pretendard family:
+        // it reproduces the Figma lockup, which is Outfit Bold.
+        fontFamily: 'Outfit',
         fontSize: _size,
         fontWeight: FontWeight.w700,
         letterSpacing: tracking,
