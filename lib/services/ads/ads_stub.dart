@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../app/tokens/colors.dart';
 import '../../app/tokens/typography.dart';
+import '../../l10n/app_localizations.dart';
 import '../progress.dart';
 
 /// Web/desktop stub: no ad SDK, just the reserved layout slot.
@@ -42,7 +43,7 @@ class AdsMrec extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('중간 배너 광고',
+                  Text(AppLocalizations.of(context).adPlaceholderMrec,
                       style: AppText.label
                           .copyWith(color: c.inkFaint, letterSpacing: 3)),
                   Text('300 × 250',

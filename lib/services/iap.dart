@@ -5,6 +5,28 @@ import 'package:in_app_purchase/in_app_purchase.dart';
 
 import 'progress.dart';
 
+/// A purchase outcome, resolved to a localized snackbar string where it is
+/// shown (AppShell). The service layer has no [BuildContext], so it reports the
+/// outcome symbolically rather than as a baked-in string.
+enum IapOutcome {
+  purchaseStartFailed,
+  restoreUnsupported,
+  restoreChecked,
+  restoreFailed,
+  purchaseFailed,
+  hintsGranted,
+  removesGranted,
+  adsRemoved,
+}
+
+class IapMessage {
+  const IapMessage(this.outcome, [this.count = 0]);
+  final IapOutcome outcome;
+
+  /// Item count for [IapOutcome.hintsGranted] / [IapOutcome.removesGranted].
+  final int count;
+}
+
 /// In-app purchases: hint / remove bundles (consumable) and remove-ads
 /// (non-consumable). Product ids must be registered in Play Console / App
 /// Store Connect with the same ids; until then [products] stays empty and the
@@ -51,7 +73,7 @@ class IapService {
   final ValueNotifier<bool> busy = ValueNotifier(false);
 
   /// Last user-facing purchase outcome, for a snackbar. Cleared after reading.
-  final ValueNotifier<String?> message = ValueNotifier(null);
+  final ValueNotifier<IapMessage?> message = ValueNotifier(null);
 
   StreamSubscription<List<PurchaseDetails>>? _subscription;
 
@@ -89,7 +111,7 @@ class IapService {
       }
     } catch (_) {
       busy.value = false;
-      message.value = '구매를 시작하지 못했어요.';
+      message.value = const IapMessage(IapOutcome.purchaseStartFailed);
     }
   }
 
@@ -97,15 +119,15 @@ class IapService {
   /// design — they've already been granted and spent.
   Future<void> restore() async {
     if (!supported) {
-      message.value = '이 기기에서는 복원을 지원하지 않아요.';
+      message.value = const IapMessage(IapOutcome.restoreUnsupported);
       return;
     }
     busy.value = true;
     try {
       await InAppPurchase.instance.restorePurchases();
-      message.value = '구매 내역을 확인했어요.';
+      message.value = const IapMessage(IapOutcome.restoreChecked);
     } catch (_) {
-      message.value = '복원에 실패했어요.';
+      message.value = const IapMessage(IapOutcome.restoreFailed);
     }
     busy.value = false;
   }
@@ -120,7 +142,7 @@ class IapService {
         case PurchaseStatus.canceled:
           busy.value = false;
           if (purchase.status == PurchaseStatus.error) {
-            message.value = '구매를 완료하지 못했어요.';
+            message.value = const IapMessage(IapOutcome.purchaseFailed);
           }
         case PurchaseStatus.purchased:
         case PurchaseStatus.restored:
@@ -137,18 +159,18 @@ class IapService {
     final hints = hintProducts[purchase.productID];
     if (hints != null) {
       Progress.instance.grantHints(hints);
-      message.value = '힌트 $hints개를 받았어요.';
+      message.value = IapMessage(IapOutcome.hintsGranted, hints);
       return;
     }
     final removes = removeProducts[purchase.productID];
     if (removes != null) {
       Progress.instance.grantRemoves(removes);
-      message.value = '제거 $removes개를 받았어요.';
+      message.value = IapMessage(IapOutcome.removesGranted, removes);
       return;
     }
     if (purchase.productID == removeAdsProduct) {
       Progress.instance.setAdsRemoved(true);
-      message.value = '광고가 제거되었어요.';
+      message.value = const IapMessage(IapOutcome.adsRemoved);
     }
   }
 

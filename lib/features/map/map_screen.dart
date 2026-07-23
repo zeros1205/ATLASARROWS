@@ -8,6 +8,7 @@ import '../../app/shell.dart';
 import '../../app/tokens/colors.dart';
 import '../../app/tokens/dimens.dart';
 import '../../app/tokens/typography.dart';
+import '../../l10n/app_localizations.dart';
 import '../../models/campaign_repository.dart';
 import '../../models/world_map.dart';
 import '../../services/progress.dart';
@@ -306,18 +307,19 @@ class _MapScreenState extends State<MapScreen>
   @override
   Widget build(BuildContext context) {
     final col = AppColors.of(context);
+    final l = AppLocalizations.of(context);
     // Header on top, map below it. The map area then runs from the header's
     // bottom edge (this column's split) down to the top line of the floating
     // tab bar — no measuring, the Expanded gives exactly that band.
     return Column(
       children: [
-        SafeArea(bottom: false, child: const MetaHeader('맵')),
+        SafeArea(bottom: false, child: MetaHeader(l.tabMap)),
         Expanded(
           child: !_ready
               ? Center(child: CircularProgressIndicator(color: col.accent))
               : !_wm.isLoaded
                   ? Center(
-                      child: Text('지도를 불러올 수 없습니다.',
+                      child: Text(l.mapLoadError,
                           style: TextStyle(color: col.inkFaint)))
                   : LayoutBuilder(
                       builder: (context, cons) {

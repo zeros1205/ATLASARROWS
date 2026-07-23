@@ -15,6 +15,7 @@ import 'package:in_app_purchase/in_app_purchase.dart';
 import '../../app/tokens/colors.dart';
 import '../../app/tokens/dimens.dart';
 import '../../app/tokens/typography.dart';
+import '../../l10n/app_localizations.dart';
 import '../../game/atlas_arrows_game.dart';
 import '../../models/campaign_repository.dart'
     show CampaignCountry, CampaignRepository, StageKind;
@@ -549,11 +550,14 @@ class _GameScreenState extends State<GameScreen>
       // centres inside the status-bar inset instead and drops the box low
       // enough that its title, not its middle, sits on the centre line.
       useSafeArea: false,
-      builder: (_) => const _ConfirmDialog(
-        title: '다시 시작할까요?',
-        body: '지금까지 뺀 화살표가 모두 처음 상태로 돌아갑니다.',
-        confirm: '다시 시작',
-      ),
+      builder: (dctx) {
+        final l = AppLocalizations.of(dctx);
+        return _ConfirmDialog(
+          title: l.gameRestartTitle,
+          body: l.gameRestartBody,
+          confirm: l.gameRestartConfirm,
+        );
+      },
     );
     if (ok == true && mounted) _restart();
   }
@@ -570,11 +574,14 @@ class _GameScreenState extends State<GameScreen>
     final ok = await showDialog<bool>(
       context: context,
       useSafeArea: false,
-      builder: (_) => const _ConfirmDialog(
-        title: '게임을 나갈까요?',
-        body: '지금 풀던 판은 저장되지 않아요.',
-        confirm: '나가기',
-      ),
+      builder: (dctx) {
+        final l = AppLocalizations.of(dctx);
+        return _ConfirmDialog(
+          title: l.gameLeaveTitle,
+          body: l.gameLeaveBody,
+          confirm: l.gameLeaveConfirm,
+        );
+      },
     );
     if (ok == true && mounted) Navigator.of(context).pop();
   }
@@ -777,14 +784,15 @@ class _GameScreenState extends State<GameScreen>
               ValueListenableBuilder<bool>(
                 valueListenable: Progress.instance.coachDone,
                 builder: (context, done, _) => !done
-                    ? const _CoachCue('빛나는 화살표를 탭해 보세요',
+                    ? _CoachCue(AppLocalizations.of(context).coachTapArrow,
                         icon: Icons.touch_app_outlined)
                     // A board too large to tap at fit scale is the one case
                     // where the player has to be told about the gesture.
                     : ValueListenableBuilder<bool>(
                         valueListenable: _game.needsZoom,
                         builder: (context, needed, _) => needed
-                            ? const _CoachCue('두 손가락으로 확대해 보세요',
+                            ? _CoachCue(
+                                AppLocalizations.of(context).coachPinchZoom,
                                 icon: Icons.pinch_outlined)
                             : const SizedBox.shrink(),
                       ),
@@ -895,6 +903,7 @@ class _RoundIntro extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = AppColors.of(context);
+    final l = AppLocalizations.of(context);
     return Positioned.fill(
       child: Container(
         color: c.bg,
@@ -904,7 +913,7 @@ class _RoundIntro extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('ROUND ${round.toString().padLeft(2, '0')}',
+                Text(l.roundBadge(round.toString().padLeft(2, '0')),
                     style: AppText.label.copyWith(
                         color: c.accent, letterSpacing: 4)),
                 const SizedBox(height: 12),
@@ -926,11 +935,11 @@ class _RoundIntro extends StatelessWidget {
                       // The fallback has to match the round it describes: a
                       // one-board round has no cities to "connect".
                       final fallback = country.teaches.isNotEmpty
-                          ? '이번 라운드에서 배울 것 — ${country.teaches}'
+                          ? l.roundTeaches(country.teaches)
                           : country.cityCount > 0
-                              ? '${country.displayName}의 도시 ${country.cityCount}곳을 지나 '
-                                  '마지막에 나라 전체를 풀어냅니다.'
-                              : '${country.displayName}의 영토를 한 판으로 풀어냅니다.';
+                              ? l.roundCitiesIntro(
+                                  country.displayName, country.cityCount)
+                              : l.roundSingleIntro(country.displayName);
                       return Text(
                         blurb.isNotEmpty ? blurb : fallback,
                         style: AppText.body.copyWith(
@@ -942,9 +951,9 @@ class _RoundIntro extends StatelessWidget {
                 const SizedBox(height: 20),
                 Row(
                   children: [
-                    _stat(c, '${country.stageCount}', '스테이지'),
-                    _stat(c, '${country.cityCount}', '도시'),
-                    _stat(c, '1', '국가'),
+                    _stat(c, '${country.stageCount}', l.roundStatStages),
+                    _stat(c, '${country.cityCount}', l.roundStatCities),
+                    _stat(c, '1', l.roundStatCountry),
                   ],
                 ),
                 const SizedBox(height: 22),
@@ -958,7 +967,7 @@ class _RoundIntro extends StatelessWidget {
                       color: c.accent,
                       borderRadius: BorderRadius.circular(AppRadius.pill),
                     ),
-                    child: Text('라운드 시작',
+                    child: Text(l.roundStart,
                         style: AppText.headline.copyWith(
                             color: c.onAccent, fontWeight: FontWeight.w700)),
                   ),
@@ -1168,7 +1177,8 @@ class _ConfirmDialog extends StatelessWidget {
             const SizedBox(height: 20),
             Row(
               children: [
-                button('취소', Colors.transparent, c.inkSoft, false,
+                button(AppLocalizations.of(context).cancel,
+                    Colors.transparent, c.inkSoft, false,
                     outline: true),
                 const SizedBox(width: 10),
                 button(confirm, c.accent, c.onAccent, true),
@@ -1360,6 +1370,7 @@ class _BoosterBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Padding(
       // Bottom padding is the gap to the ad banner: three times the top, so
       // the controls read as part of the board rather than as part of the ad.
@@ -1369,7 +1380,7 @@ class _BoosterBar extends StatelessWidget {
         children: [
           _UtilButton(
             icon: Icons.center_focus_strong_outlined,
-            label: '화면맞춤',
+            label: l.barFit,
             onTap: onResetView,
           ),
           // The two consumables read as one group; the utilities do not sit
@@ -1379,7 +1390,7 @@ class _BoosterBar extends StatelessWidget {
             valueListenable: Progress.instance.hints,
             builder: (context, n, _) => _BoosterButton(
               icon: 'assets/images/icons/hint.png',
-              label: '힌트',
+              label: l.barHint,
               count: n,
               onTap: () {
                 if (n <= 0) {
@@ -1399,7 +1410,7 @@ class _BoosterBar extends StatelessWidget {
               valueListenable: Progress.instance.removes,
               builder: (context, n, _) => _BoosterButton(
                 icon: 'assets/images/icons/remove.png',
-                label: '제거',
+                label: l.barRemove,
                 count: n,
                 armed: armed,
                 onTap: () {
@@ -1416,7 +1427,7 @@ class _BoosterBar extends StatelessWidget {
           ]),
           _UtilButton(
             icon: Icons.refresh,
-            label: '재시작',
+            label: l.barRestart,
             onTap: onRestart,
           ),
         ],
@@ -1619,14 +1630,15 @@ class _ResultSheetState extends State<_ResultSheet>
         valueListenable: Progress.instance.refillCoupons,
         builder: (context, coupons, _) {
           final free = coupons > 0;
+          final l = AppLocalizations.of(context);
           return Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('하트 소진',
+              Text(l.heartsOutTitle,
                   style: AppText.title.copyWith(
                       color: c.ink, fontWeight: FontWeight.w700, fontSize: 22)),
               const SizedBox(height: 12),
-              Text(free ? '계속 플레이 하세요.' : '광고 한 편 보면 하트가 가득 차요.',
+              Text(free ? l.heartsOutFree : l.heartsOutAd,
                   textAlign: TextAlign.center,
                   style: AppText.body.copyWith(color: c.inkSoft)),
               const SizedBox(height: 16),
@@ -1635,15 +1647,15 @@ class _ResultSheetState extends State<_ResultSheet>
               // secondary option when by then it is the only one.
               _bigButton(
                 c,
-                free ? '리필쿠폰($coupons)' : '광고 보고 충전',
+                free ? l.refillCoupon(coupons) : l.refillViaAd,
                 c.accent,
                 c.onAccent,
                 () => widget.onRefill(viaAd: !free),
                 icon: free ? 'assets/images/icons/heart.png' : null,
               ),
               const SizedBox(height: 10),
-              _bigButton(
-                  c, '다시 시작', Colors.transparent, c.inkFaint, widget.onRestart,
+              _bigButton(c, l.gameRestartConfirm, Colors.transparent,
+                  c.inkFaint, widget.onRestart,
                   outline: true),
             ],
           );
@@ -1711,8 +1723,9 @@ class _ItemSheetState extends State<_ItemSheet> {
         setState(() => _watchingAd = false);
         ScaffoldMessenger.of(context)
           ..clearSnackBars()
-          ..showSnackBar(const SnackBar(
-              content: Text('지금은 볼 수 있는 광고가 없어요. 잠시 후 다시 시도해 주세요.')));
+          ..showSnackBar(SnackBar(
+              content:
+                  Text(AppLocalizations.of(context).toastNoAdAvailable)));
       },
     );
   }
@@ -1720,6 +1733,7 @@ class _ItemSheetState extends State<_ItemSheet> {
   @override
   Widget build(BuildContext context) {
     final c = AppColors.of(context);
+    final l = AppLocalizations.of(context);
     final bottomInset = MediaQuery.of(context).viewPadding.bottom;
     return Container(
       decoration: BoxDecoration(
@@ -1739,11 +1753,11 @@ class _ItemSheetState extends State<_ItemSheet> {
                 borderRadius: BorderRadius.circular(AppRadius.pill)),
           ),
           const SizedBox(height: 16),
-          Text(widget.forHint ? '힌트가 없어요' : '제거가 없어요',
+          Text(widget.forHint ? l.itemSheetNoHints : l.itemSheetNoRemoves,
               style: AppText.title.copyWith(
                   color: c.ink, fontWeight: FontWeight.w700, fontSize: 20)),
           const SizedBox(height: 4),
-          Text('채우고 이어서 풀 수 있어요.',
+          Text(l.itemSheetRefill,
               style: AppText.body.copyWith(color: c.inkSoft)),
           const SizedBox(height: 18),
           // Prices and disabled states track the store, so rebuild on both.
@@ -1753,7 +1767,7 @@ class _ItemSheetState extends State<_ItemSheet> {
               valueListenable: _iap.busy,
               builder: (context, busy, _) => Column(
                 mainAxisSize: MainAxisSize.min,
-                children: _rows(c, busy),
+                children: _rows(c, busy, l),
               ),
             ),
           ),
@@ -1762,13 +1776,13 @@ class _ItemSheetState extends State<_ItemSheet> {
     );
   }
 
-  List<Widget> _rows(AppColors c, bool busy) {
+  List<Widget> _rows(AppColors c, bool busy, AppLocalizations l) {
     // The free ad only ever grants a hint, so it travels with the hint bundles.
     final ad = _row(
       c,
       icon: 'assets/images/icons/hint.png',
-      label: '광고 보고 힌트 +1',
-      trailing: _watchingAd ? '재생 중…' : '무료',
+      label: l.shopWatchAdForHint,
+      trailing: _watchingAd ? l.adPlaying : l.free,
       tint: c.success,
       enabled: !_watchingAd,
       onTap: _watchAdForHint,
@@ -1777,26 +1791,26 @@ class _ItemSheetState extends State<_ItemSheet> {
       ad,
       for (final id in IapService.hintProducts.keys)
         _productRow(c, id, 'assets/images/icons/hint.png',
-            '힌트 ${IapService.hintProducts[id]}개', busy),
+            l.hintsBundle(IapService.hintProducts[id]!), busy, l),
     ];
     final removes = [
       for (final id in IapService.removeProducts.keys)
         _productRow(c, id, 'assets/images/icons/remove.png',
-            '제거 ${IapService.removeProducts[id]}개', busy),
+            l.removesBundle(IapService.removeProducts[id]!), busy, l),
     ];
     // Lead with whichever item ran out.
     return widget.forHint ? [...hints, ...removes] : [...removes, ...hints];
   }
 
-  Widget _productRow(
-      AppColors c, String id, String icon, String label, bool busy) {
+  Widget _productRow(AppColors c, String id, String icon, String label,
+      bool busy, AppLocalizations l) {
     final product = _iap.productFor(id);
     return _row(
       c,
       icon: icon,
       label: label,
-      // Store's localized price when registered, 준비중 until then.
-      trailing: product?.price ?? '준비중',
+      // Store's localized price when registered, coming-soon until then.
+      trailing: product?.price ?? l.comingSoon,
       tint: c.accent,
       enabled: product != null && !busy,
       onTap: product != null ? () => _iap.buy(product) : null,
@@ -1915,7 +1929,7 @@ class _ClearArrivalState extends State<_ClearArrival>
   @override
   Widget build(BuildContext context) {
     final c = AppColors.of(context);
-    final ko = Localizations.localeOf(context).languageCode == 'ko';
+    final l = AppLocalizations.of(context);
     final hasCity = widget.city.isNotEmpty;
 
     return Positioned.fill(
@@ -2034,7 +2048,7 @@ class _ClearArrivalState extends State<_ClearArrival>
                                       borderRadius: BorderRadius.circular(
                                           AppRadius.pill),
                                     ),
-                                    child: Text(ko ? '계속하기' : 'Continue',
+                                    child: Text(l.clearContinue,
                                         style: kButtonText.copyWith(
                                             color: c.onAccent)),
                                   ),

@@ -50,6 +50,7 @@ dependencies:
   # sentry-cocoa is still the same risk going forward — this pin only fixes
   # today's mismatch, not the underlying lack of an SPM lockfile.
   sentry_flutter: ">=9.25.0 <10.0.0"
+  intl: ^0.20.2
 
 dev_dependencies:
   flutter_test:
@@ -64,6 +65,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  generate: true
   assets:
     - assets/audio/
     - assets/shapes/

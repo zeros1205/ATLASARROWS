@@ -7,6 +7,7 @@ import '../../app/shell.dart';
 import '../../app/tokens/colors.dart';
 import '../../app/tokens/dimens.dart';
 import '../../app/tokens/typography.dart';
+import '../../l10n/app_localizations.dart';
 import '../../services/iap.dart';
 import '../../services/progress.dart';
 import '../../shared/meta_header.dart';
@@ -23,11 +24,12 @@ class SettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final settings = AppSettings.instance;
     final progress = Progress.instance;
+    final l = AppLocalizations.of(context);
     return SafeArea(
       bottom: false,
       child: Column(
         children: [
-          const MetaHeader('설정'),
+          MetaHeader(l.tabSettings),
           Expanded(
             // SettingsScreen is a const child of the shell's IndexedStack, so it
             // never rebuilds on its own — without this, the dark-mode row's
@@ -41,37 +43,38 @@ class SettingsScreen extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(18, 6, 18, 96),
                 children: [
                   _ToggleRow(
-                    label: '다크 모드',
+                    label: l.settingsDarkMode,
                     value: settings.themeMode == ThemeMode.dark,
                     onChanged: settings.setDarkMode,
                   ),
                   _BoundToggleRow(
-                    label: '소리',
+                    label: l.settingsSound,
                     source: progress.soundOn,
                     onChanged: progress.setSound,
                   ),
                   _BoundToggleRow(
-                    label: '진동',
+                    label: l.settingsHaptics,
                     source: progress.hapticsOn,
                     onChanged: progress.setHaptics,
                   ),
                   _NavRow(
-                    label: '언어',
-                    trailing: AppSettings
-                            .languageNames[settings.locale?.languageCode] ??
-                        '한국어',
+                    label: l.settingsLanguage,
+                    trailing: AppSettings.languageNames[
+                            settings.locale?.languageCode ??
+                                Localizations.localeOf(context).languageCode] ??
+                        AppSettings.languageNames['ko']!,
                     onTap: () => _pickLanguage(context),
                   ),
                   const SizedBox(height: AppGap.lg),
                   _NavRow(
-                    label: '튜토리얼 다시 보기',
+                    label: l.settingsReplayTutorial,
                     trailing: '›',
                     onTap: () => _replayOnboarding(context),
                   ),
                   const SizedBox(height: AppGap.lg),
                   _RemoveAdsRow(),
                   _NavRow(
-                    label: '구매 복원',
+                    label: l.settingsRestorePurchases,
                     trailing: '›',
                     onTap: IapService.instance.restore,
                   ),
@@ -140,19 +143,20 @@ class _RemoveAdsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final iap = IapService.instance;
+    final l = AppLocalizations.of(context);
     return ValueListenableBuilder<bool>(
       valueListenable: Progress.instance.adsRemoved,
       builder: (context, removed, _) {
         if (removed) {
-          return const _NavRow(label: '광고 제거', trailing: '보유 중');
+          return _NavRow(label: l.removeAds, trailing: l.owned);
         }
         return ValueListenableBuilder<List<ProductDetails>>(
           valueListenable: iap.products,
           builder: (context, _, _) {
             final product = iap.productFor(IapService.removeAdsProduct);
             return _NavRow(
-              label: '광고 제거',
-              trailing: product == null ? '준비중' : '${product.price} ›',
+              label: l.removeAds,
+              trailing: product == null ? l.comingSoon : '${product.price} ›',
               onTap: product == null ? null : () => iap.buy(product),
             );
           },

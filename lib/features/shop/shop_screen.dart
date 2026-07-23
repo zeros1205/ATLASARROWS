@@ -4,6 +4,7 @@ import 'package:in_app_purchase/in_app_purchase.dart';
 import '../../app/tokens/colors.dart';
 import '../../app/tokens/dimens.dart';
 import '../../app/tokens/typography.dart';
+import '../../l10n/app_localizations.dart';
 import '../../services/ads/ads.dart';
 import '../../services/iap.dart';
 import '../../services/progress.dart';
@@ -37,11 +38,11 @@ class _ShopScreenState extends State<ShopScreen> {
       onReward: () {
         Progress.instance.grantHints(1);
         if (mounted) setState(() => _watchingAd = false);
-        _toast('힌트 1개를 받았어요.');
+        if (mounted) _toast(AppLocalizations.of(context).toastHintGranted1);
       },
       onUnavailable: () {
         if (mounted) setState(() => _watchingAd = false);
-        _toast('지금은 볼 수 있는 광고가 없어요. 잠시 후 다시 시도해 주세요.');
+        if (mounted) _toast(AppLocalizations.of(context).toastNoAdAvailable);
       },
     );
   }
@@ -55,11 +56,12 @@ class _ShopScreenState extends State<ShopScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return SafeArea(
       bottom: false,
       child: Column(
         children: [
-          const MetaHeader('상점'),
+          MetaHeader(l.tabShop),
           const _Inventory(),
           Expanded(
             child: ValueListenableBuilder<List<ProductDetails>>(
@@ -69,12 +71,12 @@ class _ShopScreenState extends State<ShopScreen> {
                 builder: (context, busy, _) => ListView(
                   padding: const EdgeInsets.fromLTRB(18, 6, 18, 96),
                   children: [
-                    _sectionLabel(context, '아이템'),
+                    _sectionLabel(context, l.shopSectionItems),
                     // Free first — a player with no money still has a way out.
                     _Tile(
                       icon: 'assets/images/icons/hint.png',
-                      label: '광고 보고 힌트 +1',
-                      price: _watchingAd ? '재생 중…' : '무료',
+                      label: l.shopWatchAdForHint,
+                      price: _watchingAd ? l.adPlaying : l.free,
                       accent: true,
                       enabled: !_watchingAd,
                       onTap: _watchAdForHint,
@@ -83,35 +85,35 @@ class _ShopScreenState extends State<ShopScreen> {
                       _productTile(
                         id: id,
                         icon: 'assets/images/icons/hint.png',
-                        fallback: '힌트 ${IapService.hintProducts[id]}개',
+                        fallback: l.hintsBundle(IapService.hintProducts[id]!),
                         busy: busy,
                       ),
                     for (final id in IapService.removeProducts.keys)
                       _productTile(
                         id: id,
                         icon: 'assets/images/icons/remove.png',
-                        fallback: '제거 ${IapService.removeProducts[id]}개',
+                        fallback: l.removesBundle(IapService.removeProducts[id]!),
                         busy: busy,
                       ),
                     const SizedBox(height: AppGap.lg),
-                    _sectionLabel(context, '광고'),
+                    _sectionLabel(context, l.shopSectionAds),
                     ValueListenableBuilder<bool>(
                       valueListenable: Progress.instance.adsRemoved,
                       builder: (context, removed, _) => removed
-                          ? const _Tile(
-                              label: '광고 제거',
-                              price: '보유 중',
+                          ? _Tile(
+                              label: l.removeAds,
+                              price: l.owned,
                               enabled: false,
                             )
                           : _productTile(
                               id: IapService.removeAdsProduct,
-                              fallback: '광고 제거',
+                              fallback: l.removeAds,
                               busy: busy,
                               danger: true,
                             ),
                     ),
                     _Tile(
-                      label: '구매 복원',
+                      label: l.settingsRestorePurchases,
                       price: '›',
                       enabled: !busy,
                       onTap: _iap.restore,
@@ -150,7 +152,7 @@ class _ShopScreenState extends State<ShopScreen> {
       // Our own label, not the store's — store titles carry an app-name suffix.
       label: fallback,
       // The store's localized price string, so currency follows the account.
-      price: ready ? product.price : '준비중',
+      price: ready ? product.price : AppLocalizations.of(context).comingSoon,
       danger: danger,
       enabled: ready && !busy,
       onTap: ready ? () => _iap.buy(product) : null,
@@ -166,6 +168,7 @@ class _Inventory extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = AppColors.of(context);
+    final l = AppLocalizations.of(context);
     Widget count(String icon, ValueNotifier<int> source, String label) =>
         Expanded(
           child: ValueListenableBuilder<int>(
@@ -195,10 +198,11 @@ class _Inventory extends StatelessWidget {
       ),
       child: Row(
         children: [
-          count('assets/images/icons/hint.png', Progress.instance.hints, '힌트'),
+          count('assets/images/icons/hint.png', Progress.instance.hints,
+              l.inventoryHints),
           Container(width: 1, height: 20, color: c.line),
           count('assets/images/icons/remove.png', Progress.instance.removes,
-              '제거'),
+              l.inventoryRemoves),
         ],
       ),
     );

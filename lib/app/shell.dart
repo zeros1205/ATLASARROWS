@@ -4,6 +4,7 @@ import '../features/home/home_screen.dart';
 import '../features/map/map_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/shop/shop_screen.dart';
+import '../l10n/app_localizations.dart';
 import '../services/iap.dart';
 import '../shared/pressable.dart';
 import 'tokens/colors.dart';
@@ -29,13 +30,6 @@ class AppShell extends StatefulWidget {
 }
 
 class _AppShellState extends State<AppShell> {
-  static const _tabs = [
-    (icon: Icons.home_outlined, active: Icons.home, label: '홈'),
-    (icon: Icons.public_outlined, active: Icons.public, label: '맵'),
-    (icon: Icons.storefront_outlined, active: Icons.storefront, label: '상점'),
-    (icon: Icons.settings_outlined, active: Icons.settings, label: '설정'),
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -51,9 +45,20 @@ class _AppShellState extends State<AppShell> {
   }
 
   void _showPurchaseMessage() {
-    final text = IapService.instance.message.value;
-    if (text == null || !mounted) return;
+    final msg = IapService.instance.message.value;
+    if (msg == null || !mounted) return;
     IapService.instance.message.value = null;
+    final l = AppLocalizations.of(context);
+    final text = switch (msg.outcome) {
+      IapOutcome.purchaseStartFailed => l.iapPurchaseStartFailed,
+      IapOutcome.restoreUnsupported => l.iapRestoreUnsupported,
+      IapOutcome.restoreChecked => l.iapRestoreChecked,
+      IapOutcome.restoreFailed => l.iapRestoreFailed,
+      IapOutcome.purchaseFailed => l.iapPurchaseFailed,
+      IapOutcome.hintsGranted => l.iapHintsGranted(msg.count),
+      IapOutcome.removesGranted => l.iapRemovesGranted(msg.count),
+      IapOutcome.adsRemoved => l.iapAdsRemoved,
+    };
     ScaffoldMessenger.of(context)
       ..clearSnackBars()
       ..showSnackBar(SnackBar(content: Text(text)));
@@ -61,6 +66,13 @@ class _AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final tabs = <({IconData icon, IconData active, String label})>[
+      (icon: Icons.home_outlined, active: Icons.home, label: l.tabHome),
+      (icon: Icons.public_outlined, active: Icons.public, label: l.tabMap),
+      (icon: Icons.storefront_outlined, active: Icons.storefront, label: l.tabShop),
+      (icon: Icons.settings_outlined, active: Icons.settings, label: l.tabSettings),
+    ];
     return ValueListenableBuilder<int>(
       valueListenable: appTab,
       builder: (context, index, _) => Scaffold(
@@ -79,7 +91,7 @@ class _AppShellState extends State<AppShell> {
         ),
         bottomNavigationBar: _TabBar(
           index: index,
-          tabs: _tabs,
+          tabs: tabs,
           onTap: (i) => appTab.value = i,
         ),
       ),

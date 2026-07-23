@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../app/tokens/colors.dart';
 import '../../app/tokens/dimens.dart';
 import '../../app/tokens/typography.dart';
+import '../../l10n/app_localizations.dart';
 import '../../models/campaign_repository.dart';
 import '../../shared/motion.dart';
 import '../../shared/pressable.dart';
@@ -20,6 +21,7 @@ class CountryDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = AppColors.of(context);
+    final l = AppLocalizations.of(context);
     final repo = CampaignRepository.instance;
     final country = repo.countries[countryIndex];
     final first = repo.firstStageOf(countryIndex);
@@ -59,7 +61,7 @@ class CountryDetailScreen extends StatelessWidget {
                 const SizedBox(height: 12),
                 // Emoji label so the stat needs no translation. Small and light
                 // — a quiet caption, not a heading.
-                Text('⬜  ${_fmtArea(country.areaKm2)}',
+                Text('⬜  ${_fmtArea(country.areaKm2, l.areaUnderOne)}',
                     style: AppText.caption.copyWith(
                         color: c.inkSoft,
                         fontSize: 12.5,
@@ -113,8 +115,8 @@ class CountryDetailScreen extends StatelessWidget {
 }
 
 /// "9,833,517㎢" — thousands-grouped, with a floor for sub-1km² micro-states.
-String _fmtArea(int km2) {
-  if (km2 < 1) return '1㎢ 미만';
+String _fmtArea(int km2, String underOne) {
+  if (km2 < 1) return underOne;
   final s = km2.toString();
   final b = StringBuffer();
   for (var i = 0; i < s.length; i++) {

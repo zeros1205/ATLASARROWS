@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import '../features/boot/boot_screen.dart';
+import '../l10n/app_localizations.dart';
 import 'app_settings.dart';
 import 'theme.dart';
 
@@ -26,6 +27,7 @@ class AtlasArrowsApp extends StatelessWidget {
           locale: locale,
           supportedLocales: AppSettings.supportedLocales,
           localizationsDelegates: const [
+            AppLocalizations.delegate,
             GlobalMaterialLocalizations.delegate,
             GlobalWidgetsLocalizations.delegate,
             GlobalCupertinoLocalizations.delegate,

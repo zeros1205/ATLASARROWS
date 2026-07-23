@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../app/tokens/colors.dart';
 import '../../app/tokens/dimens.dart';
 import '../../app/tokens/typography.dart';
+import '../../l10n/app_localizations.dart';
 import '../../services/progress.dart';
 import '../../shared/motion.dart';
 import '../../shared/pressable.dart';
@@ -24,28 +25,27 @@ class OnboardingScreen extends StatefulWidget {
 }
 
 class _OnboardingScreenState extends State<OnboardingScreen> {
-  final _pages = const [
-    (
-      rule: OnboardingRule.escape,
-      title: '화살표를 탭하세요',
-      body: '탭한 화살표는 머리가 향한 방향으로 미끄러져 보드를 빠져나갑니다.',
-    ),
-    (
-      rule: OnboardingRule.blocked,
-      title: '앞이 막히면 부딪힙니다',
-      body: '길을 막는 화살표가 있으면 튕겨 나오고 하트를 하나 잃어요. 순서가 곧 실력입니다.',
-    ),
-    (
-      rule: OnboardingRule.clear,
-      title: '보드를 비우면 클리어',
-      body: '모든 화살표를 내보내면 스테이지 완료. 세계지도를 따라 다음 나라로 나아가세요.',
-    ),
+  static const _rules = [
+    OnboardingRule.escape,
+    OnboardingRule.blocked,
+    OnboardingRule.clear,
   ];
+
+  /// Localized title + body for a rule card.
+  static (String, String) _copy(AppLocalizations l, OnboardingRule rule) =>
+      switch (rule) {
+        OnboardingRule.escape =>
+          (l.onboardingEscapeTitle, l.onboardingEscapeBody),
+        OnboardingRule.blocked =>
+          (l.onboardingBlockedTitle, l.onboardingBlockedBody),
+        OnboardingRule.clear =>
+          (l.onboardingClearTitle, l.onboardingClearBody),
+      };
 
   final _controller = PageController();
   int _index = 0;
 
-  bool get _isLast => _index == _pages.length - 1;
+  bool get _isLast => _index == _rules.length - 1;
 
   @override
   void dispose() {
@@ -73,6 +73,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     final c = AppColors.of(context);
+    final l = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: c.bg,
       body: SafeArea(
@@ -88,7 +89,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
                       horizontal: 20, vertical: 14),
-                  child: Text('건너뛰기',
+                  child: Text(l.onboardingSkip,
                       style: AppText.label.copyWith(color: c.inkFaint)),
                 ),
               ),
@@ -96,10 +97,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             Expanded(
               child: PageView.builder(
                 controller: _controller,
-                itemCount: _pages.length,
+                itemCount: _rules.length,
                 onPageChanged: (i) => setState(() => _index = i),
                 itemBuilder: (context, i) {
-                  final page = _pages[i];
+                  final rule = _rules[i];
+                  final (title, body) = _copy(l, rule);
                   return Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 32),
                     child: Column(
@@ -108,15 +110,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         SizedBox(
                           height: 220,
                           width: 220,
-                          child: OnboardingDiagram(rule: page.rule),
+                          child: OnboardingDiagram(rule: rule),
                         ),
                         const SizedBox(height: AppGap.xxl),
-                        Text(page.title,
+                        Text(title,
                             textAlign: TextAlign.center,
                             style: AppText.display.copyWith(
                                 color: c.ink, fontSize: 26, height: 1.2)),
                         const SizedBox(height: AppGap.md),
-                        Text(page.body,
+                        Text(body,
                             textAlign: TextAlign.center,
                             style: AppText.body.copyWith(
                                 color: c.inkSoft, height: 1.5)),
@@ -127,7 +129,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 },
               ),
             ),
-            _Dots(count: _pages.length, index: _index, colors: c),
+            _Dots(count: _rules.length, index: _index, colors: c),
             const SizedBox(height: AppGap.lg),
             Padding(
               padding: const EdgeInsets.fromLTRB(32, 0, 32, 24),
@@ -141,7 +143,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     color: c.accent,
                     borderRadius: BorderRadius.circular(AppRadius.pill),
                   ),
-                  child: Text(_isLast ? '플레이 시작' : '다음',
+                  child: Text(_isLast ? l.onboardingStart : l.next,
                       style: kButtonText.copyWith(color: c.onAccent)),
                 ),
               ),

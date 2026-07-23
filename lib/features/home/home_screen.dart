@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../app/tokens/colors.dart';
 import '../../app/tokens/dimens.dart';
 import '../../app/tokens/typography.dart';
+import '../../l10n/app_localizations.dart';
 import '../../models/campaign_repository.dart';
 import '../../models/world_map.dart';
 import '../../services/progress.dart';
@@ -120,7 +121,7 @@ class _HomeScreenState extends State<HomeScreen> {
           valueListenable: Progress.instance.unlocked,
           builder: (context, unlocked, _) {
             final isNew = unlocked <= 0;
-            final ko = Localizations.localeOf(context).languageCode == 'ko';
+            final l = AppLocalizations.of(context);
             // The country the play button will open into — its dots get lit and
             // pulsed on the map below, tying the CTA to a place on the globe.
             final target = _targetCountry(unlocked);
@@ -183,14 +184,13 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Column(
                       children: [
                         _PrimaryButton(
-                          label: ko
-                              ? (isNew ? '월드 투어' : '월드 투어 계속하기')
-                              : (isNew ? 'World Tour' : 'Continue World Tour'),
+                          label:
+                              isNew ? l.homeWorldTour : l.homeWorldTourContinue,
                           onTap: () => play(mode: PlayMode.worldTour),
                         ),
                         const SizedBox(height: AppGap.md),
                         _SecondaryButton(
-                          label: ko ? '랜덤 플레이' : 'Random',
+                          label: l.homeRandom,
                           onTap: () => play(mode: PlayMode.random),
                         ),
                       ],
