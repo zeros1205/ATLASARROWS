@@ -15,7 +15,8 @@
 | App Store Connect에 **앱 레코드 생성** | ⚠️ **미확인.** 인증서·프로파일은 TestFlight 배포용으로 이미 만들어져 있지만,
 그것과 "My Apps › +"로 앱 자체를 등록하는 것은 별개 절차다. 스토어 등록정보 입력 화면은
 앱 레코드를 만들어야 나타난다. |
-| 개인정보처리방침 URL | `docs/PLAY_STORE_LISTING.md` 0번 항목과 동일 — 지금 403으로 배포 실패 중, 먼저 해결 필요 |
+| 개인정보처리방침 URL | ✅ 라이브 — `https://atlasarrows.loganland.app/privacy/` (`docs/PLAY_STORE_LISTING.md` 0번 항목 참고) |
+| 라이선스 계약(EULA, 선택) | 기본 Apple 표준 EULA 대신 커스텀을 쓰려면 `https://atlasarrows.loganland.app/terms/` 사용 가능 |
 
 **앱 레코드를 아직 안 만들었다면 먼저 할 것**: App Store Connect › 나의 앱 › **+** →
 플랫폼 iOS, 이름 `Atlas Arrows: Tap Puzzle`, 기본 언어 한국어, 번들 ID
@@ -47,8 +48,8 @@
 | 프로모션 텍스트 (170자 이하, **심사 없이 수시 수정 가능**) | 아래 참고 (148자) |
 | 설명 (4,000자 이하) | `docs/PLAY_STORE_LISTING.md` §1의 전체 설명과 **동일 텍스트 재사용** |
 | 키워드 (100자 이하, 쉼표 구분·공백 없이) | 아래 참고 (82자) |
-| 지원 URL(필수) | `https://atlasarrows.loganland.app/#support` (배포 후) |
-| 마케팅 URL(선택) | `https://atlasarrows.loganland.app` |
+| 지원 URL(필수) | `https://atlasarrows.loganland.app/#support` (라이브) |
+| 마케팅 URL(선택) | `https://atlasarrows.loganland.app` (라이브) |
 | 저작권 표시가 있는 스크린샷 문구 | 해당 없음 |
 
 ### 프로모션 텍스트 (148자)
