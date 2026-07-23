@@ -1,14 +1,14 @@
 {
-  "version": 2,
-  "edge": 512,
+  "version": 3,
+  "edge": 384,
   "packs": [
     {
       "continent": "Africa",
       "slug": "africa",
-      "file": "stamps-africa-v2.zip",
+      "file": "stamps-africa-v3.zip",
       "count": 55,
-      "bytes": 3828660,
-      "sha256": "b852702f95cbac8b051c06aca654a1eb3a325a5778ffd98fbd540624e002e341",
+      "bytes": 2421880,
+      "sha256": "cac691640ed54a8b5bac41c6651bc0967af2cc5b51c08d36ebafcf87cfa4c53d",
       "ranks": [
         20,
         23,
@@ -70,10 +70,10 @@
     {
       "continent": "Asia",
       "slug": "asia",
-      "file": "stamps-asia-v2.zip",
+      "file": "stamps-asia-v3.zip",
       "count": 52,
-      "bytes": 3325598,
-      "sha256": "47b8c47fb4f11c8722141b63efcd81d097e3a8d2ee6697ef4511303c0c8e7f67",
+      "bytes": 2238266,
+      "sha256": "d80f88d2a9b851b8cf50fda9795ac2791378f81d2b4df42232291b6dad97eba9",
       "ranks": [
         5,
         34,
@@ -132,10 +132,10 @@
     {
       "continent": "Europe",
       "slug": "europe",
-      "file": "stamps-europe-v2.zip",
+      "file": "stamps-europe-v3.zip",
       "count": 50,
-      "bytes": 2837398,
-      "sha256": "5be29f342b1409eeabcc235ad07c78c7417ec27eac0f94670d2f41d59d2a448b",
+      "bytes": 2123760,
+      "sha256": "fa37dce4eafa550d1dc5e00b61153e5d1d8566ced75234d2af639b73f9c2dbdf",
       "ranks": [
         1,
         4,
@@ -192,10 +192,10 @@
     {
       "continent": "North America",
       "slug": "north-america",
-      "file": "stamps-north-america-v2.zip",
+      "file": "stamps-north-america-v3.zip",
       "count": 31,
-      "bytes": 1678554,
-      "sha256": "3e3d55e4a53953778967d8c146567cd578347fec6469b570c91eeef5a12e228d",
+      "bytes": 1313672,
+      "sha256": "9bef221d503fe7c0a4db6251e360c2962e830482a204e6ccfed3b47a20bc1b6a",
       "ranks": [
         6,
         10,
@@ -233,10 +233,10 @@
     {
       "continent": "Oceania",
       "slug": "oceania",
-      "file": "stamps-oceania-v2.zip",
+      "file": "stamps-oceania-v3.zip",
       "count": 15,
-      "bytes": 856588,
-      "sha256": "5cdbf5d0c7f3aeaa9f6f286a8f3838e240e154c3ac55c1133ebfcbcb4b64091e",
+      "bytes": 655508,
+      "sha256": "92d7501e453e07cca7dd4a22980a11de5187e162492b9008a8fc0c121cdd225d",
       "ranks": [
         2,
         3,
@@ -258,10 +258,10 @@
     {
       "continent": "South America",
       "slug": "south-america",
-      "file": "stamps-south-america-v2.zip",
+      "file": "stamps-south-america-v3.zip",
       "count": 13,
-      "bytes": 973050,
-      "sha256": "27d7ff224bcc5d1f9d377f7380bb3175df78591c1c1711d99f6016a30bfa6e98",
+      "bytes": 589656,
+      "sha256": "48088a44c5929bf2d1a3314a87c235f34d1ae743c13e5293d17ed69a40e30358",
       "ranks": [
         58,
         123,
