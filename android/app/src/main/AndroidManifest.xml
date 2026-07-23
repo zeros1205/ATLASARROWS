@@ -1,4 +1,5 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <application
         android:label="Atlas Arrows"
         android:name="${applicationName}"
@@ -36,13 +37,19 @@
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="ca-app-pub-3940256099942544~3347511713" />
-        <!-- Play Games Services. The id lives in res/values/games_ids.xml and
-             is a placeholder until the Play Console setup is done; Dart-side
-             sign-in stays disabled until then so the SDK is never initialized
-             with a bad id. -->
+        <!-- Play Games Services. The real numeric id lives in
+             res/values/games_ids.xml (see lib/services/game_services.dart —
+             androidConfigured is now true). -->
         <meta-data
             android:name="com.google.android.gms.games.APP_ID"
             android:value="@string/games_app_id" />
+        <!-- MainActivity calls PlayGamesSdk.initialize() itself, so the SDK's
+             own auto-init ContentProvider must be removed — leaving both in
+             means the SDK gets initialized twice through two different paths,
+             which the plugin's own docs warn against pairing incorrectly. -->
+        <provider
+            tools:node="remove"
+            android:name="com.google.android.gms.games.provider.PlayGamesInitProvider" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and
