@@ -97,6 +97,14 @@ kotlin {
     }
 }
 
+dependencies {
+    // MainActivity calls PlayGamesSdk.initialize() directly. The games_services
+    // plugin depends on this same artifact, but as `implementation`, which
+    // Gradle does not expose transitively to this module's compile classpath —
+    // so it has to be declared here too, not just left to the plugin.
+    implementation("com.google.android.gms:play-services-games-v2:21.0.0")
+}
+
 flutter {
     source = "../.."
 }
