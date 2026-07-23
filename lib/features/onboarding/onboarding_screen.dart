@@ -155,59 +155,49 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  /// The items card: the two consumable controls (hint, remove) with what each
-  /// one does. The play screen shows them as bare icons, so this is where their
-  /// names and effects are taught.
+  /// The items card: the two consumable controls (hint, remove) stacked in a
+  /// single centred column — each as button image → name → effect. The play
+  /// screen shows them as bare icons, so this is where they are taught.
   Widget _itemsPage(AppColors c, AppLocalizations l) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 32),
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Spacer(),
-          Text(l.onboardingItemsTitle,
-              textAlign: TextAlign.center,
-              style: AppText.display
-                  .copyWith(color: c.ink, fontSize: 26, height: 1.2)),
-          const SizedBox(height: AppGap.xxl),
-          _itemRow(c, 'assets/images/icons/hint.png', l.barHint,
+          _itemCard(c, 'assets/images/icons/hint.png', l.barHint,
               l.onboardingItemHintDesc),
-          const SizedBox(height: AppGap.lg),
-          _itemRow(c, 'assets/images/icons/remove.png', l.barRemove,
+          const SizedBox(height: AppGap.xxl),
+          _itemCard(c, 'assets/images/icons/remove.png', l.barRemove,
               l.onboardingItemRemoveDesc),
-          const Spacer(flex: 2),
         ],
       ),
     );
   }
 
-  /// One item: its in-game icon in a tile like the play screen's, then its name
-  /// and what it does.
-  Widget _itemRow(AppColors c, String icon, String name, String desc) => Row(
+  /// One item, centred: its in-game button tile (icon at 2x), then its name,
+  /// then what it does.
+  Widget _itemCard(AppColors c, String icon, String name, String desc) => Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 60,
-            height: 60,
+            width: 116,
+            height: 116,
             decoration: BoxDecoration(
               color: c.surface,
-              borderRadius: BorderRadius.circular(AppRadius.lg),
+              borderRadius: BorderRadius.circular(AppRadius.xl),
               border: Border.all(color: c.line, width: 1.5),
             ),
-            child: Center(child: Image.asset(icon, width: 34, height: 34)),
+            child: Center(child: Image.asset(icon, width: 68, height: 68)),
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(name,
-                    style: AppText.headline
-                        .copyWith(color: c.ink, fontWeight: FontWeight.w800)),
-                const SizedBox(height: 4),
-                Text(desc,
-                    style: AppText.body.copyWith(color: c.inkSoft, height: 1.4)),
-              ],
-            ),
-          ),
+          const SizedBox(height: 14),
+          Text(name,
+              textAlign: TextAlign.center,
+              style: AppText.headline
+                  .copyWith(color: c.ink, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 6),
+          Text(desc,
+              textAlign: TextAlign.center,
+              style: AppText.body.copyWith(color: c.inkSoft, height: 1.4)),
         ],
       );
 }
