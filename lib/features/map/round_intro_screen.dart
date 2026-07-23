@@ -135,7 +135,7 @@ class _RoundIntroScreenState extends State<RoundIntroScreen>
                           textAlign: TextAlign.center,
                           style: AppText.display.copyWith(
                               color: c.ink,
-                              fontWeight: FontWeight.w900,
+                              fontWeight: FontWeight.w700,
                               height: 1.05),
                         ),
                       ),

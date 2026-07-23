@@ -194,7 +194,7 @@ class _AdsMrecState extends State<AdsMrec> {
                   : Text('AD',
                       style: AppText.label.copyWith(
                           color: c.inkFaint,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w700,
                           letterSpacing: 4)),
             ),
     );
@@ -264,7 +264,7 @@ class _AdsBannerState extends State<AdsBanner> {
                   : Text('AD',
                       style: AppText.label.copyWith(
                           color: c.inkFaint,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w700,
                           letterSpacing: 4)),
             ),
     );

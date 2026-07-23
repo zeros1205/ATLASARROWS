@@ -10,7 +10,6 @@ import '../../models/world_map.dart';
 import '../../services/progress.dart';
 import '../../shared/motion.dart';
 import '../../shared/pressable.dart';
-import '../../shared/theme_toggle_button.dart';
 import '../game/game_screen.dart';
 import 'play_transition.dart';
 
@@ -206,15 +205,6 @@ class _HomeScreenState extends State<HomeScreen> {
             );
           },
             ),
-            Positioned(
-              top: 4,
-              right: 12,
-              child: AnimatedOpacity(
-                duration: const Duration(milliseconds: 200),
-                opacity: _diving ? 0 : 1,
-                child: const ThemeToggleButton(),
-              ),
-            ),
           ],
         ),
       ),
@@ -355,6 +345,13 @@ class _RadarWorldMapState extends State<_RadarWorldMap>
   List<int> _hot = const [];
   double _cr = 0, _cc = 0;
 
+  /// Columns to roll the whole map by so the target lands dead centre. Unlike
+  /// the map tab (which scrolls to a fixed beacon) this map never scrolls, so
+  /// centring a country that straddles the left/right seam — a Pacific nation
+  /// split across the antimeridian — has to be done by moving the seam itself
+  /// to fall on the opposite side of the world instead.
+  int _shift = 0;
+
   @override
   void initState() {
     super.initState();
@@ -393,20 +390,30 @@ class _RadarWorldMapState extends State<_RadarWorldMap>
 
   void _recompute() {
     final hot = <int>[];
-    var sr = 0.0, sc = 0.0;
+    var sr = 0.0, sx = 0.0, sy = 0.0;
     if (_wm.isLoaded && widget.target >= 0) {
       for (var i = 0; i < _wm.cells.length; i++) {
         if (_wm.countryOfCell(_wm.cells[i]) == widget.target) {
           hot.add(i);
           sr += i ~/ _wm.cols;
-          sc += i % _wm.cols;
+          // Circular mean of the column, not a plain average: a country
+          // split across the map's seam (column 0 next to column cols-1)
+          // otherwise averages to the middle of the ocean instead of onto
+          // either half of the actual landmass.
+          final theta = i % _wm.cols / _wm.cols * 2 * math.pi;
+          sx += math.cos(theta);
+          sy += math.sin(theta);
         }
       }
     }
     _hot = hot;
+    _shift = 0;
     if (hot.isNotEmpty) {
       _cr = sr / hot.length;
-      _cc = sc / hot.length;
+      var meanCol = math.atan2(sy, sx) / (2 * math.pi) * _wm.cols;
+      if (meanCol < 0) meanCol += _wm.cols;
+      _shift = (_wm.cols / 2 - meanCol).round() % _wm.cols;
+      _cc = (meanCol + _shift) % _wm.cols;
     }
   }
 
@@ -423,7 +430,7 @@ class _RadarWorldMapState extends State<_RadarWorldMap>
         child: Stack(
           children: [
             Positioned.fill(
-              child: CustomPaint(painter: _DotsPainter(_wm, _hot, c)),
+              child: CustomPaint(painter: _DotsPainter(_wm, _hot, c, _shift)),
             ),
             if (_hot.isNotEmpty)
               Positioned.fill(
@@ -458,10 +465,14 @@ class _RadarWorldMapState extends State<_RadarWorldMap>
 /// Static layer: faint land dots, plus the target country's dots in accent
 /// (with a soft glow underlay). Repaints only on target / theme change.
 class _DotsPainter extends CustomPainter {
-  _DotsPainter(this.wm, this.hot, this.c) : _hotSet = hot.toSet();
+  _DotsPainter(this.wm, this.hot, this.c, this.shift) : _hotSet = hot.toSet();
   final WorldMap wm;
   final List<int> hot;
   final AppColors c;
+
+  /// Columns to roll every cell by, so the target country (if any) is
+  /// centred — see [_RadarWorldMapState._shift].
+  final int shift;
   final Set<int> _hotSet;
 
   @override
@@ -473,7 +484,7 @@ class _DotsPainter extends CustomPainter {
     final faint = Paint()..color = c.inkSoft.withValues(alpha: 0.7);
     for (var i = 0; i < wm.cells.length; i++) {
       if (wm.cells[i] < 0 || _hotSet.contains(i)) continue;
-      final row = i ~/ wm.cols, col = i % wm.cols;
+      final row = i ~/ wm.cols, col = (i % wm.cols + shift) % wm.cols;
       canvas.drawCircle(
           Offset(f.dx + col * f.scale + f.scale / 2,
               f.dy + row * f.scale + f.scale / 2),
@@ -486,7 +497,7 @@ class _DotsPainter extends CustomPainter {
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
     final solid = Paint()..color = c.accent;
     for (final i in hot) {
-      final row = i ~/ wm.cols, col = i % wm.cols;
+      final row = i ~/ wm.cols, col = (i % wm.cols + shift) % wm.cols;
       final o = Offset(f.dx + col * f.scale + f.scale / 2,
           f.dy + row * f.scale + f.scale / 2);
       canvas.drawCircle(o, rHot * 1.3, glow);
@@ -496,7 +507,7 @@ class _DotsPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_DotsPainter old) =>
-      old.c != c || !identical(old.hot, hot);
+      old.c != c || old.shift != shift || !identical(old.hot, hot);
 }
 
 /// Animating layer: the sonar rings and centre beacon over the target centroid.

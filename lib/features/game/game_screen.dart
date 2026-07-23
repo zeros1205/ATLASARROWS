@@ -564,7 +564,7 @@ class _GameScreenState extends State<GameScreen> {
                                       child: Text('CLEAR',
                                           style: AppText.label.copyWith(
                                               color: Colors.white,
-                                              fontWeight: FontWeight.w900)),
+                                              fontWeight: FontWeight.w700)),
                                     ),
                                   ),
                                 ),
@@ -746,7 +746,7 @@ class _RoundIntro extends StatelessWidget {
                 const SizedBox(height: 12),
                 Text(country.displayName,
                     style: AppText.display.copyWith(
-                        color: c.ink, fontWeight: FontWeight.w900, height: 1.05)),
+                        color: c.ink, fontWeight: FontWeight.w700, height: 1.05)),
                 if (country.ko.isNotEmpty && country.name != country.ko)
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
@@ -796,7 +796,7 @@ class _RoundIntro extends StatelessWidget {
                     ),
                     child: Text('라운드 시작',
                         style: AppText.headline.copyWith(
-                            color: c.onAccent, fontWeight: FontWeight.w900)),
+                            color: c.onAccent, fontWeight: FontWeight.w700)),
                   ),
                 ),
               ],
@@ -820,7 +820,7 @@ class _RoundIntro extends StatelessWidget {
             children: [
               Text(value,
                   style: AppText.title.copyWith(
-                      color: c.ink, fontWeight: FontWeight.w900, fontSize: 26)),
+                      color: c.ink, fontWeight: FontWeight.w700, fontSize: 26)),
               const SizedBox(height: 2),
               Text(label,
                   style: AppText.caption.copyWith(
@@ -887,7 +887,7 @@ class _Header extends StatelessWidget {
           Center(
             child: Text(stageLabel,
                 style: AppText.headline
-                    .copyWith(color: c.ink, fontWeight: FontWeight.w900)),
+                    .copyWith(color: c.ink, fontWeight: FontWeight.w700)),
           ),
           Align(
             alignment: Alignment.centerLeft,
@@ -929,7 +929,7 @@ class _ConfirmDialog extends StatelessWidget {
           child: Pressable(
             onTap: () => Navigator.of(context).pop(value),
             child: Container(
-              padding: const EdgeInsets.symmetric(vertical: kButtonPadV),
+              padding: const EdgeInsets.symmetric(vertical: kPopupButtonPadV),
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: bg,
@@ -1128,7 +1128,7 @@ class _IntroTitleCardState extends State<_IntroTitleCard>
                 Text(widget.title,
                     textAlign: TextAlign.center,
                     style: AppText.display.copyWith(
-                        color: c.ink, fontWeight: FontWeight.w900, height: 1.05)),
+                        color: c.ink, fontWeight: FontWeight.w700, height: 1.05)),
                 if (widget.sub.isNotEmpty) ...[
                   const SizedBox(height: 6),
                   Text(widget.sub,
@@ -1332,7 +1332,7 @@ class _BoosterButton extends StatelessWidget {
                 ),
                 child: Text(count > 0 ? '$count' : '+',
                     style: AppText.caption.copyWith(
-                        color: c.bg, fontWeight: FontWeight.w900, height: 1)),
+                        color: c.bg, fontWeight: FontWeight.w700, height: 1)),
               ),
             ),
           ],
@@ -1432,7 +1432,7 @@ class _ResultSheetState extends State<_ResultSheet>
             children: [
               Text('하트 소진',
                   style: AppText.title.copyWith(
-                      color: c.ink, fontWeight: FontWeight.w900, fontSize: 22)),
+                      color: c.ink, fontWeight: FontWeight.w700, fontSize: 22)),
               const SizedBox(height: 12),
               Text(free ? '계속 플레이 하세요.' : '광고 한 편 보면 하트가 가득 차요.',
                   textAlign: TextAlign.center,
@@ -1465,7 +1465,7 @@ class _ResultSheetState extends State<_ResultSheet>
         onTap: onTap,
         child: Container(
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: kButtonPadV),
+          padding: const EdgeInsets.symmetric(vertical: kPopupButtonPadV),
           alignment: Alignment.center,
           decoration: BoxDecoration(
             color: bg,
@@ -1549,7 +1549,7 @@ class _ItemSheetState extends State<_ItemSheet> {
           const SizedBox(height: 16),
           Text(widget.forHint ? '힌트가 없어요' : '제거가 없어요',
               style: AppText.title.copyWith(
-                  color: c.ink, fontWeight: FontWeight.w900, fontSize: 20)),
+                  color: c.ink, fontWeight: FontWeight.w700, fontSize: 20)),
           const SizedBox(height: 4),
           Text('채우고 이어서 풀 수 있어요.',
               style: AppText.body.copyWith(color: c.inkSoft)),
@@ -1639,7 +1639,7 @@ class _ItemSheetState extends State<_ItemSheet> {
           Text(trailing,
               style: AppText.label.copyWith(
                   color: enabled ? tint : c.inkFaint,
-                  fontWeight: FontWeight.w900)),
+                  fontWeight: FontWeight.w700)),
         ],
       ),
     );
@@ -1742,6 +1742,13 @@ class _ClearArrivalState extends State<_ClearArrival>
               final stampP =
                   ((_c.value - _stampAt) / _stampDur).clamp(0.0, 1.0);
               final contT = _seg(0.78, 1.0);
+              // Stamp reads at 336 on a 390pt-wide reference phone; scale
+              // proportionally to screen width elsewhere so it can't outgrow
+              // the space this card actually has, clamped so it neither
+              // vanishes on tiny screens nor dominates on tablets.
+              final stampSize =
+                  (MediaQuery.sizeOf(context).width * 336 / 390)
+                      .clamp(200.0, 340.0);
               return Column(
                 children: [
                   // Top half: the place's flag over its city + country, centred.
@@ -1763,7 +1770,7 @@ class _ClearArrivalState extends State<_ClearArrival>
                             _rising(widget.city, cityT,
                                 AppText.display.copyWith(
                                     color: c.ink,
-                                    fontWeight: FontWeight.w900,
+                                    fontWeight: FontWeight.w700,
                                     fontSize: 40,
                                     height: 1.05)),
                             const SizedBox(height: 8),
@@ -1776,7 +1783,7 @@ class _ClearArrivalState extends State<_ClearArrival>
                             _rising(widget.country, countryT,
                                 AppText.display.copyWith(
                                     color: c.ink,
-                                    fontWeight: FontWeight.w900,
+                                    fontWeight: FontWeight.w700,
                                     fontSize: 40,
                                     height: 1.05)),
                         ],
@@ -1785,27 +1792,33 @@ class _ClearArrivalState extends State<_ClearArrival>
                   ),
                   // Bottom half: the visa stamp thumps down in the free space
                   // above the Continue button, which is pinned to the bottom.
+                  // Clipped to this half so the stamp's scale-up bounce can
+                  // never paint over the flag/city/country half above it.
                   Expanded(
                     child: Column(
                       children: [
                         Expanded(
-                          child: Center(
-                            child: stampP <= 0
-                                ? const SizedBox.shrink()
-                                : Transform.rotate(
-                                    angle: -0.05,
-                                    child: Opacity(
-                                      opacity: (stampP * 2.5).clamp(0.0, 1.0),
-                                      child: Transform.scale(
-                                        scale: 1.45 -
-                                            0.45 *
-                                                Curves.easeOutBack
-                                                    .transform(stampP),
-                                        child: _StampMark(
-                                            rank: widget.stampRank, size: 336),
+                          child: ClipRect(
+                            child: Center(
+                              child: stampP <= 0
+                                  ? const SizedBox.shrink()
+                                  : Transform.rotate(
+                                      angle: -0.05,
+                                      child: Opacity(
+                                        opacity:
+                                            (stampP * 2.5).clamp(0.0, 1.0),
+                                        child: Transform.scale(
+                                          scale: 1.45 -
+                                              0.45 *
+                                                  Curves.easeOutBack
+                                                      .transform(stampP),
+                                          child: _StampMark(
+                                              rank: widget.stampRank,
+                                              size: stampSize),
+                                        ),
                                       ),
                                     ),
-                                  ),
+                            ),
                           ),
                         ),
                         Opacity(
@@ -1895,7 +1908,7 @@ class _StampMark extends StatelessWidget {
           child: Text('VISITED',
               style: AppText.label.copyWith(
                   color: c.accent,
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.w700,
                   letterSpacing: 1.5)),
         );
       },

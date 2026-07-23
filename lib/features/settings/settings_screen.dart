@@ -31,51 +31,60 @@ class SettingsScreen extends StatelessWidget {
         children: [
           const MetaHeader('설정'),
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(18, 6, 18, 96),
-              children: [
-                _ToggleRow(
-                  label: '다크 모드',
-                  value: settings.themeMode == ThemeMode.dark,
-                  onChanged: settings.setDarkMode,
-                ),
-                _BoundToggleRow(
-                  label: '소리',
-                  source: progress.soundOn,
-                  onChanged: progress.setSound,
-                ),
-                _BoundToggleRow(
-                  label: '진동',
-                  source: progress.hapticsOn,
-                  onChanged: progress.setHaptics,
-                ),
-                _NavRow(
-                  label: '언어',
-                  trailing: AppSettings
-                          .languageNames[settings.locale?.languageCode] ??
-                      '한국어',
-                  onTap: () => _pickLanguage(context),
-                ),
-                const SizedBox(height: AppGap.lg),
-                if (GameServices.supported) ...[
-                  _GameServicesRows(),
+            // SettingsScreen is a const child of the shell's IndexedStack, so it
+            // never rebuilds on its own — without this, the dark-mode row's
+            // `value` and the language row's `trailing` were read once at
+            // construction and never again, so tapping the dark-mode switch
+            // changed the app's actual theme (the root listens separately) but
+            // the switch itself stayed stuck in its old position.
+            child: AnimatedBuilder(
+              animation: settings,
+              builder: (context, _) => ListView(
+                padding: const EdgeInsets.fromLTRB(18, 6, 18, 96),
+                children: [
+                  _ToggleRow(
+                    label: '다크 모드',
+                    value: settings.themeMode == ThemeMode.dark,
+                    onChanged: settings.setDarkMode,
+                  ),
+                  _BoundToggleRow(
+                    label: '소리',
+                    source: progress.soundOn,
+                    onChanged: progress.setSound,
+                  ),
+                  _BoundToggleRow(
+                    label: '진동',
+                    source: progress.hapticsOn,
+                    onChanged: progress.setHaptics,
+                  ),
+                  _NavRow(
+                    label: '언어',
+                    trailing: AppSettings
+                            .languageNames[settings.locale?.languageCode] ??
+                        '한국어',
+                    onTap: () => _pickLanguage(context),
+                  ),
                   const SizedBox(height: AppGap.lg),
+                  if (GameServices.supported) ...[
+                    _GameServicesRows(),
+                    const SizedBox(height: AppGap.lg),
+                  ],
+                  _NavRow(
+                    label: '튜토리얼 다시 보기',
+                    trailing: '›',
+                    onTap: () => _replayOnboarding(context),
+                  ),
+                  const SizedBox(height: AppGap.lg),
+                  _RemoveAdsRow(),
+                  _NavRow(
+                    label: '구매 복원',
+                    trailing: '›',
+                    onTap: IapService.instance.restore,
+                  ),
+                  const SizedBox(height: 12),
+                  _Version(),
                 ],
-                _NavRow(
-                  label: '튜토리얼 다시 보기',
-                  trailing: '›',
-                  onTap: () => _replayOnboarding(context),
-                ),
-                const SizedBox(height: AppGap.lg),
-                _RemoveAdsRow(),
-                _NavRow(
-                  label: '구매 복원',
-                  trailing: '›',
-                  onTap: IapService.instance.restore,
-                ),
-                const SizedBox(height: 12),
-                _Version(),
-              ],
+              ),
             ),
           ),
         ],
