@@ -5,14 +5,13 @@ import '../../app/tokens/colors.dart';
 import '../../app/tokens/dimens.dart';
 import '../../app/tokens/typography.dart';
 import '../../models/campaign_repository.dart';
-import '../../services/progress.dart';
 import '../../shared/pressable.dart';
 import '../game/game_screen.dart';
 
 /// Full-screen country sheet, opened from a map marker's name bubble. Country
 /// name and flag pinned at the top, then a scrolling list of the round's cities,
-/// each with a play button. Cleared and current cities are playable; ones past
-/// the player's progress are locked. Close with the X, top-right.
+/// each with a play button — every city is open to play freely. Close with the
+/// X, top-right.
 class CountryDetailScreen extends StatelessWidget {
   const CountryDetailScreen({super.key, required this.countryIndex});
   final int countryIndex;
@@ -61,28 +60,21 @@ class CountryDetailScreen extends StatelessWidget {
                       ? Center(
                           child: Text('도시가 없는 라운드예요.',
                               style: AppText.body.copyWith(color: c.inkFaint)))
-                      : ValueListenableBuilder<int>(
-                          valueListenable: Progress.instance.unlocked,
-                          builder: (context, unlocked, _) => ListView.separated(
-                            padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
-                            itemCount: cities.length,
-                            separatorBuilder: (_, _) =>
-                                const SizedBox(height: 10),
-                            itemBuilder: (context, i) {
-                              final city = cities[i];
-                              final playable = city.global <= unlocked;
-                              return _CityRow(
-                                name: city.name,
-                                playable: playable,
-                                onPlay: playable
-                                    ? () => Navigator.of(context).push(
-                                        MaterialPageRoute<void>(
-                                            builder: (_) =>
-                                                GameScreen(stage: city.global)))
-                                    : null,
-                              );
-                            },
-                          ),
+                      : ListView.separated(
+                          padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+                          itemCount: cities.length,
+                          separatorBuilder: (_, _) => const SizedBox(height: 10),
+                          // Every city is open — pick any and play it.
+                          itemBuilder: (context, i) {
+                            final city = cities[i];
+                            return _CityRow(
+                              name: city.name,
+                              onPlay: () => Navigator.of(context).push(
+                                  MaterialPageRoute<void>(
+                                      builder: (_) =>
+                                          GameScreen(stage: city.global))),
+                            );
+                          },
                         ),
                 ),
               ],
@@ -103,13 +95,11 @@ class CountryDetailScreen extends StatelessWidget {
   }
 }
 
-/// One city: its name, and a play button (locked until the player reaches it).
+/// One city: its name and a play button.
 class _CityRow extends StatelessWidget {
-  const _CityRow(
-      {required this.name, required this.playable, required this.onPlay});
+  const _CityRow({required this.name, required this.onPlay});
   final String name;
-  final bool playable;
-  final VoidCallback? onPlay;
+  final VoidCallback onPlay;
 
   @override
   Widget build(BuildContext context) {
@@ -126,24 +116,21 @@ class _CityRow extends StatelessWidget {
           Expanded(
             child: Text(
               name,
-              style: AppText.label.copyWith(
-                  color: playable ? c.ink : c.inkFaint,
-                  fontWeight: FontWeight.w700),
+              style: AppText.label
+                  .copyWith(color: c.ink, fontWeight: FontWeight.w700),
             ),
           ),
           const SizedBox(width: 12),
-          if (playable)
-            Pressable(
-              onTap: onPlay,
-              child: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(color: c.accent, shape: BoxShape.circle),
-                child: Icon(Icons.play_arrow_rounded, size: 26, color: c.onAccent),
-              ),
-            )
-          else
-            Icon(Icons.lock_outline_rounded, size: 22, color: c.inkFaint),
+          Pressable(
+            onTap: onPlay,
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration:
+                  BoxDecoration(color: c.accent, shape: BoxShape.circle),
+              child: Icon(Icons.play_arrow_rounded, size: 26, color: c.onAccent),
+            ),
+          ),
         ],
       ),
     );
@@ -165,7 +152,7 @@ class _Flag extends StatelessWidget {
           borderRadius: BorderRadius.circular(9),
           child: CountryFlag.fromCountryCode(
             iso,
-            theme: const ImageTheme(width: 108, height: 72),
+            theme: const ImageTheme(width: 54, height: 36),
           ),
         ),
       );
