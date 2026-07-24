@@ -9,11 +9,6 @@ import '../progress.dart';
 abstract final class Ads {
   static Future<void> init() async {}
 
-  static void maybeShowInterstitial({
-    required int totalClears,
-    required int levelIndex,
-  }) {}
-
   /// No ad SDK here — succeed immediately so the reward flow is testable
   /// during web/desktop development.
   static void showRewarded({

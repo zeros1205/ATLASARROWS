@@ -15,6 +15,9 @@ dependencies:
   flame_audio: ^2.1.0
   shared_preferences: ^2.5.5
   google_mobile_ads: ^9.0.0
+  # iOS App Tracking Transparency. The prompt must fire before the ad SDK is
+  # initialized so AdMob knows whether the IDFA is available; Android is a no-op.
+  app_tracking_transparency: ^2.0.6
   in_app_purchase: ^3.3.0
   games_services: ^5.1.0
   firebase_core: ^4.12.1

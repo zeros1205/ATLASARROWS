@@ -4,9 +4,13 @@
 	<dict>
 		<key>CADisableMinimumFrameDurationOnPhone</key>
 		<true/>
-		<!-- AdMob app id: Google's TEST id; swap for production at launch. -->
+		<!-- AdMob app id (Atlas Arrows, iOS). -->
 		<key>GADApplicationIdentifier</key>
-		<string>ca-app-pub-3940256099942544~1458002511</string>
+		<string>ca-app-pub-8234120897033274~5701156455</string>
+		<!-- Shown in the iOS App Tracking Transparency prompt. Required by
+		     App Store review once the app calls requestTrackingAuthorization. -->
+		<key>NSUserTrackingUsageDescription</key>
+		<string>This identifier will be used to show you ads that are more relevant to you.</string>
 		<key>CFBundleDevelopmentRegion</key>
 		<string>$(DEVELOPMENT_LANGUAGE)</string>
 		<key>CFBundleDisplayName</key>

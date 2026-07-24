@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:app_tracking_transparency/app_tracking_transparency.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
@@ -7,87 +8,50 @@ import '../../app/tokens/colors.dart';
 import '../../app/tokens/typography.dart';
 import '../progress.dart';
 
-/// Google's official TEST ad units.
-///
-/// ⛔ These are CORRECT for the current stage — do not flag them as a defect,
-/// a TODO, or a launch blocker. Real AdMob unit ids only exist AFTER the app
-/// is officially published: you must ship first, then register the app in
-/// AdMob, and only then are production ids issued. There is no way to obtain
-/// them before release. Swapping them in is a post-launch task. See CLAUDE.md.
+/// Production AdMob ad units (app id in Info.plist / AndroidManifest).
+/// Bottom banner on the play screen.
 String get _bannerId => Platform.isAndroid
-    ? 'ca-app-pub-3940256099942544/6300978111'
-    : 'ca-app-pub-3940256099942544/2934735716';
+    ? 'ca-app-pub-8234120897033274/3685101276'
+    : 'ca-app-pub-8234120897033274/5604807746';
 
-String get _interstitialId => Platform.isAndroid
-    ? 'ca-app-pub-3940256099942544/1033173712'
-    : 'ca-app-pub-3940256099942544/4411468910';
+/// Medium rectangle above the result sheet.
+String get _mrecId => Platform.isAndroid
+    ? 'ca-app-pub-8234120897033274/8303269063'
+    : 'ca-app-pub-8234120897033274/8135748101';
 
+/// Heart-refill rewarded ad.
 String get _rewardedId => Platform.isAndroid
-    ? 'ca-app-pub-3940256099942544/5224354917'
-    : 'ca-app-pub-3940256099942544/1712485313';
+    ? 'ca-app-pub-8234120897033274/5509584763'
+    : 'ca-app-pub-8234120897033274/6973729731';
 
 bool get _supported => Platform.isAndroid || Platform.isIOS;
 
 abstract final class Ads {
-  /// Interstitial cadence: never before this level, then every Nth clear.
-  static const int interstitialMinLevel = 10;
-  static const int interstitialEvery = 3;
-
-  static InterstitialAd? _interstitial;
-  static bool _loading = false;
-
   static Future<void> init() async {
     if (!_supported) return;
+    await _requestTrackingAuthorization();
     await MobileAds.instance.initialize();
-    // Remove-ads kills the interstitial and the banner, but NOT rewarded —
-    // those are opt-in trades the player starts themselves (heart refills,
-    // free hints), so payers keep access to them.
-    _preloadInterstitial();
+    // Remove-ads kills the banner and MREC, but NOT rewarded — those are
+    // opt-in trades the player starts themselves (heart refills, free hints),
+    // so payers keep access to them.
     _preloadRewarded();
   }
 
-  static void _preloadInterstitial() {
-    if (!_supported || _loading || _interstitial != null) return;
-    if (Progress.instance.adsRemoved.value) return;
-    _loading = true;
-    InterstitialAd.load(
-      adUnitId: _interstitialId,
-      request: const AdRequest(),
-      adLoadCallback: InterstitialAdLoadCallback(
-        onAdLoaded: (ad) {
-          _interstitial = ad;
-          _loading = false;
-        },
-        onAdFailedToLoad: (_) => _loading = false,
-      ),
-    );
-  }
-
-  static void maybeShowInterstitial({
-    required int totalClears,
-    required int levelIndex,
-  }) {
-    if (!_supported) return;
-    if (Progress.instance.adsRemoved.value) return;
-    if (levelIndex < interstitialMinLevel) return;
-    if (totalClears % interstitialEvery != 0) return;
-    final ad = _interstitial;
-    if (ad == null) {
-      _preloadInterstitial();
-      return;
+  /// iOS only. Shows Apple's App Tracking Transparency prompt the first time
+  /// (status `notDetermined`) and does nothing thereafter. Must run before
+  /// [MobileAds.instance.initialize] so AdMob picks up whether the IDFA is
+  /// available. Android returns `notSupported`, so this is a no-op there — but
+  /// guarded by [Platform.isIOS] to avoid the round trip entirely.
+  static Future<void> _requestTrackingAuthorization() async {
+    if (!Platform.isIOS) return;
+    try {
+      final status = await AppTrackingTransparency.trackingAuthorizationStatus;
+      if (status == TrackingStatus.notDetermined) {
+        await AppTrackingTransparency.requestTrackingAuthorization();
+      }
+    } catch (_) {
+      // Never let a tracking-prompt hiccup block ad initialization.
     }
-    _interstitial = null;
-    ad.fullScreenContentCallback = FullScreenContentCallback(
-      onAdDismissedFullScreenContent: (ad) {
-        ad.dispose();
-        _preloadInterstitial();
-      },
-      onAdFailedToShowFullScreenContent: (ad, _) {
-        ad.dispose();
-        _preloadInterstitial();
-      },
-    );
-    ad.show();
   }
 
   static RewardedAd? _rewarded;
@@ -156,7 +120,7 @@ class _AdsMrecState extends State<AdsMrec> {
     super.initState();
     if (_supported && !Progress.instance.adsRemoved.value) {
       _ad = BannerAd(
-        adUnitId: _bannerId,
+        adUnitId: _mrecId,
         size: AdSize.mediumRectangle,
         request: const AdRequest(),
         listener: BannerAdListener(

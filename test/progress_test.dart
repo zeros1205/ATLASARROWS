@@ -92,7 +92,7 @@ void main() {
       expect(progress.unlocked.value, 6);
       expect(progress.totalClears.value, 1);
       // Replaying an old stage still counts as a clear, but can't lower the
-      // frontier — the interstitial cadence rides on totalClears.
+      // frontier.
       progress.markCleared(1);
       expect(progress.unlocked.value, 6);
       expect(progress.totalClears.value, 2);

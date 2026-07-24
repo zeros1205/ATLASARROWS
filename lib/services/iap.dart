@@ -52,7 +52,7 @@ class IapService {
     'atlsars_removes_5': 5,
   };
 
-  /// Non-consumable: kills the banner and interstitials for good.
+  /// Non-consumable: kills the banner and MREC for good.
   static const String removeAdsProduct = 'atlsars_remove_ads';
 
   static Set<String> get _allIds => {

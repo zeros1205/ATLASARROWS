@@ -30,12 +30,10 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
-        <!-- AdMob app id — Google's TEST id. Production ids only exist after
-             the app is published and registered in AdMob (see CLAUDE.md), so
-             this is the correct value for now, not a TODO. -->
+        <!-- AdMob app id (Atlas Arrows, Android). -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-3940256099942544~3347511713" />
+            android:value="ca-app-pub-8234120897033274~8769906995" />
         <!-- Play Games Services. The id lives in res/values/games_ids.xml and
              is a placeholder until the Play Console setup is done; Dart-side
              sign-in stays disabled until then so the SDK is never initialized

@@ -519,12 +519,6 @@ class _GameScreenState extends State<GameScreen>
     final crossedIntoNewCountry =
         atCampaignEnd || _repo.locate(_stage + 1).$2 == 0;
     _reportToGameServices(countryCompleted: crossedIntoNewCountry);
-    // Interstitial cadence lives in Ads (never before level 10, then every
-    // 3rd clear); it no-ops for remove-ads owners and on web.
-    Ads.maybeShowInterstitial(
-      totalClears: Progress.instance.totalClears.value,
-      levelIndex: _stage,
-    );
     if (atCampaignEnd) {
       // Direct pop: the PopScope guard below blocks maybePop while playing.
       Navigator.of(context).pop();
@@ -547,10 +541,6 @@ class _GameScreenState extends State<GameScreen>
     Progress.instance.addClear();
     Progress.instance.markPlayedRandom(_stage, _repo.totalStages);
     _reportToGameServices(countryCompleted: false);
-    Ads.maybeShowInterstitial(
-      totalClears: Progress.instance.totalClears.value,
-      levelIndex: _stage,
-    );
     final next = _repo.randomStage(Progress.instance.playedRandom, _rng) ??
         _repo.randomStage(const {}, _rng);
     if (next == null) {
